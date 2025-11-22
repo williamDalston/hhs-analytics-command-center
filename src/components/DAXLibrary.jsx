@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Search, Copy, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useToast } from '../context/ToastContext';
 
 const daxPatterns = [
     // Social Media Metrics
@@ -107,10 +108,30 @@ SELECTEDVALUE('Date'[Year], "All Years") &
 " - " & 
 SELECTEDVALUE('Product'[Category], "All Categories")`,
         category: 'String Manipulation'
+    },
+    {
+        id: 6,
+        title: 'Pareto Analysis (80/20)',
+        description: 'Calculate the cumulative percentage to identify top contributors.',
+        code: `Pareto % = 
+VAR TotalSales = CALCULATE([Total Sales], ALLSELECTED('Product'))
+VAR CurrentSales = [Total Sales]
+VAR CumulativeSales = 
+    CALCULATE(
+        [Total Sales],
+        FILTER(
+            ALLSELECTED('Product'),
+            [Total Sales] >= CurrentSales
+        )
+    )
+RETURN
+DIVIDE(CumulativeSales, TotalSales)`,
+        category: 'Advanced Analytics'
     }
 ];
 
 const DAXLibrary = () => {
+    const { addToast } = useToast();
     const [searchTerm, setSearchTerm] = useState('');
     const [copiedId, setCopiedId] = useState(null);
 
@@ -123,6 +144,7 @@ const DAXLibrary = () => {
     const copyToClipboard = (code, id) => {
         navigator.clipboard.writeText(code);
         setCopiedId(id);
+        addToast('DAX pattern copied to clipboard!', 'success');
         setTimeout(() => setCopiedId(null), 2000);
     };
 
@@ -133,15 +155,23 @@ const DAXLibrary = () => {
                     <h2 className="text-2xl font-bold text-slate-900">DAX Pattern Library</h2>
                     <p className="text-slate-600">HHS & WebFirst approved metrics and patterns.</p>
                 </div>
-                <div className="relative w-full md:w-64">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
-                    <input
-                        type="text"
-                        placeholder="Search patterns..."
-                        className="input-field pl-10"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+                <div className="flex gap-3 w-full md:w-auto">
+                    <div className="relative flex-1 md:w-64">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
+                        <input
+                            type="text"
+                            placeholder="Search patterns..."
+                            className="input-field pl-10"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    <button
+                        onClick={() => addToast('Request submitted to Analytics Lead.', 'info')}
+                        className="btn-secondary whitespace-nowrap"
+                    >
+                        Request Pattern
+                    </button>
                 </div>
             </div>
 
