@@ -84,7 +84,7 @@ const LINE_HEIGHTS = {
 
 // Use Gemini models - try latest first, fallback to older versions
 // Updated model configuration to use stable versions
-const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-pro"];
+const GEMINI_MODELS = ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro"];
 const GEMINI_API_VERSIONS = ["v1beta", "v1"];
 const GEMINI_MODEL = GEMINI_MODELS[0]; // Default to latest
 const PROJECT_GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY?.trim() || '';
@@ -690,14 +690,41 @@ const PowerBIGuru = () => {
                 const genAI = new GoogleGenerativeAI(trimmedKey);
                 let model;
                 let lastModelError;
+                
+                const currentDateTime = new Date().toLocaleString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric', 
+                    hour: 'numeric', 
+                    minute: 'numeric',
+                    timeZoneName: 'short' 
+                });
+
+                const systemPrompt = `You are an expert Power BI Developer and Data Analyst for the US Department of Health and Human Services (HHS), but you are also a helpful general-purpose AI assistant.
+                
+Current Date and Time: ${currentDateTime}
+
+You can answer ANY question the user asks, regardless of the topic (including general knowledge, coding in other languages, creative writing, etc.).
+If the question is about Power BI, DAX, or data, provide expert advice.
+If the question is unrelated, answer it helpfully and accurately without forcing a connection to data.
+You have access to Google Search tools. Use them proactively to verify facts, find current information, or answer questions about recent events.`;
 
                 // Try different models in order of preference
                 for (const modelName of GEMINI_MODELS) {
                     try {
                         model = genAI.getGenerativeModel({
                             model: modelName,
-                            systemInstruction: "You are an expert Power BI Developer and Data Analyst for the US Department of Health and Human Services (HHS), but you are also a helpful general-purpose AI assistant. You can answer ANY question the user asks, regardless of the topic (including general knowledge, coding in other languages, creative writing, etc.). If the question is about Power BI, DAX, or data, provide expert advice. If the question is unrelated, answer it helpfully and accurately without forcing a connection to data."
-                });
+                            systemInstruction: systemPrompt,
+                            tools: [{
+                                googleSearchRetrieval: {
+                                    dynamicRetrievalConfig: {
+                                        mode: "dynamic",
+                                        dynamicThreshold: 0.6,
+                                    },
+                                },
+                            }],
+                        });
                         // Only log in development
                         if (import.meta.env.DEV) {
                             console.log(`Initialized model ${modelName}, attempting to use it...`);

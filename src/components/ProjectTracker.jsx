@@ -1,60 +1,18 @@
-import React, { useState } from 'react';
-import { Plus, Trash2, Calendar, User, FileText, Briefcase, AlertCircle, CheckCircle2, Users, LayoutList, AlertTriangle, Activity, ClipboardList, CheckSquare, Square, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Trash2, Calendar, User, FileText, Briefcase, AlertCircle, CheckCircle2, Users, LayoutList, AlertTriangle, Activity, ClipboardList, CheckSquare, Square, X, Cloud, HardDrive } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
+import { getSupabaseClient } from '../config/supabase';
 
 const ProjectTracker = () => {
     const { addToast } = useToast();
     const [activeTab, setActiveTab] = useState('projects');
-    const [projects, setProjects] = useState([
-        {
-            id: 1,
-            name: 'ASPA Analytics Dashboard (Social & Web)',
-            stakeholder: 'Lakshman / Venkata',
-            deadline: '2023-12-01',
-            status: 'In Progress',
-            priority: 'High',
-            requirements: 'HHS branded theme. Metrics: Impressions, Engagements, Video Views, Website Clicks. Sources: Sprinklr, GA4.'
-        },
-        {
-            id: 2,
-            name: 'Jira Delivery Dashboard',
-            stakeholder: 'David Urer / WebFirst',
-            deadline: '2023-12-15',
-            status: 'Planning',
-            priority: 'Critical',
-            requirements: 'Show throughput, cycle time, and blockers. Transparent view for recompete value.'
-        },
-        {
-            id: 3,
-            name: 'HHS Social Media Audit',
-            stakeholder: 'Caroline / Sogol',
-            deadline: '2023-11-30',
-            status: 'Review',
-            priority: 'Normal',
-            requirements: 'Audit of current social metrics and gaps. Preparation for automated scripts.'
-        }
-    ]);
+    const [projects, setProjects] = useState([]);
+    const [decisions, setDecisions] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [useCloud, setUseCloud] = useState(false);
 
-    const [decisions] = useState([
-        {
-            id: 1,
-            type: 'Decision',
-            title: 'Use HashRouter for GitHub Pages',
-            date: '2023-11-22',
-            status: 'Resolved',
-            description: 'Switched to HashRouter to resolve 404 errors on subpath deployment.'
-        },
-        {
-            id: 2,
-            type: 'Pain Point',
-            title: 'Jira API Access Delay',
-            date: '2023-11-20',
-            status: 'Active',
-            description: 'Waiting on IT approval for PAT token generation. Blocked on live data connection.'
-        }
-    ]);
-
+    // Form state
     const [isAdding, setIsAdding] = useState(false);
     const [selectedProjects, setSelectedProjects] = useState([]);
     const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -67,31 +25,137 @@ const ProjectTracker = () => {
         requirements: ''
     });
 
-    const handleAdd = (e) => {
+    const supabase = getSupabaseClient();
+
+    // --- Data Fetching ---
+    useEffect(() => {
+        const fetchData = async () => {
+            setIsLoading(true);
+            if (supabase) {
+                setUseCloud(true);
+                try {
+                    // Fetch Projects
+                    const { data: projData, error: projError } = await supabase
+                        .from('projects')
+                        .select('*')
+                        .order('created_at', { ascending: false });
+                    
+                    if (projError) throw projError;
+                    setProjects(projData || []);
+
+                    // Fetch Decisions
+                    const { data: decData, error: decError } = await supabase
+                        .from('strategic_items')
+                        .select('*')
+                        .order('date_logged', { ascending: false });
+
+                    if (decError) throw decError;
+                    setDecisions(decData || []);
+
+                } catch (error) {
+                    console.error('Error fetching data:', error);
+                    addToast('Failed to sync with cloud. Using local mode.', 'error');
+                    setUseCloud(false); // Fallback? Or just show empty?
+                }
+            } else {
+                // Local Mock Data (Fallback if Supabase not configured)
+                setUseCloud(false);
+                setProjects([
+                    { id: 1, name: 'ASPA Analytics Dashboard', stakeholder: 'Lakshman', deadline: '2023-12-01', status: 'In Progress', priority: 'High', requirements: 'Local Demo Data' }
+                ]);
+            }
+            setIsLoading(false);
+        };
+
+        fetchData();
+    }, [supabase, addToast]);
+
+    // --- Actions ---
+
+    const handleAdd = async (e) => {
         e.preventDefault();
-        setProjects([...projects, { ...newProject, id: Date.now() }]);
+        
+        if (useCloud && supabase) {
+            try {
+                const { data, error } = await supabase
+                    .from('projects')
+                    .insert([{
+                        name: newProject.name,
+                        stakeholder: newProject.stakeholder,
+                        deadline: newProject.deadline || null,
+                        status: newProject.status,
+                        priority: newProject.priority,
+                        requirements: newProject.requirements
+                    }])
+                    .select();
+
+                if (error) throw error;
+                
+                setProjects([data[0], ...projects]);
+                addToast('Project saved to cloud', 'success');
+            } catch (error) {
+                console.error('Error adding project:', error);
+                addToast('Failed to save project', 'error');
+            }
+        } else {
+            // Local Fallback
+            setProjects([...projects, { ...newProject, id: Date.now() }]);
+            addToast('Project added (Local only)', 'info');
+        }
+
         setNewProject({ name: '', stakeholder: '', deadline: '', status: 'Planning', priority: 'Normal', requirements: '' });
         setIsAdding(false);
-        addToast('New project added successfully', 'success');
     };
 
-    const handleDelete = (id) => {
-        setProjects(projects.filter(p => p.id !== id));
-        addToast('Project deleted', 'info');
-    };
-
-    const handleBulkDelete = () => {
-        if (selectedProjects.length === 0) return;
-
-        const confirmMessage = `Are you sure you want to delete ${selectedProjects.length} project${selectedProjects.length > 1 ? 's' : ''}?`;
-        if (window.confirm(confirmMessage)) {
-            setProjects(projects.filter(p => !selectedProjects.includes(p.id)));
-            setSelectedProjects([]);
-            setIsSelectionMode(false);
-            addToast(`${selectedProjects.length} project${selectedProjects.length > 1 ? 's' : ''} deleted`, 'info');
+    const handleDelete = async (id) => {
+        if (useCloud && supabase) {
+            try {
+                const { error } = await supabase.from('projects').delete().eq('id', id);
+                if (error) throw error;
+                setProjects(projects.filter(p => p.id !== id));
+                addToast('Project deleted from cloud', 'success');
+            } catch (error) {
+                console.error('Error deleting project:', error);
+                addToast('Failed to delete project', 'error');
+            }
+        } else {
+            setProjects(projects.filter(p => p.id !== id));
+            addToast('Project deleted (Local)', 'info');
         }
     };
 
+    const handleBulkDelete = async () => {
+        if (selectedProjects.length === 0) return;
+
+        const confirmMessage = `Delete ${selectedProjects.length} project${selectedProjects.length > 1 ? 's' : ''}?`;
+        if (!window.confirm(confirmMessage)) return;
+
+        if (useCloud && supabase) {
+            try {
+                const { error } = await supabase
+                    .from('projects')
+                    .delete()
+                    .in('id', selectedProjects);
+                
+                if (error) throw error;
+                
+                setProjects(projects.filter(p => !selectedProjects.includes(p.id)));
+                setSelectedProjects([]);
+                setIsSelectionMode(false);
+                addToast('Projects deleted from cloud', 'success');
+            } catch (error) {
+                console.error('Error bulk deleting:', error);
+                addToast('Failed to delete projects', 'error');
+            }
+        } else {
+            setProjects(projects.filter(p => !selectedProjects.includes(p.id)));
+            setSelectedProjects([]);
+            setIsSelectionMode(false);
+            addToast('Projects deleted (Local)', 'info');
+        }
+    };
+
+    // --- Helpers ---
     const toggleProjectSelection = (projectId) => {
         setSelectedProjects(prev =>
             prev.includes(projectId)
@@ -147,14 +211,33 @@ NEXT STEPS:
     const criticalCount = projects.filter(p => p.priority === 'Critical').length;
     const blockerCount = decisions.filter(d => d.status === 'Active').length;
 
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-500"></div>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-8">
             {/* Morning Brief Header */}
             <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
                 <div className="flex justify-between items-start mb-4">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 dark:text-slate-100">Welcome back, Power BI Developer.</h1>
-                        <p className="text-slate-500 dark:text-slate-400 dark:text-slate-500">Here is your morning brief for WebFirst Analytics.</p>
+                        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-3">
+                            Welcome back, Power BI Developer.
+                            {useCloud ? (
+                                <span className="text-xs px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full flex items-center gap-1 font-normal">
+                                    <Cloud className="h-3 w-3" /> Cloud Synced
+                                </span>
+                            ) : (
+                                <span className="text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded-full flex items-center gap-1 font-normal">
+                                    <HardDrive className="h-3 w-3" /> Local Mode
+                                </span>
+                            )}
+                        </h1>
+                        <p className="text-slate-500 dark:text-slate-400">Here is your morning brief for WebFirst Analytics.</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         <button
@@ -287,7 +370,7 @@ NEXT STEPS:
                         >
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                                 <div>
-                                    <label className="block text-sm text-slate-600 dark:text-slate-300 dark:text-slate-300 mb-1">Dashboard Name</label>
+                                    <label className="block text-sm text-slate-600 dark:text-slate-300 mb-1">Dashboard Name</label>
                                     <input
                                         required
                                         className="input-field"
@@ -297,7 +380,7 @@ NEXT STEPS:
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm text-slate-600 dark:text-slate-300 dark:text-slate-300 mb-1">Stakeholder</label>
+                                    <label className="block text-sm text-slate-600 dark:text-slate-300 mb-1">Stakeholder</label>
                                     <input
                                         required
                                         className="input-field"
@@ -307,7 +390,7 @@ NEXT STEPS:
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm text-slate-600 dark:text-slate-300 dark:text-slate-300 mb-1">Deadline</label>
+                                    <label className="block text-sm text-slate-600 dark:text-slate-300 mb-1">Deadline</label>
                                     <input
                                         type="date"
                                         required
@@ -318,7 +401,7 @@ NEXT STEPS:
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm text-slate-600 dark:text-slate-300 dark:text-slate-300 mb-1">Status</label>
+                                        <label className="block text-sm text-slate-600 dark:text-slate-300 mb-1">Status</label>
                                         <select
                                             className="input-field"
                                             value={newProject.status}
@@ -332,7 +415,7 @@ NEXT STEPS:
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="block text-sm text-slate-600 dark:text-slate-300 dark:text-slate-300 mb-1">Priority</label>
+                                        <label className="block text-sm text-slate-600 dark:text-slate-300 mb-1">Priority</label>
                                         <select
                                             className="input-field"
                                             value={newProject.priority}
@@ -346,7 +429,7 @@ NEXT STEPS:
                                 </div>
                             </div>
                             <div className="mb-4">
-                                <label className="block text-sm text-slate-600 dark:text-slate-300 dark:text-slate-300 mb-1">Key Requirements</label>
+                                <label className="block text-sm text-slate-600 dark:text-slate-300 mb-1">Key Requirements</label>
                                 <textarea
                                     className="input-field min-h-[80px]"
                                     value={newProject.requirements}
@@ -386,7 +469,7 @@ NEXT STEPS:
                                                 )}
                                                 {selectedProjects.length === projects.length ? 'Deselect All' : 'Select All'}
                                             </button>
-                                            <span className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                                            <span className="text-sm text-slate-500 dark:text-slate-400">
                                                 {selectedProjects.length} of {projects.length} selected
                                             </span>
                                         </div>
@@ -439,7 +522,7 @@ NEXT STEPS:
                                                 <button
                                                     onClick={() => handleDelete(project.id)}
                                                     aria-label={`Delete project ${project.name}`}
-                                                    className="p-2 text-slate-400 dark:text-slate-500 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                                                    className="p-2 text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
                                                 >
                                                     <Trash2 className="h-4 w-4" />
                                                 </button>
@@ -453,11 +536,11 @@ NEXT STEPS:
                                             </div>
                                         </div>
                                     )}
-                                </motion.div>
-                            ))}
+                                    </motion.div>
+                                ))}
                             </>
                         ) : (
-                            <div className="text-center py-12 text-slate-400 dark:text-slate-500 dark:text-slate-500 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
+                            <div className="text-center py-12 text-slate-400 dark:text-slate-500 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
                                 <ClipboardList className="h-12 w-12 mx-auto mb-3 opacity-20" />
                                 <p className="font-medium text-slate-600 dark:text-slate-300">No active projects</p>
                                 <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">Click the New Project button to start tracking.</p>
@@ -488,7 +571,7 @@ NEXT STEPS:
                                 <div className="flex-1 min-w-0">
                                     <div className="flex justify-between items-start gap-3">
                                         <h3 className="font-semibold text-sm sm:text-base text-slate-900 dark:text-slate-100 break-words flex-1 min-w-0">{item.title}</h3>
-                                        <span className="text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap flex-shrink-0">{item.date}</span>
+                                        <span className="text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap flex-shrink-0">{item.date_logged || item.date}</span>
                                     </div>
                                     <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mt-1 break-words">{item.description}</p>
                                     <div className="mt-3 flex gap-2">
@@ -500,7 +583,7 @@ NEXT STEPS:
                             </div>
                         ))
                     ) : (
-                        <div className="text-center py-12 text-slate-400 dark:text-slate-500 dark:text-slate-500 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
+                        <div className="text-center py-12 text-slate-400 dark:text-slate-500 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
                             <p className="font-medium text-slate-600 dark:text-slate-300">No decisions or blockers logged</p>
                         </div>
                     )}
@@ -517,7 +600,7 @@ NEXT STEPS:
                                 <div className="h-10 w-10 rounded-full bg-brand-700 flex items-center justify-center text-white font-bold">PD</div>
                                 <div>
                                     <h3 className="font-bold text-slate-900 dark:text-slate-100">Power BI Developer</h3>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">Analytics Lead</p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">Analytics Lead</p>
                                 </div>
                             </div>
                             <div className="space-y-3">
@@ -543,7 +626,7 @@ NEXT STEPS:
                                 <div className="h-10 w-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold">TM</div>
                                 <div>
                                     <h3 className="font-bold text-slate-900 dark:text-slate-100">Teammate Name</h3>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">Analyst / Engineer</p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">Analyst / Engineer</p>
                                 </div>
                             </div>
                             <div className="flex items-center justify-center h-32 text-slate-400 dark:text-slate-500 text-sm border-2 border-dashed border-slate-100 rounded-lg">

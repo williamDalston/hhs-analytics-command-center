@@ -418,40 +418,61 @@ const SecureFilePortal = () => {
         const { encrypted } = await encryptData(buffer, encryptionKey);
         const base64Data = btoa(String.fromCharCode(...encrypted));
 
-        if (useCloudStorage && supabase) {
-          await supabase.from('portal_files').insert({
-            token: accessToken,
-            file_name: file.name,
-            file_type: file.type,
-            file_size: file.size,
-            encrypted_data: base64Data,
-            iv: 'included_in_data',
-            uploaded_by: 'User'
-          });
-        } else {
-          const localFile = {
-            id: `${Date.now()}-${file.name}-${Math.random().toString(36).slice(2)}`,
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            encrypted: base64Data,
-            uploadedAt: new Date().toISOString(),
-            uploadedBy: 'User'
-          };
-          const existingFiles = readLocalFiles(accessToken);
-          const updatedFiles = [localFile, ...existingFiles];
-          writeLocalFiles(accessToken, updatedFiles);
-          setFiles(updatedFiles);
+          if (useCloudStorage && supabase) {
+            // 1. Upload encrypted blob to Storage Bucket
+            const storagePath = `${accessToken}/${Date.now()}-${file.name}`;
+            const blob = new Blob([encrypted]); // 'encrypted' is Uint8Array including IV
+            
+            const { error: uploadError } = await supabase.storage
+              .from('portal-uploads')
+              .upload(storagePath, blob, {
+                contentType: file.type,
+                upsert: false
+              });
+
+            if (uploadError) {
+                throw new Error(`Storage upload failed: ${uploadError.message}`);
+            }
+
+            // 2. Store metadata in DB (repurposing encrypted_data to store Path)
+            await supabase.from('portal_files').insert({
+              token: accessToken,
+              file_name: file.name,
+              file_type: file.type,
+              file_size: file.size,
+              encrypted_data: storagePath, // Store PATH instead of Base64
+              iv: 'included_in_blob',
+              uploaded_by: 'User'
+            });
+          } else {
+            if (file.size > 5 * 1024 * 1024) {
+                addToast(`File ${file.name} is too large for local mode (max 5MB). Use Cloud mode.`, 'error');
+                continue; 
+            }
+            const base64Data = btoa(String.fromCharCode(...encrypted));
+            const localFile = {
+              id: `${Date.now()}-${file.name}-${Math.random().toString(36).slice(2)}`,
+              name: file.name,
+              type: file.type,
+              size: file.size,
+              encrypted: base64Data,
+              uploadedAt: new Date().toISOString(),
+              uploadedBy: 'User'
+            };
+            const existingFiles = readLocalFiles(accessToken);
+            const updatedFiles = [localFile, ...existingFiles];
+            writeLocalFiles(accessToken, updatedFiles);
+            setFiles(updatedFiles);
+          }
         }
-      }
-      if (useCloudStorage && supabase) {
-        await loadData();
-      }
-      addToast('Files uploaded securely', 'success');
-    } catch (err) {
-      setError('Upload failed');
-      console.error(err);
-    } finally {
+        if (useCloudStorage && supabase) {
+          await loadData();
+        }
+        addToast('Files uploaded securely', 'success');
+      } catch (err) {
+        setError('Upload failed: ' + err.message);
+        console.error(err);
+      } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
@@ -484,7 +505,26 @@ const SecureFilePortal = () => {
 
   const handleDownloadFile = async (file) => {
     try {
-      const encryptedBytes = Uint8Array.from(atob(file.encrypted), c => c.charCodeAt(0));
+      let encryptedBytes;
+
+      // Check if this is a Cloud Storage Path or Legacy Base64
+      // Paths are short strings (e.g., "token/timestamp-name"), Base64 of a file is huge.
+      const isStoragePath = file.encrypted.length < 500 && !file.encrypted.endsWith('=');
+
+      if (isStoragePath && useCloudStorage && supabase) {
+          // Download from Storage Bucket
+          const { data, error } = await supabase.storage
+            .from('portal-uploads')
+            .download(file.encrypted);
+          
+          if (error) throw error;
+          const buffer = await data.arrayBuffer();
+          encryptedBytes = new Uint8Array(buffer);
+      } else {
+          // Fallback for Local Mode or Legacy Files
+          encryptedBytes = Uint8Array.from(atob(file.encrypted), c => c.charCodeAt(0));
+      }
+
       const decryptedBuffer = await decryptData(encryptedBytes, encryptionKey);
       const blob = new Blob([decryptedBuffer], { type: file.type });
       const url = URL.createObjectURL(blob);
@@ -496,13 +536,21 @@ const SecureFilePortal = () => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
-      addToast('Decryption failed. Check your key/token.', 'error');
+      addToast('Decryption/Download failed. Check your connection.', 'error');
       console.error('Decryption failed during download', err);
     }
   };
 
   const handleDeleteFile = async (id) => {
     if (useCloudStorage && supabase) {
+      // Find file first to get path
+      const fileToDelete = files.find(f => f.id === id);
+      if (fileToDelete) {
+          const isStoragePath = fileToDelete.encrypted.length < 500 && !fileToDelete.encrypted.endsWith('=');
+          if (isStoragePath) {
+              await supabase.storage.from('portal-uploads').remove([fileToDelete.encrypted]);
+          }
+      }
       await supabase.from('portal_files').delete().eq('id', id);
       await loadData();
       addToast('File deleted', 'success');
