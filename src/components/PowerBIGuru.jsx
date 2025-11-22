@@ -690,13 +690,20 @@ const PowerBIGuru = () => {
                     console.log('Full conversation for AI:', contents);
                 }
 
-                const result = await model.generateContent({
+                // Add timeout for mobile devices
+                const timeoutMs = 30000; // 30 seconds
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
+                );
+
+                const generatePromise = model.generateContent({
                     contents: contents,
                     generationConfig: {
                         maxOutputTokens: 1000,
                     },
                 });
 
+                const result = await Promise.race([generatePromise, timeoutPromise]);
                 const response = await result.response;
                 const text = response.text();
 
@@ -710,22 +717,33 @@ const PowerBIGuru = () => {
                     console.error("Error details:", error.stack);
                 }
 
-                // Check if it's an authentication/key error
+                // Check error types
                 const isAuthError = error.message?.includes('API_KEY') ||
                                    error.message?.includes('PERMISSION_DENIED') ||
                                    error.message?.includes('INVALID_ARGUMENT');
+                const isTimeoutError = error.message?.includes('timeout') || error.message?.includes('Timeout');
+                const isNetworkError = error.message?.includes('network') || error.message?.includes('fetch');
 
                 if (isAuthError) {
                     setConnectionStatus('error');
                     setConnectionError('Invalid API key or insufficient permissions');
                 }
 
-                // Show user-friendly error and suggest fallback
+                // Show user-friendly error with specific guidance
+                let errorText;
+                if (isAuthError) {
+                    errorText = "I couldn't connect to the AI service with the current access code. Please update your API key in settings, or I can help with local knowledge about DAX and Power BI.";
+                } else if (isTimeoutError) {
+                    errorText = "The AI service is taking too long to respond. This can happen on slower connections. Please try again, or I can help with local knowledge about DAX and Power BI.";
+                } else if (isNetworkError) {
+                    errorText = "I'm having trouble reaching the AI service. Please check your internet connection and try again, or I can help with local knowledge about DAX and Power BI.";
+                } else {
+                    errorText = "I'm having trouble connecting to the AI service right now. Let me help with what I know about DAX and Power BI instead.";
+                }
+
                 const errorMsg = {
                     id: Date.now() + 1,
-                    text: isAuthError
-                        ? "I couldn't connect to the AI service with the current access code. Please update your API key in settings, or I can help with local knowledge about DAX and Power BI."
-                        : "I'm having trouble connecting to the AI service right now. Let me help with what I know about DAX and Power BI instead.",
+                    text: errorText,
                     sender: 'bot',
                     isError: true,
                     createdAt: new Date().toISOString()
