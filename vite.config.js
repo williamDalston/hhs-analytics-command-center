@@ -1,17 +1,9 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// Get repo name from package.json or environment
-const repoName = process.env.GITHUB_REPOSITORY 
-  ? process.env.GITHUB_REPOSITORY.split('/')[1] 
-  : 'senior-power-bi-develper'
-
-// Use repo name as base path for GitHub Pages, relative paths for local dev
-const base = process.env.GITHUB_PAGES === 'true' 
-  ? `/${repoName}/` 
-  : './'
-
+// Use relative paths for GitHub Pages compatibility
+// This works whether the site is at root or in a subdirectory
 export default defineConfig({
   plugins: [react()],
-  base: base,
+  base: './',
 })

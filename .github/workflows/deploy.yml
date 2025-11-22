@@ -21,9 +21,6 @@ jobs:
           cache: 'npm'
 
       - name: Install and Build
-        env:
-          GITHUB_PAGES: 'true'
-          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           npm install
           npm run build
