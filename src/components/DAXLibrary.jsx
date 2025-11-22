@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Copy, Check, Database } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
+import { SkeletonList } from './Skeleton';
 
 // Utility function to highlight search terms
 const highlightText = (text, searchTerm) => {
@@ -152,6 +153,13 @@ const DAXLibrary = () => {
     const { addToast } = useToast();
     const [searchTerm, setSearchTerm] = useState('');
     const [copiedId, setCopiedId] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        // Simulate loading time for better UX
+        const timer = setTimeout(() => setIsLoading(false), 300);
+        return () => clearTimeout(timer);
+    }, []);
 
     const filteredPatterns = daxPatterns.filter(pattern => {
         const searchLower = searchTerm.toLowerCase();
@@ -194,7 +202,9 @@ const DAXLibrary = () => {
                 </div>
             </div>
 
-            {filteredPatterns.length > 0 ? (
+            {isLoading ? (
+                <SkeletonList items={6} className="grid grid-cols-1 gap-6" />
+            ) : filteredPatterns.length > 0 ? (
                 <div className="grid grid-cols-1 gap-6">
                     {filteredPatterns.map((pattern) => (
                         <motion.div

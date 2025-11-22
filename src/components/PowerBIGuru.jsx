@@ -154,7 +154,10 @@ const PowerBIGuru = () => {
     }, [getMaxNotesWidth]);
 
     useEffect(() => {
-        console.log("PowerBI Guru: Project Access Code", PROJECT_GEMINI_KEY ? "Available" : "Not Configured");
+        // Debug: Log API key availability in development
+        if (import.meta.env.DEV) {
+            console.log("PowerBI Guru: Project Access Code", PROJECT_GEMINI_KEY ? "Available" : "Not Configured");
+        }
     }, []);
 
     useEffect(() => {
@@ -255,7 +258,10 @@ const PowerBIGuru = () => {
 
                         const isModelUnavailable = response.status === 404 || errorPayload?.error?.status === 'NOT_FOUND';
                         if (isModelUnavailable) {
-                            console.warn(`[Gemini] Model ${GEMINI_MODEL} unavailable on API ${apiVersion}. Trying fallback version.`);
+                            // Only log in development
+                            if (import.meta.env.DEV) {
+                                console.warn(`[Gemini] Model ${GEMINI_MODEL} unavailable on API ${apiVersion}. Trying fallback version.`);
+                            }
                             continue;
                         }
 
@@ -266,17 +272,25 @@ const PowerBIGuru = () => {
                 setConnectionStatus('connected');
                     setConnectionError('');
                     setVerifiedApiVersion(apiVersion);
-                    console.info(`[Gemini] Verified ${GEMINI_MODEL} via ${apiVersion}.`);
+                    // Only log in development
+                    if (import.meta.env.DEV) {
+                        console.info(`[Gemini] Verified ${GEMINI_MODEL} via ${apiVersion}.`);
+                    }
                     return;
             } catch (error) {
                 if (controller.signal.aborted || isCancelled) return;
-                    console.error(`[Gemini] verification error via ${apiVersion}:`, error);
+                    // Only log in development
+                    if (import.meta.env.DEV) {
+                        console.error(`[Gemini] verification error via ${apiVersion}:`, error);
+                    }
                     break;
                 }
             }
 
             // Don't block the user - just log the issue
-            console.warn('[Gemini] Verification failed, but user can still try to chat');
+            if (import.meta.env.DEV) {
+                console.warn('[Gemini] Verification failed, but user can still try to chat');
+            }
             setConnectionStatus('idle'); // Allow user to try anyway
             setConnectionError(''); // Clear any error to not show in UI
             setVerifiedApiVersion(null);
@@ -588,11 +602,17 @@ const PowerBIGuru = () => {
                             model: modelName,
                     systemInstruction: "You are an expert Power BI Developer and Data Analyst for the US Department of Health and Human Services (HHS). Answer questions concisely and professionally. If it involves DAX, provide code snippets."
                 });
-                        console.log(`Initialized model ${modelName}, attempting to use it...`);
+                        // Only log in development
+                        if (import.meta.env.DEV) {
+                            console.log(`Initialized model ${modelName}, attempting to use it...`);
+                        }
                         // Don't test with generateContent - just try to use it directly
                         break; // Use this model
                     } catch (modelError) {
-                        console.warn(`Model ${modelName} failed to initialize:`, modelError.message);
+                        // Only log in development
+                        if (import.meta.env.DEV) {
+                            console.warn(`Model ${modelName} failed to initialize:`, modelError.message);
+                        }
                         lastModelError = modelError;
                         continue; // Try next model
                     }
@@ -619,7 +639,10 @@ const PowerBIGuru = () => {
                     }
                 ];
 
-                console.log('Full conversation for AI:', contents);
+                // Only log in development
+                if (import.meta.env.DEV) {
+                    console.log('Full conversation for AI:', contents);
+                }
 
                 const result = await model.generateContent({
                     contents: contents,
@@ -635,8 +658,11 @@ const PowerBIGuru = () => {
                 setMessages(prev => [...prev, botMsg]);
                 setLastAnswerId(botMsg.id);
             } catch (error) {
-                console.error("AI Connection Error:", error);
-                console.error("Error details:", error.message, error.stack);
+                // Keep error logging for production debugging
+                console.error("AI Connection Error:", error.message);
+                if (import.meta.env.DEV) {
+                    console.error("Error details:", error.stack);
+                }
 
                 // Check if it's an authentication/key error
                 const isAuthError = error.message?.includes('API_KEY') ||
@@ -877,15 +903,22 @@ const PowerBIGuru = () => {
                                         </div>
                                     </motion.div>
                                 ))}
-                                {isTyping && (
-                                    <div className="flex justify-start">
-                                        <div className="bg-slate-100 rounded-2xl rounded-bl-none p-4 flex gap-1">
-                                            <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" />
-                                            <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-75" />
-                                            <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-150" />
-                                        </div>
-                                    </div>
-                                )}
+                                <AnimatePresence>
+                                    {isTyping && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -10 }}
+                                            className="flex justify-start"
+                                        >
+                                            <div className="bg-slate-100 rounded-2xl rounded-bl-none p-4 flex gap-1">
+                                                <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" />
+                                                <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-75" />
+                                                <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-150" />
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                                 <div ref={messagesEndRef} />
                             </div>
 
@@ -1198,15 +1231,22 @@ const PowerBIGuru = () => {
                                 </div>
                             </motion.div>
                         ))}
-                        {isTyping && (
-                            <div className="flex justify-start">
-                                <div className="bg-slate-100 rounded-2xl rounded-bl-none p-4 flex gap-1">
-                                    <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" />
-                                    <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-75" />
-                                    <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-150" />
-                                </div>
-                            </div>
-                        )}
+                        <AnimatePresence>
+                            {isTyping && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    className="flex justify-start"
+                                >
+                                    <div className="bg-slate-100 rounded-2xl rounded-bl-none p-4 flex gap-1">
+                                        <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" />
+                                        <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-75" />
+                                        <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-150" />
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                         <div ref={messagesEndRef} />
                     </div>
 
