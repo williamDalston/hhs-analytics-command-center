@@ -31,7 +31,7 @@ const LOCAL_KNOWLEDGE = [
 const PowerBIGuru = () => {
     const { addToast } = useToast();
     const [messages, setMessages] = useState([
-        { id: 1, text: "Hi, I'm the Power BI Guru. Ask me about DAX, HHS Branding, or enter an API Key for full AI support.", sender: 'bot' }
+        { id: 1, text: "Hi, I'm your Analytics Assistant. Ask me about DAX, HHS Branding, or data strategy.", sender: 'bot' }
     ]);
     const [input, setInput] = useState('');
     const [apiKey, setApiKey] = useState('');
@@ -42,7 +42,7 @@ const PowerBIGuru = () => {
     useEffect(() => {
         // Check for Env Var Key first, then Local Storage
         const envKey = import.meta.env.VITE_GEMINI_API_KEY;
-        console.log("PowerBI Guru: Checking for API Key...", envKey ? "Found in Env" : "Not in Env");
+        console.log("PowerBI Guru: Checking for Access Code...", envKey ? "Found in Env" : "Not in Env");
         
         if (envKey) {
             setApiKey(envKey);
@@ -59,13 +59,13 @@ const PowerBIGuru = () => {
     const handleSaveKey = () => {
         localStorage.setItem('gemini_api_key', apiKey);
         setShowSettings(false);
-        addToast('API Key saved successfully', 'success');
+        addToast('Access code saved successfully', 'success');
     };
 
     const handleClearKey = () => {
         localStorage.removeItem('gemini_api_key');
         setApiKey('');
-        addToast('API Key removed', 'info');
+        addToast('Access code removed', 'info');
     };
 
     const processLocalQuery = (query) => {
@@ -83,7 +83,7 @@ const PowerBIGuru = () => {
         setInput('');
         setIsTyping(true);
 
-        // 1. Try Local Knowledge First ("Free Tier")
+        // 1. Try Local Knowledge First
         const localMatch = processLocalQuery(userMsg.text);
 
         if (localMatch) {
@@ -99,7 +99,7 @@ const PowerBIGuru = () => {
             return;
         }
 
-        // 2. Try Cloud AI if Key exists ("Pro Tier")
+        // 2. Try Cloud AI if Key exists
         if (apiKey) {
             try {
                 const genAI = new GoogleGenerativeAI(apiKey);
@@ -117,7 +117,7 @@ const PowerBIGuru = () => {
             } catch (error) {
                 setMessages(prev => [...prev, {
                     id: Date.now() + 1,
-                    text: "I encountered an error connecting to the AI. Please check your API Key.",
+                    text: "I encountered an error connecting to the AI. Please check your access code.",
                     sender: 'bot',
                     isError: true
                 }]);
@@ -127,7 +127,7 @@ const PowerBIGuru = () => {
             setTimeout(() => {
                 setMessages(prev => [...prev, {
                     id: Date.now() + 1,
-                    text: "I couldn't find that in your local library. To get answers for general Power BI questions, please add a free Google Gemini API Key in settings.",
+                    text: "I don't have an answer for that in my local knowledge base. To unlock full AI capabilities, please configure the AI Access Code in settings.",
                     sender: 'bot',
                     isSystem: true
                 }]);
@@ -145,7 +145,7 @@ const PowerBIGuru = () => {
                     <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
                         <Sparkles className="h-6 w-6 text-brand-600" />
                         Power BI Guru
-                        {apiKey && <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">Pro Active</span>}
+                        {apiKey && <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">AI Connected</span>}
                     </h2>
                     <p className="text-slate-600">Your AI assistant for DAX, Design, and Strategy.</p>
                 </div>
@@ -171,24 +171,23 @@ const PowerBIGuru = () => {
                     >
                         <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
                             <h3 className="font-semibold text-slate-900 mb-2 flex items-center gap-2">
-                                <Key className="h-4 w-4" /> Configure AI Provider
+                                <Key className="h-4 w-4" /> AI Settings
                             </h3>
                             <p className="text-sm text-slate-600 mb-3">
-                                Enter a Google Gemini API Key to enable full AI chat capabilities.
-                                Without a key, the Guru only searches your local library.
+                                Enter your access code to enable full AI chat capabilities.
                             </p>
                             <div className="flex gap-2">
                                 <input
                                     type="password"
                                     value={apiKey}
                                     onChange={(e) => setApiKey(e.target.value)}
-                                    placeholder="Enter Gemini API Key..."
+                                    placeholder="Enter Access Code..."
                                     className="input-field flex-1"
                                 />
                                 <button onClick={handleSaveKey} className="btn-primary">Save</button>
                                 {apiKey && <button onClick={handleClearKey} className="btn-secondary text-red-600 hover:bg-red-50">Clear</button>}
                             </div>
-                            <p className="text-xs text-slate-400 mt-2">Your key is stored locally in your browser.</p>
+                            <p className="text-xs text-slate-400 mt-2">Your code is stored locally in your browser.</p>
                         </div>
                     </motion.div>
                 )}
@@ -247,7 +246,7 @@ const PowerBIGuru = () => {
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                            placeholder={apiKey ? "Ask anything about Power BI..." : "Search local library (e.g., 'YoY', 'Colors')..."}
+                            placeholder="Ask anything about Power BI..."
                             className="input-field flex-1 shadow-sm"
                         />
                         <button
@@ -260,7 +259,7 @@ const PowerBIGuru = () => {
                     </div>
                     {!apiKey && (
                         <p className="text-xs text-slate-400 mt-2 text-center">
-                            Running in <span className="font-semibold text-brand-600">Local Mode</span>. Add an API Key for full AI features.
+                            Running in <span className="font-semibold text-brand-600">Local Knowledge Mode</span>. Add an Access Code for full AI features.
                         </p>
                     )}
                 </div>

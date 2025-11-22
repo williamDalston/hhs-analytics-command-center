@@ -5,7 +5,6 @@ import { getSupabaseClient } from '../config/supabase';
 import { useToast } from '../context/ToastContext';
 
 // --- Crypto Utilities ---
-// (Same as before)
 const deriveKeyFromToken = async (token) => {
   const encoder = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
@@ -134,7 +133,6 @@ const SecureFilePortal = () => {
 
     if (tokenParam && tokenParam.length >= 8 && !isAuthenticated) {
       setAccessToken(tokenParam);
-      // Optionally auto-authenticate here if desired, but let's let user confirm
       addToast('Token loaded from link. Click "Unlock Portal" to enter.', 'info');
     }
   }, []);
@@ -465,7 +463,7 @@ const SecureFilePortal = () => {
             <h1 className="font-bold text-lg text-slate-900">Secure Portal</h1>
             <div className="flex items-center gap-2 text-xs text-slate-500">
               <span className="flex items-center gap-1 bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-100">
-                <Lock className="h-3 w-3" /> Encrypted
+                <Lock className="h-3 w-3" /> End-to-End Encrypted
               </span>
               <button 
                 onClick={handleCopyInviteLink}
@@ -611,7 +609,7 @@ const SecureFilePortal = () => {
               </button>
             </div>
             <p className="text-xs text-center text-slate-400 mt-2 flex items-center justify-center gap-1">
-              <Lock className="h-3 w-3" /> Messages sync instantly across devices
+              <Lock className="h-3 w-3" /> Encrypted & Synced Instantly
             </p>
           </div>
         </div>
