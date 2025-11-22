@@ -153,8 +153,8 @@ NEXT STEPS:
             <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
                 <div className="flex justify-between items-start mb-4">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-900">Welcome back, Will.</h1>
-                        <p className="text-slate-500">Here is your morning brief for WebFirst Analytics.</p>
+                        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 dark:text-slate-100">Welcome back, Will.</h1>
+                        <p className="text-slate-500 dark:text-slate-400 dark:text-slate-500">Here is your morning brief for WebFirst Analytics.</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         <button
@@ -245,19 +245,19 @@ NEXT STEPS:
             <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit">
                 <button
                     onClick={() => setActiveTab('projects')}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'projects' ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'projects' ? 'bg-white dark:bg-slate-700 text-brand-700 dark:text-brand-300 shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100'}`}
                 >
                     <div className="flex items-center gap-2"><LayoutList className="h-4 w-4" /> Projects</div>
                 </button>
                 <button
                     onClick={() => setActiveTab('decisions')}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'decisions' ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'decisions' ? 'bg-white dark:bg-slate-700 text-brand-700 dark:text-brand-300 shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100'}`}
                 >
                     <div className="flex items-center gap-2"><AlertCircle className="h-4 w-4" /> Decisions & Blockers</div>
                 </button>
                 <button
                     onClick={() => setActiveTab('team')}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'team' ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'team' ? 'bg-white dark:bg-slate-700 text-brand-700 dark:text-brand-300 shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100'}`}
                 >
                     <div className="flex items-center gap-2"><Users className="h-4 w-4" /> Team View</div>
                 </button>
@@ -275,7 +275,7 @@ NEXT STEPS:
                         >
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                                 <div>
-                                    <label className="block text-sm text-slate-600 mb-1">Dashboard Name</label>
+                                    <label className="block text-sm text-slate-600 dark:text-slate-300 dark:text-slate-300 mb-1">Dashboard Name</label>
                                     <input
                                         required
                                         className="input-field"
@@ -285,7 +285,7 @@ NEXT STEPS:
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm text-slate-600 mb-1">Stakeholder</label>
+                                    <label className="block text-sm text-slate-600 dark:text-slate-300 dark:text-slate-300 mb-1">Stakeholder</label>
                                     <input
                                         required
                                         className="input-field"
@@ -295,7 +295,7 @@ NEXT STEPS:
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm text-slate-600 mb-1">Deadline</label>
+                                    <label className="block text-sm text-slate-600 dark:text-slate-300 dark:text-slate-300 mb-1">Deadline</label>
                                     <input
                                         type="date"
                                         required
@@ -306,7 +306,7 @@ NEXT STEPS:
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm text-slate-600 mb-1">Status</label>
+                                        <label className="block text-sm text-slate-600 dark:text-slate-300 dark:text-slate-300 mb-1">Status</label>
                                         <select
                                             className="input-field"
                                             value={newProject.status}
@@ -320,7 +320,7 @@ NEXT STEPS:
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="block text-sm text-slate-600 mb-1">Priority</label>
+                                        <label className="block text-sm text-slate-600 dark:text-slate-300 dark:text-slate-300 mb-1">Priority</label>
                                         <select
                                             className="input-field"
                                             value={newProject.priority}
@@ -334,7 +334,7 @@ NEXT STEPS:
                                 </div>
                             </div>
                             <div className="mb-4">
-                                <label className="block text-sm text-slate-600 mb-1">Key Requirements</label>
+                                <label className="block text-sm text-slate-600 dark:text-slate-300 dark:text-slate-300 mb-1">Key Requirements</label>
                                 <textarea
                                     className="input-field min-h-[80px]"
                                     value={newProject.requirements}
@@ -365,7 +365,7 @@ NEXT STEPS:
                                         <div className="flex items-center gap-3">
                                             <button
                                                 onClick={selectAllProjects}
-                                                className="flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-brand-700"
+                                                className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-brand-700 dark:hover:text-brand-400"
                                             >
                                                 {selectedProjects.length === projects.length ? (
                                                     <CheckSquare className="h-4 w-4" />
@@ -374,7 +374,7 @@ NEXT STEPS:
                                                 )}
                                                 {selectedProjects.length === projects.length ? 'Deselect All' : 'Select All'}
                                             </button>
-                                            <span className="text-sm text-slate-500">
+                                            <span className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
                                                 {selectedProjects.length} of {projects.length} selected
                                             </span>
                                         </div>
@@ -394,7 +394,7 @@ NEXT STEPS:
                                                         aria-label={`Select project ${project.name}`}
                                                         className={`mt-1 p-1 rounded transition-colors ${selectedProjects.includes(project.id)
                                                             ? 'bg-brand-100 text-brand-700'
-                                                            : 'hover:bg-slate-100 text-slate-400'
+                                                            : 'hover:bg-slate-100 text-slate-400 dark:text-slate-500'
                                                         }`}
                                                     >
                                                         {selectedProjects.includes(project.id) ? (
@@ -406,7 +406,7 @@ NEXT STEPS:
                                                 )}
                                                 <div className="space-y-1 flex-1">
                                                     <div className="flex items-center gap-3">
-                                                        <h3 className="text-lg font-semibold text-slate-900">{project.name}</h3>
+                                                        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 dark:text-slate-100">{project.name}</h3>
                                                         <span className={`text-xs px-2 py-0.5 rounded-full border ${project.status === 'Done' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
                                                             project.status === 'Review' ? 'bg-amber-100 text-amber-700 border-amber-200' :
                                                                 'bg-brand-100 text-brand-700 border-brand-200'
@@ -417,7 +417,7 @@ NEXT STEPS:
                                                             {project.priority}
                                                         </span>
                                                     </div>
-                                                    <div className="flex items-center gap-4 text-sm text-slate-500">
+                                                    <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
                                                         <span className="flex items-center gap-1"><User className="h-3 w-3" /> {project.stakeholder}</span>
                                                         <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {project.deadline}</span>
                                                     </div>
@@ -427,7 +427,7 @@ NEXT STEPS:
                                                 <button
                                                     onClick={() => handleDelete(project.id)}
                                                     aria-label={`Delete project ${project.name}`}
-                                                    className="p-2 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                                                    className="p-2 text-slate-400 dark:text-slate-500 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
                                                 >
                                                     <Trash2 className="h-4 w-4" />
                                                 </button>
@@ -435,8 +435,8 @@ NEXT STEPS:
                                         </div>
                                     {project.requirements && (
                                         <div className="mt-4 pt-4 border-t border-slate-100">
-                                            <div className="flex items-start gap-2 text-sm text-slate-600">
-                                                <FileText className="h-4 w-4 mt-0.5 text-slate-400" />
+                                            <div className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
+                                                <FileText className="h-4 w-4 mt-0.5 text-slate-400 dark:text-slate-500" />
                                                 <p>{project.requirements}</p>
                                             </div>
                                         </div>
@@ -445,10 +445,10 @@ NEXT STEPS:
                             ))}
                             </>
                         ) : (
-                            <div className="text-center py-12 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
+                            <div className="text-center py-12 text-slate-400 dark:text-slate-500 dark:text-slate-500 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
                                 <ClipboardList className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                                <p className="font-medium text-slate-600">No active projects</p>
-                                <p className="text-sm text-slate-400 mt-1">Click the New Project button to start tracking.</p>
+                                <p className="font-medium text-slate-600 dark:text-slate-300">No active projects</p>
+                                <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">Click the New Project button to start tracking.</p>
                             </div>
                         )}
                     </div>
@@ -475,12 +475,12 @@ NEXT STEPS:
                                 </div>
                                 <div className="flex-1">
                                     <div className="flex justify-between items-start">
-                                        <h3 className="font-semibold text-slate-900">{item.title}</h3>
-                                        <span className="text-xs text-slate-500">{item.date}</span>
+                                        <h3 className="font-semibold text-slate-900 dark:text-slate-100">{item.title}</h3>
+                                        <span className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">{item.date}</span>
                                     </div>
-                                    <p className="text-sm text-slate-600 mt-1">{item.description}</p>
+                                    <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">{item.description}</p>
                                     <div className="mt-3 flex gap-2">
-                                        <span className="text-xs font-medium px-2 py-1 bg-slate-100 rounded text-slate-600 border border-slate-200">
+                                        <span className="text-xs font-medium px-2 py-1 bg-slate-100 dark:bg-slate-700 rounded text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600">
                                             {item.status}
                                         </span>
                                     </div>
@@ -488,8 +488,8 @@ NEXT STEPS:
                             </div>
                         ))
                     ) : (
-                        <div className="text-center py-12 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
-                            <p className="font-medium text-slate-600">No decisions or blockers logged</p>
+                        <div className="text-center py-12 text-slate-400 dark:text-slate-500 dark:text-slate-500 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
+                            <p className="font-medium text-slate-600 dark:text-slate-300">No decisions or blockers logged</p>
                         </div>
                     )}
                 </div>
@@ -504,12 +504,12 @@ NEXT STEPS:
                             <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-100">
                                 <div className="h-10 w-10 rounded-full bg-brand-700 flex items-center justify-center text-white font-bold">WA</div>
                                 <div>
-                                    <h3 className="font-bold text-slate-900">Will Alston</h3>
-                                    <p className="text-xs text-slate-500">Analytics Lead</p>
+                                    <h3 className="font-bold text-slate-900 dark:text-slate-100">Will Alston</h3>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">Analytics Lead</p>
                                 </div>
                             </div>
                             <div className="space-y-3">
-                                <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Active Projects</div>
+                                <div className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Active Projects</div>
                                 {projects.length > 0 ? (
                                     projects.map(p => (
                                         <div key={p.id} className="flex items-center justify-between text-sm p-2 bg-slate-50 rounded border border-slate-100">
@@ -520,7 +520,7 @@ NEXT STEPS:
                                         </div>
                                     ))
                                 ) : (
-                                    <div className="text-sm text-slate-400 italic">No active projects</div>
+                                    <div className="text-sm text-slate-400 dark:text-slate-500 italic">No active projects</div>
                                 )}
                             </div>
                         </div>
@@ -530,11 +530,11 @@ NEXT STEPS:
                             <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-100">
                                 <div className="h-10 w-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold">TM</div>
                                 <div>
-                                    <h3 className="font-bold text-slate-900">Teammate Name</h3>
-                                    <p className="text-xs text-slate-500">Analyst / Engineer</p>
+                                    <h3 className="font-bold text-slate-900 dark:text-slate-100">Teammate Name</h3>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">Analyst / Engineer</p>
                                 </div>
                             </div>
-                            <div className="flex items-center justify-center h-32 text-slate-400 text-sm border-2 border-dashed border-slate-100 rounded-lg">
+                            <div className="flex items-center justify-center h-32 text-slate-400 dark:text-slate-500 text-sm border-2 border-dashed border-slate-100 rounded-lg">
                                 No active projects assigned
                             </div>
                         </div>

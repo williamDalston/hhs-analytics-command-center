@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, Bot, User, Sparkles, Settings, Key, Database, AlertCircle, Copy, Trash2, Download, MessageSquare, ChevronDown, NotebookPen, Eraser, Wand2, Maximize2, Minimize2, BookmarkPlus, ArrowDownToLine, GripVertical, PanelRightOpen, PanelRightClose, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
+import { Send, Bot, User, Sparkles, Settings, Key, Database, AlertCircle, Copy, Trash2, Download, MessageSquare, ChevronDown, NotebookPen, Eraser, Wand2, Maximize2, Minimize2, BookmarkPlus, ArrowDownToLine, GripVertical, PanelRightOpen, PanelRightClose, PanelLeftOpen, PanelLeftClose, Type } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { useToast } from '../context/ToastContext';
@@ -64,6 +64,22 @@ const QUICK_PROMPTS = [
 
 const NOTES_STORAGE_KEY = 'guru_session_notes';
 const MESSAGES_STORAGE_KEY = 'guru_messages';
+const FONT_SIZE_STORAGE_KEY = 'guru_font_size';
+const LINE_HEIGHT_STORAGE_KEY = 'guru_line_height';
+
+// Font size configurations
+const FONT_SIZES = {
+    small: { label: 'Small', message: 'text-xs', meta: 'text-[10px]', code: 'text-xs', description: 'Compact' },
+    medium: { label: 'Medium', message: 'text-sm', meta: 'text-xs', code: 'text-sm', description: 'Default' },
+    large: { label: 'Large', message: 'text-base', meta: 'text-sm', code: 'text-base', description: 'Comfortable' },
+    xlarge: { label: 'Extra Large', message: 'text-lg', meta: 'text-sm', code: 'text-base', description: 'Accessibility' }
+};
+
+const LINE_HEIGHTS = {
+    normal: { label: 'Normal', class: 'leading-normal' },
+    relaxed: { label: 'Relaxed', class: 'leading-relaxed' },
+    loose: { label: 'Loose', class: 'leading-loose' }
+};
 
 // Use Gemini models - try latest first, fallback to older versions
 const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-pro"];
@@ -135,6 +151,15 @@ const PowerBIGuru = () => {
     const [isMaximized, setIsMaximized] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState(null);
     const [lastAnswerId, setLastAnswerId] = useState(null);
+    const [fontSize, setFontSize] = useState(() => {
+        if (typeof window === 'undefined') return 'medium';
+        return window.localStorage.getItem(FONT_SIZE_STORAGE_KEY) || 'medium';
+    });
+    const [lineHeight, setLineHeight] = useState(() => {
+        if (typeof window === 'undefined') return 'relaxed';
+        return window.localStorage.getItem(LINE_HEIGHT_STORAGE_KEY) || 'relaxed';
+    });
+    const [showStyleSettings, setShowStyleSettings] = useState(false);
     const getMaxNotesWidth = useCallback(() => {
         if (!workspaceRef.current || typeof window === 'undefined') {
             return MAX_NOTES_WIDTH;
@@ -221,6 +246,16 @@ const PowerBIGuru = () => {
         if (typeof window === 'undefined') return;
         window.localStorage.setItem(NOTES_STORAGE_KEY, sessionNotes);
     }, [sessionNotes]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        window.localStorage.setItem(FONT_SIZE_STORAGE_KEY, fontSize);
+    }, [fontSize]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        window.localStorage.setItem(LINE_HEIGHT_STORAGE_KEY, lineHeight);
+    }, [lineHeight]);
 
     useEffect(() => {
         if (!inputRef.current) return;
@@ -484,8 +519,9 @@ const PowerBIGuru = () => {
     };
 
     const messageSpacingClass = isCompactMode ? 'space-y-2' : 'space-y-4';
-    const messagePaddingClass = isCompactMode ? 'p-3 text-[13px]' : 'p-4 text-sm';
-    const messageMetaClass = isCompactMode ? 'text-[10px]' : 'text-xs';
+    const messagePaddingClass = isCompactMode ? 'p-3' : 'p-4';
+    const currentFontSizeConfig = FONT_SIZES[fontSize] || FONT_SIZES.medium;
+    const messageMetaClass = currentFontSizeConfig.meta;
 
     // Typing Effect Hook
     const useTypingEffect = (text, shouldAnimate) => {
@@ -526,8 +562,11 @@ const PowerBIGuru = () => {
         if (!display) return <span className="animate-pulse">...</span>;
 
         const parts = display.split(/(```[\s\S]*?```)/g);
+        const currentFontSize = FONT_SIZES[fontSize] || FONT_SIZES.medium;
+        const currentLineHeight = LINE_HEIGHTS[lineHeight] || LINE_HEIGHTS.relaxed;
+        
         return (
-            <div className={`whitespace-pre-wrap leading-relaxed ${isCompactMode ? 'text-[13px]' : 'text-sm'}`}>
+            <div className={`whitespace-pre-wrap ${currentLineHeight.class} ${currentFontSize.message}`}>
                 {parts.map((part, i) => {
                     // Check for complete code blocks
                     if (part.startsWith('```') && part.endsWith('```')) {
@@ -537,20 +576,20 @@ const PowerBIGuru = () => {
                         
                         return (
                             <div key={i} className="my-3 rounded-lg bg-slate-800 text-slate-100 overflow-hidden shadow-sm border border-slate-700">
-                                        <div className="flex items-center justify-between px-3 py-1.5 bg-slate-900/50 text-xs text-slate-400 border-b border-white/10 select-none">
-                                            <span className="uppercase font-semibold tracking-wider text-[10px]">{language || 'CODE'}</span>
+                                        <div className="flex items-center justify-between px-3 py-1.5 bg-slate-900/50 text-slate-400 border-b border-white/10 select-none">
+                                            <span className={`uppercase font-semibold tracking-wider ${currentFontSize.meta}`}>{language || 'CODE'}</span>
                                             <button 
                                                onClick={(e) => {
                                                    e.stopPropagation();
                                                    handleCopyMessage(content.trim());
                                                }}
-                                               className="hover:text-white flex items-center gap-1.5 transition-colors"
+                                               className="hover:text-white flex items-center gap-1.5 transition-colors text-xs"
                                                aria-label="Copy code"
                                             >
                                                 <Copy className="h-3 w-3" /> Copy
                                             </button>
                                         </div>
-                                <pre className="p-3 overflow-x-auto font-mono text-xs sm:text-sm scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent">
+                                <pre className={`p-3 overflow-x-auto font-mono ${currentFontSize.code} scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent`}>
                                     <code>{content.trim()}</code>
                                 </pre>
                             </div>
@@ -850,6 +889,14 @@ const PowerBIGuru = () => {
                                 </div>
                                 <div className="ml-auto flex items-center gap-2">
                                     <button
+                                        onClick={() => setShowStyleSettings(!showStyleSettings)}
+                                        className={`p-1.5 rounded transition-colors flex items-center gap-1 ${showStyleSettings ? 'bg-brand-100 text-brand-700' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200'}`}
+                                        title="Text & Style Settings"
+                                        aria-label="Text style settings"
+                                    >
+                                        <Type className="h-4 w-4" />
+                                    </button>
+                                    <button
                                         onClick={handleExportChat}
                                         className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded transition-colors"
                                         title="Export chat"
@@ -867,6 +914,67 @@ const PowerBIGuru = () => {
                                     </button>
                                 </div>
                             </div>
+
+                            <AnimatePresence>
+                                {showStyleSettings && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="overflow-hidden border-b border-slate-200"
+                                    >
+                                        <div className="px-4 py-3 bg-gradient-to-br from-brand-50 to-slate-50">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <Type className="h-4 w-4 text-brand-600" />
+                                                <h3 className="font-semibold text-slate-900 text-sm">Text & Style Settings</h3>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl">
+                                                <div>
+                                                    <label className="block text-xs font-medium text-slate-700 mb-2">Font Size</label>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        {Object.entries(FONT_SIZES).map(([key, config]) => (
+                                                            <button
+                                                                key={key}
+                                                                onClick={() => setFontSize(key)}
+                                                                className={`px-3 py-2 text-xs rounded-lg border transition-all ${
+                                                                    fontSize === key
+                                                                        ? 'bg-brand-600 text-white border-brand-600 shadow-md'
+                                                                        : 'bg-white text-slate-700 border-slate-200 hover:border-brand-300 hover:bg-brand-50'
+                                                                }`}
+                                                            >
+                                                                <div className="font-semibold">{config.label}</div>
+                                                                <div className="text-[10px] opacity-75">{config.description}</div>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-medium text-slate-700 mb-2">Line Spacing</label>
+                                                    <div className="grid grid-cols-1 gap-2">
+                                                        {Object.entries(LINE_HEIGHTS).map(([key, config]) => (
+                                                            <button
+                                                                key={key}
+                                                                onClick={() => setLineHeight(key)}
+                                                                className={`px-3 py-2 text-xs rounded-lg border transition-all ${
+                                                                    lineHeight === key
+                                                                        ? 'bg-brand-600 text-white border-brand-600 shadow-md'
+                                                                        : 'bg-white text-slate-700 border-slate-200 hover:border-brand-300 hover:bg-brand-50'
+                                                                }`}
+                                                            >
+                                                                {config.label}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <p className="text-xs text-slate-500 mt-3 flex items-center gap-1">
+                                                <Sparkles className="h-3 w-3" />
+                                                Settings are saved automatically and persist across sessions
+                                            </p>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
 
                             <div
                                 ref={messagesContainerRef}
@@ -1181,13 +1289,84 @@ const PowerBIGuru = () => {
                                 </button>
                             ))}
                         </div>
-                        <button
-                            onClick={toggleCompactMode}
-                            className={`ml-auto text-xs px-3 py-1 rounded-full border ${isCompactMode ? 'bg-brand-600 text-white border-brand-600' : 'border-slate-200 text-slate-600'}`}
-                        >
-                            {isCompactMode ? 'Compact mode on' : 'Compact mode off'}
-                        </button>
+                        <div className="ml-auto flex items-center gap-2">
+                            <button
+                                onClick={() => setShowStyleSettings(!showStyleSettings)}
+                                className={`text-xs px-3 py-1 rounded-full border flex items-center gap-1.5 ${showStyleSettings ? 'bg-brand-600 text-white border-brand-600' : 'border-slate-200 text-slate-600 hover:bg-slate-100'}`}
+                                title="Text & Style Settings"
+                            >
+                                <Type className="h-3 w-3" />
+                                <span className="hidden sm:inline">Style</span>
+                            </button>
+                            <button
+                                onClick={toggleCompactMode}
+                                className={`text-xs px-3 py-1 rounded-full border ${isCompactMode ? 'bg-brand-600 text-white border-brand-600' : 'border-slate-200 text-slate-600'}`}
+                            >
+                                {isCompactMode ? 'Compact' : 'Normal'}
+                            </button>
+                        </div>
                     </div>
+
+                    <AnimatePresence>
+                        {showStyleSettings && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="overflow-hidden border-b border-slate-200"
+                            >
+                                <div className="px-3 sm:px-4 py-3 bg-gradient-to-br from-brand-50 to-slate-50">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <Type className="h-4 w-4 text-brand-600" />
+                                        <h3 className="font-semibold text-slate-900 text-sm">Text & Style Settings</h3>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-700 mb-2">Font Size</label>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {Object.entries(FONT_SIZES).map(([key, config]) => (
+                                                    <button
+                                                        key={key}
+                                                        onClick={() => setFontSize(key)}
+                                                        className={`px-3 py-2 text-xs rounded-lg border transition-all ${
+                                                            fontSize === key
+                                                                ? 'bg-brand-600 text-white border-brand-600 shadow-md'
+                                                                : 'bg-white text-slate-700 border-slate-200 hover:border-brand-300 hover:bg-brand-50'
+                                                        }`}
+                                                    >
+                                                        <div className="font-semibold">{config.label}</div>
+                                                        <div className="text-[10px] opacity-75">{config.description}</div>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-700 mb-2">Line Spacing</label>
+                                            <div className="grid grid-cols-1 gap-2">
+                                                {Object.entries(LINE_HEIGHTS).map(([key, config]) => (
+                                                    <button
+                                                        key={key}
+                                                        onClick={() => setLineHeight(key)}
+                                                        className={`px-3 py-2 text-xs rounded-lg border transition-all ${
+                                                            lineHeight === key
+                                                                ? 'bg-brand-600 text-white border-brand-600 shadow-md'
+                                                                : 'bg-white text-slate-700 border-slate-200 hover:border-brand-300 hover:bg-brand-50'
+                                                        }`}
+                                                    >
+                                                        {config.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-slate-500 mt-3 flex items-center gap-1">
+                                        <Sparkles className="h-3 w-3" />
+                                        Settings are saved automatically and persist across sessions
+                                    </p>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
                     {currentQuestion && (
                         <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-slate-100 bg-slate-50 flex flex-wrap items-center gap-3">

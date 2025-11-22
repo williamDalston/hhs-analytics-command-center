@@ -395,7 +395,7 @@ const QuickActions = () => {
               whileHover={{ scale: 1.05, x: -5 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => handleAction('/guru')}
-              className="flex items-center gap-3 px-5 py-3 bg-white/90 backdrop-blur-md text-slate-900 rounded-full shadow-xl shadow-brand-900/10 border border-white/50 hover:border-brand-300 transition-colors"
+              className="flex items-center gap-3 px-5 py-3 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-slate-900 dark:text-slate-100 rounded-full shadow-xl shadow-brand-900/10 border border-white/50 dark:border-slate-600/50 hover:border-brand-300 dark:hover:border-brand-500 transition-colors"
             >
               <span className="font-medium text-sm">Ask AI Guru</span>
               <div className="h-10 w-10 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white flex items-center justify-center shadow-lg shadow-brand-500/30">
@@ -411,7 +411,7 @@ const QuickActions = () => {
               whileHover={{ scale: 1.05, x: -5 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => handleAction('/portal')}
-              className="flex items-center gap-3 px-5 py-3 bg-white/90 backdrop-blur-md text-slate-900 rounded-full shadow-xl shadow-emerald-900/10 border border-white/50 hover:border-emerald-300 transition-colors"
+              className="flex items-center gap-3 px-5 py-3 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-slate-900 dark:text-slate-100 rounded-full shadow-xl shadow-emerald-900/10 border border-white/50 dark:border-slate-600/50 hover:border-emerald-300 dark:hover:border-emerald-500 transition-colors"
             >
               <span className="font-medium text-sm">Share File</span>
               <div className="h-10 w-10 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30">
@@ -427,7 +427,7 @@ const QuickActions = () => {
               whileHover={{ scale: 1.05, x: -5 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => handleAction('/portal?tab=encrypt')}
-              className="flex items-center gap-3 px-5 py-3 bg-white/90 backdrop-blur-md text-slate-900 rounded-full shadow-xl shadow-amber-900/10 border border-white/50 hover:border-amber-300 transition-colors"
+              className="flex items-center gap-3 px-5 py-3 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-slate-900 dark:text-slate-100 rounded-full shadow-xl shadow-amber-900/10 border border-white/50 dark:border-slate-600/50 hover:border-amber-300 dark:hover:border-amber-500 transition-colors"
             >
               <span className="font-medium text-sm">Share Text</span>
               <div className="h-10 w-10 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center shadow-lg shadow-amber-500/30">
