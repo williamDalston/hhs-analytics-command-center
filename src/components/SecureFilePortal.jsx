@@ -75,6 +75,59 @@ const generateRandomToken = () => {
   return result;
 };
 
+const LOCAL_MESSAGE_PREFIX = 'portal_messages_';
+const LOCAL_FILE_PREFIX = 'portal_files_';
+
+const getLocalMessageStorageKey = (token) => {
+  if (!token) return '';
+  return `${LOCAL_MESSAGE_PREFIX}${token}`;
+};
+
+const readLocalMessages = (token) => {
+  if (typeof window === 'undefined' || !token) return [];
+  try {
+    const raw = window.localStorage.getItem(getLocalMessageStorageKey(token));
+    return raw ? JSON.parse(raw) : [];
+  } catch (error) {
+    console.error('Failed to read local portal messages', error);
+    return [];
+  }
+};
+
+const writeLocalMessages = (token, msgs) => {
+  if (typeof window === 'undefined' || !token) return;
+  try {
+    window.localStorage.setItem(getLocalMessageStorageKey(token), JSON.stringify(msgs));
+  } catch (error) {
+    console.error('Failed to persist local portal messages', error);
+  }
+};
+
+const getLocalFileStorageKey = (token) => {
+  if (!token) return '';
+  return `${LOCAL_FILE_PREFIX}${token}`;
+};
+
+const readLocalFiles = (token) => {
+  if (typeof window === 'undefined' || !token) return [];
+  try {
+    const raw = window.localStorage.getItem(getLocalFileStorageKey(token));
+    return raw ? JSON.parse(raw) : [];
+  } catch (error) {
+    console.error('Failed to read local portal files', error);
+    return [];
+  }
+};
+
+const writeLocalFiles = (token, files) => {
+  if (typeof window === 'undefined' || !token) return;
+  try {
+    window.localStorage.setItem(getLocalFileStorageKey(token), JSON.stringify(files));
+  } catch (error) {
+    console.error('Failed to persist local portal files', error);
+  }
+};
+
 // --- Main Component ---
 
 const SecureFilePortal = () => {
@@ -107,6 +160,81 @@ const SecureFilePortal = () => {
   const messageInputRef = useRef(null);
   
   const supabase = getSupabaseClient();
+
+  const loadData = useCallback(async (tokenOverride) => {
+    const token = tokenOverride || accessToken;
+    if (!token) return;
+
+    if (!useCloudStorage || !supabase) {
+      const localMessages = readLocalMessages(token);
+      setMessages(Array.isArray(localMessages) ? localMessages : []);
+      const localFiles = readLocalFiles(token);
+      setFiles(Array.isArray(localFiles) ? localFiles : []);
+      return;
+    }
+
+    const { data: fileData, error: fileError } = await supabase
+      .from('portal_files')
+      .select('*')
+      .eq('token', token)
+      .order('uploaded_at', { ascending: false });
+
+    if (fileError) {
+      console.error('Failed to load files', fileError);
+    } else if (fileData) {
+      const mappedFiles = fileData.map(f => ({
+        id: f.id,
+        name: f.file_name,
+        type: f.file_type,
+        size: f.file_size,
+        encrypted: f.encrypted_data,
+        uploadedAt: f.uploaded_at,
+        uploadedBy: f.uploaded_by
+      }));
+      setFiles(mappedFiles);
+    }
+
+    const { data: msgData, error: messageError } = await supabase
+      .from('portal_messages')
+      .select('*')
+      .eq('token', token)
+      .order('created_at', { ascending: true });
+
+    if (messageError) {
+      console.error('Failed to load messages', messageError);
+    } else if (msgData) {
+      const mappedMsgs = msgData.map(m => ({
+        id: m.id,
+        text: m.message_text,
+        author: m.author,
+        timestamp: m.created_at
+      }));
+      setMessages(mappedMsgs);
+    }
+  }, [accessToken, supabase, useCloudStorage]);
+
+  const handleAuthenticate = useCallback(async (tokenToUse) => {
+    const token = tokenToUse || accessToken;
+    if (!token || token.length < 8) {
+      setError('Token must be at least 8 characters');
+      return;
+    }
+
+    try {
+      const key = await deriveKeyFromToken(token);
+      setEncryptionKey(key);
+      setAccessToken(token);
+      setIsAuthenticated(true);
+      setError('');
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('portal_access_token', token);
+      }
+      await loadData(token);
+    } catch (err) {
+      setError('Authentication failed');
+      console.error('Authentication failed', err);
+    }
+  }, [accessToken, loadData]);
 
   // Scroll to bottom of messages
   useEffect(() => {
@@ -170,78 +298,41 @@ const SecureFilePortal = () => {
     return () => clearInterval(syncIntervalRef.current);
   }, [isAuthenticated, encryptionKey, loadData]);
 
-  // --- Actions ---
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!isAuthenticated || useCloudStorage) return;
+    if (!accessToken) return;
 
-  const loadData = useCallback(async (tokenOverride) => {
-    const token = tokenOverride || accessToken;
-    if (!token || !useCloudStorage || !supabase) return;
+    const messageKey = getLocalMessageStorageKey(accessToken);
+    const fileKey = getLocalFileStorageKey(accessToken);
+    if (!messageKey && !fileKey) return;
 
-    // Load Files
-    const { data: fileData, error: fileError } = await supabase
-      .from('portal_files')
-      .select('*')
-      .eq('token', token)
-      .order('uploaded_at', { ascending: false });
-
-    if (fileError) {
-      console.error('Failed to load files', fileError);
-    } else if (fileData) {
-      const mappedFiles = fileData.map(f => ({
-        id: f.id,
-        name: f.file_name,
-        type: f.file_type,
-        size: f.file_size,
-        encrypted: f.encrypted_data,
-        uploadedAt: f.uploaded_at,
-        uploadedBy: f.uploaded_by
-      }));
-      setFiles(mappedFiles);
-    }
-
-    // Load Messages
-    const { data: msgData, error: messageError } = await supabase
-      .from('portal_messages')
-      .select('*')
-      .eq('token', token)
-      .order('created_at', { ascending: true });
-
-    if (messageError) {
-      console.error('Failed to load messages', messageError);
-    } else if (msgData) {
-      const mappedMsgs = msgData.map(m => ({
-        id: m.id,
-        text: m.message_text,
-        author: m.author,
-        timestamp: m.created_at
-      }));
-      setMessages(mappedMsgs);
-    }
-  }, [accessToken, supabase, useCloudStorage]);
-
-  const handleAuthenticate = useCallback(async (tokenToUse) => {
-    const token = tokenToUse || accessToken;
-    if (!token || token.length < 8) {
-      setError('Token must be at least 8 characters');
-      return;
-    }
-
-    try {
-      const key = await deriveKeyFromToken(token);
-      setEncryptionKey(key);
-      setAccessToken(token);
-      setIsAuthenticated(true);
-      setError('');
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('portal_access_token', token);
+    const handleStorage = (event) => {
+      if (event.key === messageKey) {
+        try {
+          const parsed = event.newValue ? JSON.parse(event.newValue) : [];
+          setMessages(Array.isArray(parsed) ? parsed : []);
+        } catch (error) {
+          console.error('Failed to sync portal messages from storage event', error);
+        }
+        return;
       }
-      
-      // Load initial data
-      await loadData(token);
-    } catch (err) {
-      setError('Authentication failed');
-      console.error('Authentication failed', err);
-    }
-  }, [accessToken, loadData]);
+
+      if (event.key === fileKey) {
+        try {
+          const parsed = event.newValue ? JSON.parse(event.newValue) : [];
+          setFiles(Array.isArray(parsed) ? parsed : []);
+        } catch (error) {
+          console.error('Failed to sync portal files from storage event', error);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, [accessToken, isAuthenticated, useCloudStorage]);
+
+  // --- Actions ---
 
   const logout = () => {
     if (typeof window !== 'undefined') {
@@ -274,7 +365,11 @@ const SecureFilePortal = () => {
         });
         await loadData(); // Refresh immediately
       } else {
-        setMessages([...messages, { ...msg, id: Date.now() }]);
+        const localMsg = { ...msg, id: Date.now() };
+        const existing = readLocalMessages(accessToken);
+        const updated = [...existing, localMsg];
+        writeLocalMessages(accessToken, updated);
+        setMessages(updated);
       }
       setNewMessage('');
       if (messageInputRef.current) messageInputRef.current.focus();
@@ -290,7 +385,10 @@ const SecureFilePortal = () => {
       await loadData();
       addToast('Message deleted', 'success');
     } else {
-      setMessages(messages.filter(m => m.id !== id));
+      const existing = readLocalMessages(accessToken);
+      const updated = existing.filter(m => m.id !== id);
+      writeLocalMessages(accessToken, updated);
+      setMessages(updated);
       addToast('Message deleted', 'success');
     }
   };
@@ -301,6 +399,7 @@ const SecureFilePortal = () => {
         await supabase.from('portal_messages').delete().eq('token', accessToken);
         await loadData();
       } else {
+        writeLocalMessages(accessToken, []);
         setMessages([]);
       }
       addToast('Chat cleared', 'success');
@@ -328,9 +427,25 @@ const SecureFilePortal = () => {
             iv: 'included_in_data',
             uploaded_by: 'User'
           });
+        } else {
+          const localFile = {
+            id: `${Date.now()}-${file.name}-${Math.random().toString(36).slice(2)}`,
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            encrypted: base64Data,
+            uploadedAt: new Date().toISOString(),
+            uploadedBy: 'User'
+          };
+          const existingFiles = readLocalFiles(accessToken);
+          const updatedFiles = [localFile, ...existingFiles];
+          writeLocalFiles(accessToken, updatedFiles);
+          setFiles(updatedFiles);
         }
       }
-      await loadData();
+      if (useCloudStorage && supabase) {
+        await loadData();
+      }
       addToast('Files uploaded securely', 'success');
     } catch (err) {
       setError('Upload failed');
@@ -366,7 +481,10 @@ const SecureFilePortal = () => {
       await loadData();
       addToast('File deleted', 'success');
     } else {
-       setFiles(files.filter(f => f.id !== id));
+       const existing = readLocalFiles(accessToken);
+       const updated = existing.filter(f => f.id !== id);
+       writeLocalFiles(accessToken, updated);
+       setFiles(updated);
        addToast('File deleted', 'success');
     }
   };

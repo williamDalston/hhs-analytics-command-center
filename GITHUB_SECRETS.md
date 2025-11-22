@@ -16,6 +16,11 @@
 
 **Secret 3: Google Gemini API Key (For Power BI Guru)**
 - Name: `VITE_GEMINI_API_KEY`
-- Value: `AIzaSyDwiE6kUBveR6ncuUlphCbdK2EGqeLnMXY`
+- Value: `YOUR_GOOGLE_GEMINI_API_KEY`
+- Where to get it:
+  1. Go to https://aistudio.google.com/app/apikey
+  2. Create or select a project
+  3. Generate a new API key (rotate if one was previously exposed)
+  4. Paste the key value into the GitHub secret (and your local `.env` if needed)
 
 After adding secrets, the GitHub Actions workflow will use them during the next build.

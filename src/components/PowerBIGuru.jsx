@@ -33,7 +33,8 @@ const LOCAL_KNOWLEDGE = [
     }
 ];
 
-const GEMINI_MODEL = "gemini-1.5-flash";
+// Use the latest stable Gemini 1.5 Flash alias to stay compatible with v1 APIs
+const GEMINI_MODEL = "gemini-1.5-flash-latest";
 const PROJECT_GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY?.trim() || '';
 
 const getStoredCustomKey = () => {
