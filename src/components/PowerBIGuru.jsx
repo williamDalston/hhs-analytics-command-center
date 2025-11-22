@@ -60,7 +60,7 @@ const PowerBIGuru = () => {
     const { addToast } = useToast();
     const initialKeyInfoRef = useRef(resolveInitialApiKey());
     const [messages, setMessages] = useState([
-        { id: 1, text: "Hi, I'm your Analytics Assistant. Ask me about DAX, HHS Branding, or data strategy.", sender: 'bot' }
+        { id: 1, text: "Hi, I'm your Analytics Assistant. Ask me about DAX, HHS Branding, or data strategy.", sender: 'bot', isSystem: true }
     ]);
     const [input, setInput] = useState('');
     const [apiKey, setApiKey] = useState(initialKeyInfoRef.current.key);
@@ -255,12 +255,11 @@ const PowerBIGuru = () => {
                             model: modelName,
                             systemInstruction: "You are an expert Power BI Developer and Data Analyst for the US Department of Health and Human Services (HHS). Answer questions concisely and professionally. If it involves DAX, provide code snippets."
                         });
-                        // Test the model with a simple request
-                        await model.generateContent('test');
-                        console.log(`Successfully connected to ${modelName}`);
-                        break; // Success, use this model
+                        console.log(`Initialized model ${modelName}, attempting to use it...`);
+                        // Don't test with generateContent - just try to use it directly
+                        break; // Use this model
                     } catch (modelError) {
-                        console.warn(`Model ${modelName} failed:`, modelError.message);
+                        console.warn(`Model ${modelName} failed to initialize:`, modelError.message);
                         lastModelError = modelError;
                         continue; // Try next model
                     }
@@ -278,6 +277,9 @@ const PowerBIGuru = () => {
                         parts: [{ text: msg.text }]
                     }));
 
+                console.log('Chat history for AI:', history);
+                console.log('Current user message:', userMsg.text);
+
                 const chat = model.startChat({
                     history: history,
                     generationConfig: {
@@ -292,6 +294,7 @@ const PowerBIGuru = () => {
                 setMessages(prev => [...prev, { id: Date.now() + 1, text: text, sender: 'bot' }]);
             } catch (error) {
                 console.error("AI Connection Error:", error);
+                console.error("Error details:", error.message, error.stack);
 
                 // Check if it's an authentication/key error
                 const isAuthError = error.message?.includes('API_KEY') ||
