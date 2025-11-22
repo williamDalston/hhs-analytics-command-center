@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Send, User, Sparkles, Settings, Key, Database, AlertCircle, Copy, Trash2, Download, MessageSquare, ChevronDown, NotebookPen, Eraser, Wand2, Maximize2, Minimize2, BookmarkPlus, ArrowDownToLine, GripVertical, PanelRightOpen, PanelRightClose, PanelLeftOpen, PanelLeftClose, Type } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -251,6 +252,16 @@ const PowerBIGuru = () => {
 
     useEffect(() => {
         recalcNotesWidth();
+
+        const handleEsc = (e) => {
+            if (e.key === 'Escape' && isMaximized) {
+                setIsMaximized(false);
+            }
+        };
+        if (typeof window !== 'undefined') {
+            window.addEventListener('keydown', handleEsc);
+            return () => window.removeEventListener('keydown', handleEsc);
+        }
     }, [isMaximized, recalcNotesWidth]);
 
     useEffect(() => {
@@ -312,16 +323,23 @@ const PowerBIGuru = () => {
         window.localStorage.setItem(LINE_HEIGHT_STORAGE_KEY, lineHeight);
     }, [lineHeight]);
 
-    useEffect(() => {
-        if (!inputRef.current) return;
+    // Optimize textarea resizing to prevent flashing
+    const adjustTextareaHeight = useCallback(() => {
         const textarea = inputRef.current;
-        // Reset height to auto to correctly calculate new scrollHeight
+        if (!textarea) return;
+
+        // Store current scroll position of the window/container to restore if needed
+        // (though usually not needed for fixed input)
+        
         textarea.style.height = 'auto';
         const maxHeight = 200;
-        // Set new height based on content
         const newHeight = Math.min(textarea.scrollHeight, maxHeight);
         textarea.style.height = `${newHeight}px`;
-    }, [input]);
+    }, []);
+
+    useEffect(() => {
+        adjustTextareaHeight();
+    }, [input, adjustTextareaHeight]);
 
     useEffect(() => {
         const trimmedKey = apiKey.trim();
@@ -869,10 +887,38 @@ const PowerBIGuru = () => {
         </>
     );
 
+    const EmptyState = ({ onPromptClick }) => (
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-fadeIn">
+            <div className="bg-brand-50 p-6 rounded-full mb-6 ring-8 ring-brand-50/50">
+                <Sparkles className="h-12 w-12 text-brand-600" />
+            </div>
+            <h3 className="text-2xl font-bold text-slate-900 mb-2">How can I help you today?</h3>
+            <p className="text-slate-600 max-w-md mb-8">
+                I'm your dedicated analytics assistant. Ask me about DAX patterns, report design, or HHS data standards.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl w-full">
+                {QUICK_PROMPTS.map((prompt) => (
+                    <button
+                        key={prompt.label}
+                        onClick={() => onPromptClick(prompt.value)}
+                        className="p-4 bg-white border border-slate-200 rounded-xl hover:border-brand-300 hover:shadow-brand transition-all text-left group"
+                    >
+                        <span className="text-xs font-bold text-brand-600 uppercase tracking-wider mb-1 block group-hover:text-brand-700">
+                            {prompt.label}
+                        </span>
+                        <span className="text-sm text-slate-700 group-hover:text-slate-900">
+                            {prompt.value}
+                        </span>
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+
     if (isMaximized) {
-        return (
-            <div className="fixed inset-0 z-50 bg-white flex flex-col">
-                <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        return createPortal(
+            <div className="fixed inset-0 z-[100] bg-white flex flex-col animate-fadeIn">
+                <div className="bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 py-3 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20">
                     <div className="flex items-center gap-2">
                         <Sparkles className="h-5 w-5 text-brand-600" />
                         <h2 className="text-lg font-bold text-slate-900">Power BI Guru</h2>
@@ -1033,62 +1079,66 @@ const PowerBIGuru = () => {
                                 ref={messagesContainerRef}
                                 className={`flex-1 overflow-y-auto p-4 md:p-8 ${messageSpacingClass} relative`}
                             >
-                                {messages.map((msg) => (
-                                    <motion.div
-                                        key={msg.id}
-                                        id={`message-${msg.id}`}
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                                    >
-                                        <div className={`max-w-[90%] md:max-w-[70%] rounded-2xl ${messagePaddingClass} group relative shadow-sm ${msg.sender === 'user'
-                                            ? 'bg-brand-600 text-white rounded-br-none'
-                                            : msg.isSystem
-                                                ? 'bg-amber-50 text-amber-800 border border-amber-100'
-                                                : 'bg-slate-100 text-slate-800 rounded-bl-none'
-                                            } ${msg.id === lastAnswerId ? 'ring-2 ring-brand-200 shadow-brand-200/60' : ''}`}>
-                                            <button
-                                                onClick={() => handleCopyMessage(msg.text)}
-                                                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600 bg-white/20 p-1 rounded"
-                                                title="Copy message"
-                                                aria-label="Copy message"
-                                            >
-                                                <Copy className="h-3 w-3" />
-                                            </button>
-                                            {msg.sender === 'guru' && !msg.isSystem && (
-                                            <button
-                                                onClick={() => handleAddMessageToNotes(msg.text)}
-                                                className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600 bg-white/20 p-1 rounded"
-                                                title="Save to notes"
-                                                aria-label="Save to notes"
-                                            >
-                                                    <BookmarkPlus className="h-3 w-3" />
+                                {messages.length <= 1 ? (
+                                    <EmptyState onPromptClick={handleQuickPrompt} />
+                                ) : (
+                                    messages.map((msg) => (
+                                        <motion.div
+                                            key={msg.id}
+                                            id={`message-${msg.id}`}
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                                        >
+                                            <div className={`max-w-[90%] md:max-w-[70%] rounded-2xl ${messagePaddingClass} group relative shadow-sm ${msg.sender === 'user'
+                                                ? 'bg-brand-600 text-white rounded-br-none'
+                                                : msg.isSystem
+                                                    ? 'bg-amber-50 text-amber-800 border border-amber-100'
+                                                    : 'bg-slate-100 text-slate-800 rounded-bl-none'
+                                                } ${msg.id === lastAnswerId ? 'ring-2 ring-brand-200 shadow-brand-200/60' : ''}`}>
+                                                <button
+                                                    onClick={() => handleCopyMessage(msg.text)}
+                                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600 bg-white/20 p-1 rounded"
+                                                    title="Copy message"
+                                                    aria-label="Copy message"
+                                                >
+                                                    <Copy className="h-3 w-3" />
                                                 </button>
-                                            )}
-                                            <div className={`flex items-center justify-between mb-1 opacity-75 ${messageMetaClass}`}>
-                                                <div className="flex items-center gap-2">
-                                                    {msg.sender === 'user' ? <User className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
-                                                    <span className="uppercase font-bold tracking-wider">{msg.sender}</span>
+                                                {msg.sender === 'guru' && !msg.isSystem && (
+                                                <button
+                                                    onClick={() => handleAddMessageToNotes(msg.text)}
+                                                    className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600 bg-white/20 p-1 rounded"
+                                                    title="Save to notes"
+                                                    aria-label="Save to notes"
+                                                >
+                                                        <BookmarkPlus className="h-3 w-3" />
+                                                    </button>
+                                                )}
+                                                <div className={`flex items-center justify-between mb-1 opacity-75 ${messageMetaClass}`}>
+                                                    <div className="flex items-center gap-2">
+                                                        {msg.sender === 'user' ? <User className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
+                                                        <span className="uppercase font-bold tracking-wider">{msg.sender}</span>
+                                                    </div>
+                                                    {formatMessageTime(msg) && (
+                                                        <span className="opacity-75">{formatMessageTime(msg)}</span>
+                                                    )}
                                                 </div>
-                                                {formatMessageTime(msg) && (
-                                                    <span className="opacity-75">{formatMessageTime(msg)}</span>
+                                                <MessageContent
+                                                    text={msg.text}
+                                                    shouldAnimate={msg.id === lastAnswerId && msg.sender === 'guru' && !msg.isSystem}
+                                                    isUser={msg.sender === 'user'}
+                                                />
+                                                {msg.link && (
+                                                    <div className="mt-3 pt-3 border-t border-black/10">
+                                                        <a href={`#${msg.link}`} className="text-xs font-bold flex items-center gap-1 hover:underline">
+                                                            View Resource <Database className="h-3 w-3" />
+                                                        </a>
+                                                    </div>
                                                 )}
                                             </div>
-                                            <MessageContent
-                                                text={msg.text}
-                                                shouldAnimate={msg.id === lastAnswerId && msg.sender === 'guru' && !msg.isSystem}
-                                                isUser={msg.sender === 'user'}
-                                            />
-                                            {msg.link && (
-                                                <div className="mt-3 pt-3 border-t border-black/10">
-                                                    <a href={`#${msg.link}`} className="text-xs font-bold flex items-center gap-1 hover:underline">
-                                                        View Resource <Database className="h-3 w-3" />
-                                                    </a>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </motion.div>
-                                ))}
+                                        </motion.div>
+                                    ))
+                                )}
                                 <AnimatePresence>
                                     {isTyping && (
                                         <motion.div
@@ -1108,20 +1158,24 @@ const PowerBIGuru = () => {
                                 <div ref={messagesEndRef} />
                             </div>
 
-                            <div className="p-4 bg-slate-50 border-t border-slate-200 shrink-0">
+                            <div className="p-4 bg-white border-t border-slate-200 shrink-0 shadow-up z-10">
                                 <div className="max-w-4xl mx-auto w-full flex gap-2">
                                     <textarea
                                         ref={inputRef}
                                         value={input}
-                                        onChange={(e) => setInput(e.target.value)}
+                                        onChange={(e) => {
+                                            setInput(e.target.value);
+                                            // adjustTextareaHeight is called via useEffect
+                                        }}
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter' && !e.shiftKey) {
                                                 e.preventDefault();
                                                 handleSend();
                                             }
+                                            // No need for explicit Shift+Enter handling as it's default behavior
                                         }}
                                         placeholder="Ask anything about Power BI... (Shift+Enter for new line)"
-                                        className="input-field flex-1 shadow-sm resize-none min-h-[48px] max-h-[200px]"
+                                        className="input-field flex-1 shadow-sm resize-none min-h-[48px] max-h-[200px] overflow-hidden"
                                         rows={1}
                                     />
                                     <button
@@ -1145,7 +1199,7 @@ const PowerBIGuru = () => {
                             <div className="flex flex-col gap-4 lg:gap-0 lg:flex-row shrink-0 w-full lg:w-auto">
                                 {isDesktopLayout && (
                             <div
-                                className="hidden lg:flex items-center justify-center w-5 cursor-col-resize select-none text-slate-400 hover:bg-slate-100 hover:text-brand-500 transition-colors -ml-2.5 z-10"
+                                className="hidden lg:flex items-center justify-center w-5 cursor-col-resize select-none text-slate-400 hover:bg-slate-100 hover:text-brand-500 transition-colors -ml-2.5 z-10 group"
                                 role="separator"
                                         aria-label="Resize session notes panel"
                                         aria-orientation="vertical"
@@ -1154,22 +1208,23 @@ const PowerBIGuru = () => {
                                         onKeyDown={handleResizableKeyDown}
                                         title="Drag to resize notes"
                                     >
-                                        <div className="flex flex-col items-center gap-1 bg-white/80 rounded-full px-1 py-3 shadow-sm border border-slate-200">
+                                        <div className="flex flex-col items-center gap-1 bg-white/80 rounded-full px-1 py-3 shadow-sm border border-slate-200 group-hover:border-brand-300 group-hover:scale-110 transition-all">
                                             <GripVertical className="h-4 w-4" />
                                         </div>
                                     </div>
                                 )}
-                                <div
-                                    className="border border-slate-200 bg-slate-50 rounded-xl shadow-inner p-4 sm:p-5 flex flex-col w-full lg:w-auto transition-[width] duration-200 max-h-[300px] lg:max-h-none"
-                                    style={notesPanelStyle}
-                                >
-                                    {sessionNotesContent}
-                                </div>
+                            <div
+                                className="border border-slate-200 bg-slate-50 rounded-xl shadow-inner p-4 sm:p-5 flex flex-col w-full lg:w-auto transition-[width] duration-200 max-h-[300px] lg:max-h-none"
+                                style={notesPanelStyle}
+                            >
+                                {sessionNotesContent}
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </div>
             </div>
+        </div>,
+        document.body
         );
     }
 
@@ -1335,41 +1390,44 @@ const PowerBIGuru = () => {
                         </div>
                     </div>
 
-                    <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-slate-100 bg-white flex flex-wrap items-center gap-2">
-                        <div className="flex items-center gap-2 text-[10px] sm:text-xs font-semibold uppercase text-slate-500">
-                            <Wand2 className="h-3 w-3 text-brand-500" />
-                            <span className="hidden xs:inline">Quick prompts</span>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                            {QUICK_PROMPTS.map(prompt => (
+                    {/* Quick Prompts Bar - Only show if not empty state */}
+                    {messages.length > 1 && (
+                        <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-slate-100 bg-white flex flex-wrap items-center gap-2">
+                            <div className="flex items-center gap-2 text-[10px] sm:text-xs font-semibold uppercase text-slate-500">
+                                <Wand2 className="h-3 w-3 text-brand-500" />
+                                <span className="hidden xs:inline">Quick prompts</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                                {QUICK_PROMPTS.map(prompt => (
+                                    <button
+                                        key={prompt.label}
+                                        onClick={() => handleQuickPrompt(prompt.value)}
+                                        className="px-2.5 sm:px-3 py-1.5 sm:py-1 text-[11px] sm:text-xs bg-slate-100 text-slate-700 rounded-full hover:bg-brand-50 hover:text-brand-700 transition-colors whitespace-nowrap flex-shrink-0"
+                                    >
+                                        {prompt.label}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
                                 <button
-                                    key={prompt.label}
-                                    onClick={() => handleQuickPrompt(prompt.value)}
-                                    className="px-2.5 sm:px-3 py-1.5 sm:py-1 text-[11px] sm:text-xs bg-slate-100 text-slate-700 rounded-full hover:bg-brand-50 hover:text-brand-700 transition-colors whitespace-nowrap flex-shrink-0"
+                                    onClick={() => setShowStyleSettings(!showStyleSettings)}
+                                    className={`text-[11px] sm:text-xs px-2.5 sm:px-3 py-1.5 sm:py-1 rounded-full border flex items-center gap-1 sm:gap-1.5 ${showStyleSettings ? 'bg-brand-600 text-white border-brand-600' : 'border-slate-200 text-slate-600 hover:bg-slate-100'}`}
+                                    title="Text & Style Settings"
+                                    aria-label="Text & Style Settings"
                                 >
-                                    {prompt.label}
+                                    <Type className="h-3 w-3" />
+                                    <span className="hidden sm:inline">Style</span>
                                 </button>
-                            ))}
+                                <button
+                                    onClick={toggleCompactMode}
+                                    className={`text-[11px] sm:text-xs px-2.5 sm:px-3 py-1.5 sm:py-1 rounded-full border whitespace-nowrap ${isCompactMode ? 'bg-brand-600 text-white border-brand-600' : 'border-slate-200 text-slate-600'}`}
+                                    aria-label={isCompactMode ? 'Switch to normal mode' : 'Switch to compact mode'}
+                                >
+                                    {isCompactMode ? 'Compact' : 'Normal'}
+                                </button>
+                            </div>
                         </div>
-                        <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-                            <button
-                                onClick={() => setShowStyleSettings(!showStyleSettings)}
-                                className={`text-[11px] sm:text-xs px-2.5 sm:px-3 py-1.5 sm:py-1 rounded-full border flex items-center gap-1 sm:gap-1.5 ${showStyleSettings ? 'bg-brand-600 text-white border-brand-600' : 'border-slate-200 text-slate-600 hover:bg-slate-100'}`}
-                                title="Text & Style Settings"
-                                aria-label="Text & Style Settings"
-                            >
-                                <Type className="h-3 w-3" />
-                                <span className="hidden sm:inline">Style</span>
-                            </button>
-                            <button
-                                onClick={toggleCompactMode}
-                                className={`text-[11px] sm:text-xs px-2.5 sm:px-3 py-1.5 sm:py-1 rounded-full border whitespace-nowrap ${isCompactMode ? 'bg-brand-600 text-white border-brand-600' : 'border-slate-200 text-slate-600'}`}
-                                aria-label={isCompactMode ? 'Switch to normal mode' : 'Switch to compact mode'}
-                            >
-                                {isCompactMode ? 'Compact' : 'Normal'}
-                            </button>
-                        </div>
-                    </div>
+                    )}
 
                     <AnimatePresence>
                         {showStyleSettings && (
@@ -1548,7 +1606,7 @@ const PowerBIGuru = () => {
                         )}
                     </AnimatePresence>
 
-                    <div className="p-3 sm:p-4 bg-slate-50 border-t border-slate-200">
+                    <div className="p-3 sm:p-4 bg-white border-t border-slate-200 shadow-up z-10">
                         <div className="flex gap-2">
                             <textarea
                                 ref={inputRef}
@@ -1591,7 +1649,7 @@ const PowerBIGuru = () => {
                     <div className="flex flex-col gap-4 lg:gap-0 lg:flex-row shrink-0 w-full lg:w-auto">
                         {isDesktopLayout && (
                             <div
-                                className="hidden lg:flex items-center justify-center w-5 cursor-col-resize select-none text-slate-400 hover:bg-slate-100 hover:text-brand-500 transition-colors -ml-2.5 z-10"
+                                className="hidden lg:flex items-center justify-center w-5 cursor-col-resize select-none text-slate-400 hover:bg-slate-100 hover:text-brand-500 transition-colors -ml-2.5 z-10 group"
                                 role="separator"
                                 aria-label="Resize session notes panel"
                                 aria-orientation="vertical"
@@ -1600,7 +1658,7 @@ const PowerBIGuru = () => {
                                 onKeyDown={handleResizableKeyDown}
                                 title="Drag to resize notes"
                             >
-                                <div className="flex flex-col items-center gap-1 bg-white/80 rounded-full px-1 py-3 shadow-sm border border-slate-200">
+                                <div className="flex flex-col items-center gap-1 bg-white/80 rounded-full px-1 py-3 shadow-sm border border-slate-200 group-hover:border-brand-300 group-hover:scale-110 transition-all">
                                     <GripVertical className="h-4 w-4" />
                                 </div>
                             </div>

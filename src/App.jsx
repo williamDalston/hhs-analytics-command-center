@@ -377,6 +377,10 @@ const Sidebar = ({ onDataManagerOpen }) => {
 const QuickActions = () => {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Hide on Guru page to avoid clutter and z-index conflicts
+  if (location.pathname === '/guru') return null;
 
   const handleAction = (path) => {
     navigate(path);
