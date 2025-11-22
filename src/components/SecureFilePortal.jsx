@@ -563,14 +563,126 @@ const SecureFilePortal = () => {
         </motion.div>
       )}
 
-      {/* File Upload Section */}
-      <div className="card">
-        <div className="flex items-center gap-2 mb-4">
-          <Upload className="h-5 w-5 text-brand-600" />
-          <h3 className="text-lg font-semibold">Upload Files</h3>
+      {/* Quick Share Instructions */}
+      <div className="bg-gradient-to-r from-brand-50 to-blue-50 border-2 border-brand-200 rounded-lg p-6">
+        <h3 className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
+          <Send className="h-5 w-5 text-brand-600" />
+          Share Instantly Across Devices
+        </h3>
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="bg-white rounded-lg p-4 border border-brand-200">
+            <div className="flex items-center gap-2 mb-2">
+              <FileText className="h-5 w-5 text-brand-600" />
+              <span className="font-semibold text-slate-900">Send Text</span>
+            </div>
+            <p className="text-sm text-slate-600 mb-3">
+              Type a message below and press Send. It appears instantly on any device using the same token.
+            </p>
+            <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 px-2 py-1 rounded">
+              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+              Syncs every 5 seconds
+            </div>
+          </div>
+          <div className="bg-white rounded-lg p-4 border border-brand-200">
+            <div className="flex items-center gap-2 mb-2">
+              <Upload className="h-5 w-5 text-brand-600" />
+              <span className="font-semibold text-slate-900">Upload Files</span>
+            </div>
+            <p className="text-sm text-slate-600 mb-3">
+              Click "Upload Files" below to share files. They appear instantly on other devices.
+            </p>
+            <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 px-2 py-1 rounded">
+              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+              Encrypted & synced automatically
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Messages Section - Moved to Top for Prominence */}
+      <div className="card border-2 border-brand-200">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Send className="h-5 w-5 text-brand-600" />
+            <h3 className="text-lg font-semibold">Send Text Message</h3>
+          </div>
+          {useCloudStorage && (
+            <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
+              Appears instantly on other devices
+            </span>
+          )}
         </div>
         
-        <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-brand-400 transition-colors">
+        <div className="space-y-3 mb-4 max-h-64 overflow-y-auto">
+          {messages.length === 0 ? (
+            <div className="text-center py-8 text-slate-500">
+              <Send className="h-8 w-8 mx-auto mb-2 text-slate-300" />
+              <p className="text-sm">No messages yet. Type below to send your first message!</p>
+            </div>
+          ) : (
+            messages.map((msg) => (
+              <div
+                key={msg.id}
+                className="p-3 bg-slate-50 rounded-lg border border-slate-200"
+              >
+                <div className="flex justify-between items-start mb-1">
+                  <span className="text-xs font-medium text-slate-700">{msg.author}</span>
+                  <span className="text-xs text-slate-500">
+                    {new Date(msg.timestamp).toLocaleTimeString()}
+                  </span>
+                </div>
+                <p className="text-sm text-slate-900 whitespace-pre-wrap">{msg.text}</p>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="flex gap-2">
+          <textarea
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+              }
+            }}
+            placeholder={useCloudStorage ? "Type your message... (appears instantly on other devices)" : "Type your message..."}
+            className="input-field flex-1 min-h-[80px] resize-none"
+            rows={3}
+          />
+          <button
+            onClick={handleSendMessage}
+            disabled={!newMessage.trim()}
+            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            <Send className="h-4 w-4" />
+            Send
+          </button>
+        </div>
+        {useCloudStorage && (
+          <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
+            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+            Messages sync automatically every 5 seconds
+          </p>
+        )}
+      </div>
+
+      {/* File Upload Section */}
+      <div className="card border-2 border-brand-200">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Upload className="h-5 w-5 text-brand-600" />
+            <h3 className="text-lg font-semibold">Upload Files</h3>
+          </div>
+          {useCloudStorage && (
+            <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
+              Appears instantly on other devices
+            </span>
+          )}
+        </div>
+        
+        <div className="border-2 border-dashed border-brand-300 rounded-lg p-8 text-center hover:border-brand-500 hover:bg-brand-50 transition-all cursor-pointer">
           <input
             ref={fileInputRef}
             type="file"
@@ -582,19 +694,22 @@ const SecureFilePortal = () => {
           />
           <label
             htmlFor="file-upload"
-            className="cursor-pointer flex flex-col items-center gap-2"
+            className="cursor-pointer flex flex-col items-center gap-3"
           >
-            <Upload className="h-12 w-12 text-slate-400" />
+            <Upload className="h-16 w-16 text-brand-500" />
             <div>
-              <span className="text-brand-600 font-medium">Click to upload</span>
-              <span className="text-slate-500"> or drag and drop</span>
+              <span className="text-brand-600 font-bold text-lg">Click to Upload Files</span>
+              <span className="text-slate-500 block mt-1">or drag and drop files here</span>
             </div>
-            <p className="text-xs text-slate-500">Max 10MB per file</p>
+            <p className="text-sm text-slate-500 bg-slate-50 px-3 py-1 rounded">
+              Max 10MB per file • {useCloudStorage ? 'Files sync instantly to other devices' : 'Files stored locally'}
+            </p>
           </label>
         </div>
 
         {uploading && (
-          <div className="mt-4 text-center text-sm text-slate-600">
+          <div className="mt-4 text-center text-sm text-slate-600 flex items-center justify-center gap-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-brand-600 border-t-transparent"></div>
             Encrypting and uploading...
           </div>
         )}
@@ -655,48 +770,6 @@ const SecureFilePortal = () => {
         )}
       </div>
 
-      {/* Messages Section */}
-      <div className="card">
-        <h3 className="text-lg font-semibold mb-4">Messages</h3>
-        
-        <div className="space-y-3 mb-4 max-h-64 overflow-y-auto">
-          {messages.length === 0 ? (
-            <p className="text-center py-8 text-slate-500 text-sm">No messages yet</p>
-          ) : (
-            messages.map((msg) => (
-              <div
-                key={msg.id}
-                className="p-3 bg-slate-50 rounded-lg"
-              >
-                <div className="flex justify-between items-start mb-1">
-                  <span className="text-xs font-medium text-slate-700">{msg.author}</span>
-                  <span className="text-xs text-slate-500">
-                    {new Date(msg.timestamp).toLocaleTimeString()}
-                  </span>
-                </div>
-                <p className="text-sm text-slate-900">{msg.text}</p>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-            placeholder="Type a message..."
-            className="input-field flex-1"
-          />
-          <button
-            onClick={handleSendMessage}
-            className="btn-primary"
-          >
-            <Send className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
 
       {/* Security Status */}
       <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
