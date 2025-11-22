@@ -117,6 +117,21 @@ const PowerBIGuru = () => {
     }, [messages]);
 
     useEffect(() => {
+        const lastMsg = messages[messages.length - 1];
+        // If it's a new bot message, scroll to the *User's* previous message to keep context
+        // This solves "start at the answer easily"
+        if (lastMsg?.sender === 'bot' && !lastMsg.isSystem) {
+             const prevMsg = messages[messages.length - 2];
+             if (prevMsg?.sender === 'user') {
+                 const el = document.getElementById(`message-${prevMsg.id}`);
+                 if (el) {
+                     el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                     return;
+                 }
+             }
+        }
+        
+        // Default behavior: scroll to bottom
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
@@ -365,8 +380,10 @@ const PowerBIGuru = () => {
                     setDisplayedText(text); // Ensure full match at end
                     return;
                 }
-                // Type faster for longer text to avoid boredom
-                const step = text.length > 500 ? 5 : 2; 
+                // Type faster for longer text to avoid boredom, but keep control
+                // Base speed 15, accelerate to 50 for very long texts
+                const baseStep = text.length > 1000 ? 50 : (text.length > 500 ? 25 : 10);
+                const step = baseStep; 
                 setDisplayedText(text.slice(0, index + step));
                 index += step;
             }, 10);
@@ -641,6 +658,7 @@ const PowerBIGuru = () => {
                             {messages.map((msg) => (
                                 <motion.div
                                     key={msg.id}
+                                    id={`message-${msg.id}`}
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
