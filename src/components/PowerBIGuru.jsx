@@ -49,7 +49,7 @@ const getInitialNotesWidth = () => {
 
 const createInitialMessage = () => ({
     id: 'welcome',
-    text: "Hi, I'm your Analytics Assistant. Ask me about DAX, HHS Branding, or data strategy.",
+    text: "Hi, I'm your **Analytics Assistant**. Ask me about **DAX**, **HHS Branding**, or **data strategy**.",
     sender: 'guru',
     isSystem: true,
     createdAt: new Date().toISOString()
@@ -559,7 +559,7 @@ const PowerBIGuru = () => {
     };
 
     // Message Content Component with Typing Support
-    const MessageContent = ({ text, shouldAnimate }) => {
+    const MessageContent = ({ text, shouldAnimate, isUser = false }) => {
         const display = useTypingEffect(text, shouldAnimate);
         
         // Only run the split logic if we have text
@@ -569,6 +569,34 @@ const PowerBIGuru = () => {
         const currentFontSize = FONT_SIZES[fontSize] || FONT_SIZES.medium;
         const currentLineHeight = LINE_HEIGHTS[lineHeight] || LINE_HEIGHTS.relaxed;
         
+        const renderFormattedText = (textSegment) => {
+            // Split by inline code, bold, italic
+            // Regex: (`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)
+            const segments = textSegment.split(/(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/g);
+            
+            return segments.map((segment, i) => {
+                if (segment.startsWith('`') && segment.endsWith('`')) {
+                    const content = segment.slice(1, -1);
+                    return (
+                        <code key={i} className={`px-1.5 py-0.5 rounded font-mono text-[0.9em] border ${
+                            isUser 
+                                ? 'bg-brand-700 text-brand-50 border-brand-600' 
+                                : 'bg-slate-200/60 text-slate-800 border-slate-200/50'
+                        }`}>
+                            {content}
+                        </code>
+                    );
+                }
+                if (segment.startsWith('**') && segment.endsWith('**')) {
+                    return <strong key={i} className="font-bold opacity-100">{segment.slice(2, -2)}</strong>;
+                }
+                if (segment.startsWith('*') && segment.endsWith('*')) {
+                    return <em key={i} className="italic opacity-90">{segment.slice(1, -1)}</em>;
+                }
+                return segment;
+            });
+        };
+
         return (
             <div className={`whitespace-pre-wrap ${currentLineHeight.class} ${currentFontSize.message}`}>
                 {parts.map((part, i) => {
@@ -600,7 +628,7 @@ const PowerBIGuru = () => {
                         );
                     }
                     // Handle incomplete code blocks (during typing) or regular text
-                    return <span key={i}>{part}</span>;
+                    return <span key={i}>{renderFormattedText(part)}</span>;
                 })}
             </div>
         );
@@ -650,7 +678,7 @@ const PowerBIGuru = () => {
                     try {
                         model = genAI.getGenerativeModel({
                             model: modelName,
-                    systemInstruction: "You are an expert Power BI Developer and Data Analyst for the US Department of Health and Human Services (HHS). Help the user with their questions. If it is a general question, answer it normally but try to pivot back to data, Power BI, or HHS context if relevant. If it involves DAX, provide code snippets."
+                            systemInstruction: "You are an expert Power BI Developer and Data Analyst for the US Department of Health and Human Services (HHS), but you are also a helpful general-purpose AI assistant. You can answer ANY question the user asks, regardless of the topic (including general knowledge, coding in other languages, creative writing, etc.). If the question is about Power BI, DAX, or data, provide expert advice. If the question is unrelated, answer it helpfully and accurately without forcing a connection to data."
                 });
                         // Only log in development
                         if (import.meta.env.DEV) {
@@ -1049,6 +1077,7 @@ const PowerBIGuru = () => {
                                             <MessageContent
                                                 text={msg.text}
                                                 shouldAnimate={msg.id === lastAnswerId && msg.sender === 'guru' && !msg.isSystem}
+                                                isUser={msg.sender === 'user'}
                                             />
                                             {msg.link && (
                                                 <div className="mt-3 pt-3 border-t border-black/10">
@@ -1149,7 +1178,7 @@ const PowerBIGuru = () => {
             <div className="flex flex-wrap items-start justify-between gap-3 mb-2 sm:mb-4">
                 <div>
                     <h2 className="text-xl sm:text-2xl font-bold text-slate-900 flex flex-wrap items-center gap-2">
-                        <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-brand-600" />
+                        <Sparkles className={`h-5 w-5 sm:h-6 sm:w-6 text-brand-600 ${isTyping ? 'animate-pulse' : ''}`} />
                         Power BI Guru
                         {connectionBadge && (
                             <span className={`text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-medium ${connectionBadge.className}`}>
