@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Send, Bot, User, Sparkles, Settings, Key, Database, AlertCircle, Copy, Trash2, Download, MessageSquare, ChevronDown, NotebookPen, Eraser, Wand2, Maximize2, Minimize2, BookmarkPlus, ArrowDownToLine } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Send, Bot, User, Sparkles, Settings, Key, Database, AlertCircle, Copy, Trash2, Download, MessageSquare, ChevronDown, NotebookPen, Eraser, Wand2, Maximize2, Minimize2, BookmarkPlus, ArrowDownToLine, GripVertical, PanelRightOpen, PanelRightClose } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { useToast } from '../context/ToastContext';
@@ -32,6 +32,19 @@ const LOCAL_KNOWLEDGE = [
         link: '/dax'
     }
 ];
+
+const MIN_NOTES_WIDTH = 260;
+const MAX_NOTES_WIDTH = 520;
+const MIN_CHAT_WIDTH = 440;
+
+const clampValue = (value, min, max) => Math.min(Math.max(value, min), max);
+
+const getInitialNotesWidth = () => {
+    if (typeof window === 'undefined') {
+        return 360;
+    }
+    return clampValue(window.innerWidth * 0.3, MIN_NOTES_WIDTH, MAX_NOTES_WIDTH);
+};
 
 const createInitialMessage = () => ({
     id: 'welcome',
@@ -105,6 +118,13 @@ const PowerBIGuru = () => {
     const messagesContainerRef = useRef(null);
     const [isScrolledToBottom, setIsScrolledToBottom] = useState(true);
     const inputRef = useRef(null);
+    const workspaceRef = useRef(null);
+    const [notesPanelWidth, setNotesPanelWidth] = useState(() => getInitialNotesWidth());
+    const [isNotesPanelCollapsed, setIsNotesPanelCollapsed] = useState(false);
+    const [isDesktopLayout, setIsDesktopLayout] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        return window.innerWidth >= 1024;
+    });
     const [sessionNotes, setSessionNotes] = useState(() => {
         if (typeof window === 'undefined') return '';
         return window.localStorage.getItem(NOTES_STORAGE_KEY) || '';
@@ -113,10 +133,40 @@ const PowerBIGuru = () => {
     const [isMaximized, setIsMaximized] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState(null);
     const [lastAnswerId, setLastAnswerId] = useState(null);
+    const getMaxNotesWidth = useCallback(() => {
+        if (!workspaceRef.current || typeof window === 'undefined') {
+            return MAX_NOTES_WIDTH;
+        }
+        const styles = window.getComputedStyle(workspaceRef.current);
+        const gapValue = parseFloat(styles.columnGap || styles.gap || '0') || 0;
+        const bounds = workspaceRef.current.getBoundingClientRect();
+        const available = bounds.width - gapValue - MIN_CHAT_WIDTH;
+        return clampValue(available, MIN_NOTES_WIDTH, MAX_NOTES_WIDTH);
+    }, [workspaceRef]);
+
+    const recalcNotesWidth = useCallback(() => {
+        if (typeof window === 'undefined') return;
+        const nextIsDesktop = window.innerWidth >= 1024;
+        setIsDesktopLayout(nextIsDesktop);
+        if (!nextIsDesktop) return;
+        const safeMax = getMaxNotesWidth();
+        setNotesPanelWidth(prev => clampValue(prev, MIN_NOTES_WIDTH, safeMax));
+    }, [getMaxNotesWidth]);
 
     useEffect(() => {
         console.log("PowerBI Guru: Project Access Code", PROJECT_GEMINI_KEY ? "Available" : "Not Configured");
     }, []);
+
+    useEffect(() => {
+        recalcNotesWidth();
+        if (typeof window === 'undefined') return undefined;
+        window.addEventListener('resize', recalcNotesWidth);
+        return () => window.removeEventListener('resize', recalcNotesWidth);
+    }, [recalcNotesWidth]);
+
+    useEffect(() => {
+        recalcNotesWidth();
+    }, [isMaximized, recalcNotesWidth]);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -347,6 +397,47 @@ const PowerBIGuru = () => {
         if (confirm('Clear session notes?')) {
             setSessionNotes('');
             addToast('Session notes cleared', 'success');
+        }
+    };
+
+    const handleNotesResizeStart = (event) => {
+        if (!isDesktopLayout || isNotesPanelCollapsed || !workspaceRef.current) return;
+        event.preventDefault();
+        const startX = event.clientX;
+        const startWidth = notesPanelWidth;
+        const previousUserSelect = document.body.style.userSelect;
+        document.body.style.userSelect = 'none';
+
+        const handlePointerMove = (moveEvent) => {
+            const maxWidth = getMaxNotesWidth();
+            const delta = moveEvent.clientX - startX;
+            const nextWidth = clampValue(startWidth + delta, MIN_NOTES_WIDTH, maxWidth);
+            setNotesPanelWidth(nextWidth);
+        };
+
+        const handlePointerUp = () => {
+            document.body.style.userSelect = previousUserSelect;
+            window.removeEventListener('pointermove', handlePointerMove);
+            window.removeEventListener('pointerup', handlePointerUp);
+        };
+
+        window.addEventListener('pointermove', handlePointerMove);
+        window.addEventListener('pointerup', handlePointerUp);
+    };
+
+    const handleResizableKeyDown = (event) => {
+        if (!isDesktopLayout || isNotesPanelCollapsed || !workspaceRef.current) return;
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+        event.preventDefault();
+        const maxWidth = getMaxNotesWidth();
+        const delta = event.key === 'ArrowLeft' ? -24 : 24;
+        setNotesPanelWidth(prev => clampValue(prev + delta, MIN_NOTES_WIDTH, maxWidth));
+    };
+
+    const toggleNotesPanel = () => {
+        setIsNotesPanelCollapsed(prev => !prev);
+        if (typeof window !== 'undefined') {
+            requestAnimationFrame(() => recalcNotesWidth());
         }
     };
 
@@ -610,12 +701,54 @@ const PowerBIGuru = () => {
         return null;
     })();
 
+    const shouldRenderNotesPanel = !isNotesPanelCollapsed;
+    const notesPanelStyle = isDesktopLayout ? { width: `${notesPanelWidth}px` } : undefined;
+    const sessionNotesContent = (
+        <>
+            <div className="flex items-center justify-between mb-3 gap-2">
+                <div>
+                    <p className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                        <NotebookPen className="h-4 w-4 text-brand-500" />
+                        Session Notes
+                    </p>
+                    <p className="text-xs text-slate-500">Capture insights or follow-ups</p>
+                </div>
+                <div className="flex gap-1">
+                    <button
+                        onClick={handleCopyNotes}
+                        className="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded transition-colors"
+                        title="Copy notes"
+                        aria-label="Copy notes"
+                    >
+                        <Copy className="h-4 w-4" />
+                    </button>
+                    <button
+                        onClick={handleClearNotes}
+                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                        title="Clear notes"
+                        aria-label="Clear notes"
+                    >
+                        <Eraser className="h-4 w-4" />
+                    </button>
+                </div>
+            </div>
+            <textarea
+                value={sessionNotes}
+                onChange={(e) => setSessionNotes(e.target.value)}
+                placeholder="Capture project context, action items, or next steps..."
+                className="input-field flex-1 min-h-[200px] resize-none"
+            />
+            <p className="text-[11px] text-slate-400 text-right mt-2">
+                Autosaved locally • {sessionNotes.trim().length} chars
+            </p>
+        </>
+    );
+
     if (isMaximized) {
         return (
             <div className="fixed inset-0 z-50 bg-white flex flex-col">
-                {/* Simplified Header for Fullscreen */}
-                <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex justify-between items-center shrink-0">
-                     <div className="flex items-center gap-2">
+                <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
                         <Sparkles className="h-5 w-5 text-brand-600" />
                         <h2 className="text-lg font-bold text-slate-900">Power BI Guru</h2>
                         {connectionBadge && (
@@ -624,8 +757,20 @@ const PowerBIGuru = () => {
                             </span>
                         )}
                     </div>
-                    <div className="flex items-center gap-2">
-                         <button
+                    <div className="flex flex-wrap items-center gap-2">
+                        <button
+                            onClick={toggleNotesPanel}
+                            aria-pressed={!isNotesPanelCollapsed}
+                            aria-label={isNotesPanelCollapsed ? 'Show notes panel' : 'Hide notes panel'}
+                            className={`p-2 rounded-lg text-sm font-medium flex items-center gap-2 border transition-colors ${isNotesPanelCollapsed
+                                ? 'border-slate-200 text-slate-600 hover:bg-slate-100'
+                                : 'bg-brand-50 text-brand-700 border-brand-100'
+                                }`}
+                        >
+                            {isNotesPanelCollapsed ? <PanelRightOpen className="h-4 w-4" /> : <PanelRightClose className="h-4 w-4" />}
+                            <span className="hidden sm:inline">{isNotesPanelCollapsed ? 'Show notes' : 'Hide notes'}</span>
+                        </button>
+                        <button
                             onClick={toggleMaximize}
                             className="p-2 hover:bg-slate-200 rounded-lg transition-colors text-slate-600"
                             title="Exit Fullscreen"
@@ -635,167 +780,173 @@ const PowerBIGuru = () => {
                     </div>
                 </div>
 
-                <div className="flex-1 flex overflow-hidden">
-                    {/* Main Chat Area - Full Height */}
-                    <div className="flex-1 flex flex-col min-w-0 bg-white relative">
-                        {/* Quick Prompts Bar */}
-                        <div className="px-4 py-2 border-b border-slate-100 bg-white flex items-center gap-2 overflow-x-auto shrink-0">
-                             <div className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500 whitespace-nowrap">
-                                <Wand2 className="h-3 w-3 text-brand-500" />
-                                Quick prompts
-                            </div>
-                            <div className="flex gap-2">
-                                {QUICK_PROMPTS.map(prompt => (
-                                    <button
-                                        key={prompt.label}
-                                        onClick={() => handleQuickPrompt(prompt.value)}
-                                        className="px-3 py-1 text-xs bg-slate-100 text-slate-700 rounded-full hover:bg-brand-50 hover:text-brand-700 transition-colors whitespace-nowrap"
-                                    >
-                                        {prompt.label}
-                                    </button>
-                                ))}
-                            </div>
-                            <div className="ml-auto flex items-center gap-2">
-                                <button
-                                    onClick={handleExportChat}
-                                    className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded transition-colors"
-                                    title="Export chat"
-                                >
-                                    <Download className="h-4 w-4" />
-                                </button>
-                                <button
-                                    onClick={handleClearChat}
-                                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                                    title="Clear chat"
-                                >
-                                    <Trash2 className="h-4 w-4" />
-                                </button>
-                            </div>
-                        </div>
-
-                         <div
-                            ref={messagesContainerRef}
-                            className={`flex-1 overflow-y-auto p-4 md:p-8 ${messageSpacingClass} relative`}
-                        >
-                            {messages.map((msg) => (
-                                <motion.div
-                                    key={msg.id}
-                                    id={`message-${msg.id}`}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                                >
-                                    <div className={`max-w-[90%] md:max-w-[70%] rounded-2xl ${messagePaddingClass} group relative shadow-sm ${msg.sender === 'user'
-                                        ? 'bg-brand-600 text-white rounded-br-none'
-                                        : msg.isSystem
-                                            ? 'bg-amber-50 text-amber-800 border border-amber-100'
-                                            : 'bg-slate-100 text-slate-800 rounded-bl-none'
-                                        } ${msg.id === lastAnswerId ? 'ring-2 ring-brand-200 shadow-brand-200/60' : ''}`}>
+                <div className="flex-1 flex flex-col overflow-hidden">
+                    <div
+                        ref={workspaceRef}
+                        className="flex-1 flex flex-col gap-4 lg:flex-row lg:items-stretch px-4 pb-4 pt-2 overflow-hidden"
+                    >
+                        <div className="flex-1 flex flex-col min-w-0 bg-white relative border border-slate-200 rounded-xl shadow-sm">
+                            <div className="px-4 py-2 border-b border-slate-100 bg-white flex items-center gap-2 overflow-x-auto shrink-0">
+                                <div className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500 whitespace-nowrap">
+                                    <Wand2 className="h-3 w-3 text-brand-500" />
+                                    Quick prompts
+                                </div>
+                                <div className="flex gap-2">
+                                    {QUICK_PROMPTS.map(prompt => (
                                         <button
-                                            onClick={() => handleCopyMessage(msg.text)}
-                                            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600 bg-white/20 p-1 rounded"
-                                            title="Copy message"
+                                            key={prompt.label}
+                                            onClick={() => handleQuickPrompt(prompt.value)}
+                                            className="flex-shrink-0 px-3 py-1 text-xs bg-slate-100 text-slate-700 rounded-full hover:bg-brand-50 hover:text-brand-700 transition-colors whitespace-nowrap"
                                         >
-                                            <Copy className="h-3 w-3" />
+                                            {prompt.label}
                                         </button>
-                                        {msg.sender === 'bot' && !msg.isSystem && (
+                                    ))}
+                                </div>
+                                <div className="ml-auto flex items-center gap-2">
+                                    <button
+                                        onClick={handleExportChat}
+                                        className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded transition-colors"
+                                        title="Export chat"
+                                    >
+                                        <Download className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                        onClick={handleClearChat}
+                                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                                        title="Clear chat"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div
+                                ref={messagesContainerRef}
+                                className={`flex-1 overflow-y-auto p-4 md:p-8 ${messageSpacingClass} relative`}
+                            >
+                                {messages.map((msg) => (
+                                    <motion.div
+                                        key={msg.id}
+                                        id={`message-${msg.id}`}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                                    >
+                                        <div className={`max-w-[90%] md:max-w-[70%] rounded-2xl ${messagePaddingClass} group relative shadow-sm ${msg.sender === 'user'
+                                            ? 'bg-brand-600 text-white rounded-br-none'
+                                            : msg.isSystem
+                                                ? 'bg-amber-50 text-amber-800 border border-amber-100'
+                                                : 'bg-slate-100 text-slate-800 rounded-bl-none'
+                                            } ${msg.id === lastAnswerId ? 'ring-2 ring-brand-200 shadow-brand-200/60' : ''}`}>
                                             <button
-                                                onClick={() => handleAddMessageToNotes(msg.text)}
-                                                className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600 bg-white/20 p-1 rounded"
-                                                title="Save to notes"
+                                                onClick={() => handleCopyMessage(msg.text)}
+                                                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600 bg-white/20 p-1 rounded"
+                                                title="Copy message"
                                             >
-                                                <BookmarkPlus className="h-3 w-3" />
+                                                <Copy className="h-3 w-3" />
                                             </button>
-                                        )}
-                                        <div className={`flex items-center justify-between mb-1 opacity-75 ${messageMetaClass}`}>
-                                            <div className="flex items-center gap-2">
-                                                {msg.sender === 'user' ? <User className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
-                                                <span className="uppercase font-bold tracking-wider">{msg.sender}</span>
+                                            {msg.sender === 'bot' && !msg.isSystem && (
+                                                <button
+                                                    onClick={() => handleAddMessageToNotes(msg.text)}
+                                                    className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600 bg-white/20 p-1 rounded"
+                                                    title="Save to notes"
+                                                >
+                                                    <BookmarkPlus className="h-3 w-3" />
+                                                </button>
+                                            )}
+                                            <div className={`flex items-center justify-between mb-1 opacity-75 ${messageMetaClass}`}>
+                                                <div className="flex items-center gap-2">
+                                                    {msg.sender === 'user' ? <User className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
+                                                    <span className="uppercase font-bold tracking-wider">{msg.sender}</span>
+                                                </div>
+                                                {formatMessageTime(msg) && (
+                                                    <span className="opacity-75">{formatMessageTime(msg)}</span>
+                                                )}
                                             </div>
-                                            {formatMessageTime(msg) && (
-                                                <span className="opacity-75">{formatMessageTime(msg)}</span>
+                                            <MessageContent
+                                                text={msg.text}
+                                                shouldAnimate={msg.id === lastAnswerId && msg.sender === 'bot' && !msg.isSystem}
+                                            />
+                                            {msg.link && (
+                                                <div className="mt-3 pt-3 border-t border-black/10">
+                                                    <a href={`#${msg.link}`} className="text-xs font-bold flex items-center gap-1 hover:underline">
+                                                        View Resource <Database className="h-3 w-3" />
+                                                    </a>
+                                                </div>
                                             )}
                                         </div>
-                                        <MessageContent 
-                                            text={msg.text} 
-                                            shouldAnimate={msg.id === lastAnswerId && msg.sender === 'bot' && !msg.isSystem}
-                                        />
-                                        {msg.link && (
-                                            <div className="mt-3 pt-3 border-t border-black/10">
-                                                <a href={`#${msg.link}`} className="text-xs font-bold flex items-center gap-1 hover:underline">
-                                                    View Resource <Database className="h-3 w-3" />
-                                                </a>
-                                            </div>
-                                        )}
+                                    </motion.div>
+                                ))}
+                                {isTyping && (
+                                    <div className="flex justify-start">
+                                        <div className="bg-slate-100 rounded-2xl rounded-bl-none p-4 flex gap-1">
+                                            <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" />
+                                            <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-75" />
+                                            <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-150" />
+                                        </div>
                                     </div>
-                                </motion.div>
-                            ))}
-                            {isTyping && (
-                                <div className="flex justify-start">
-                                    <div className="bg-slate-100 rounded-2xl rounded-bl-none p-4 flex gap-1">
-                                        <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" />
-                                        <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-75" />
-                                        <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-150" />
-                                    </div>
+                                )}
+                                <div ref={messagesEndRef} />
+                            </div>
+
+                            <div className="p-4 bg-slate-50 border-t border-slate-200 shrink-0">
+                                <div className="max-w-4xl mx-auto w-full flex gap-2">
+                                    <textarea
+                                        ref={inputRef}
+                                        value={input}
+                                        onChange={(e) => setInput(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && !e.shiftKey) {
+                                                e.preventDefault();
+                                                handleSend();
+                                            }
+                                        }}
+                                        placeholder="Ask anything about Power BI... (Shift+Enter for new line)"
+                                        className="input-field flex-1 shadow-sm resize-none min-h-[48px] max-h-[200px]"
+                                        rows={1}
+                                    />
+                                    <button
+                                        onClick={handleSend}
+                                        disabled={!input.trim() || isTyping}
+                                        className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed px-6"
+                                    >
+                                        <Send className="h-5 w-5" />
+                                    </button>
                                 </div>
-                            )}
-                            <div ref={messagesEndRef} />
+                                {!apiKey && (
+                                    <p className="text-xs text-slate-400 mt-2 text-center">
+                                        Running in <span className="font-semibold text-brand-600">Local Knowledge Mode</span>. Add an Access Code for full AI features.
+                                    </p>
+                                )}
+                            </div>
                         </div>
 
-                         {/* Input Area */}
-                        <div className="p-4 bg-slate-50 border-t border-slate-200 shrink-0">
-                            <div className="max-w-4xl mx-auto w-full flex gap-2">
-                                <textarea
-                                    ref={inputRef}
-                                    value={input}
-                                    onChange={(e) => setInput(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && !e.shiftKey) {
-                                            e.preventDefault();
-                                            handleSend();
-                                        }
-                                    }}
-                                    placeholder="Ask anything about Power BI... (Shift+Enter for new line)"
-                                    className="input-field flex-1 shadow-sm resize-none min-h-[48px] max-h-[200px]"
-                                    rows={1}
-                                />
-                                <button
-                                    onClick={handleSend}
-                                    disabled={!input.trim() || isTyping}
-                                    className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed px-6"
+                        {shouldRenderNotesPanel && (
+                            <div className="flex flex-col gap-4 lg:gap-0 lg:flex-row shrink-0 w-full lg:w-auto">
+                                {isDesktopLayout && (
+                                    <div
+                                        className="hidden lg:flex items-center justify-center w-4 cursor-col-resize select-none text-slate-400"
+                                        role="separator"
+                                        aria-label="Resize session notes panel"
+                                        aria-orientation="vertical"
+                                        tabIndex={0}
+                                        onPointerDown={handleNotesResizeStart}
+                                        onKeyDown={handleResizableKeyDown}
+                                        title="Drag to resize notes"
+                                    >
+                                        <div className="flex flex-col items-center gap-1 bg-white/80 rounded-full px-1 py-3 shadow-sm border border-slate-200">
+                                            <GripVertical className="h-4 w-4" />
+                                        </div>
+                                    </div>
+                                )}
+                                <div
+                                    className="border border-slate-200 bg-slate-50 rounded-xl shadow-inner p-4 sm:p-5 flex flex-col w-full lg:w-auto transition-[width] duration-200"
+                                    style={notesPanelStyle}
                                 >
-                                    <Send className="h-5 w-5" />
-                                </button>
+                                    {sessionNotesContent}
+                                </div>
                             </div>
-                             {!apiKey && (
-                                <p className="text-xs text-slate-400 mt-2 text-center">
-                                    Running in <span className="font-semibold text-brand-600">Local Knowledge Mode</span>. Add an Access Code for full AI features.
-                                </p>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Side Panel for Notes in Fullscreen */}
-                    <div className="w-80 shrink-0 border-l border-slate-200 bg-slate-50 p-4 flex flex-col">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-semibold text-slate-900 flex items-center gap-2">
-                                <NotebookPen className="h-4 w-4 text-brand-500" />
-                                Session Notes
-                            </h3>
-                             <div className="flex gap-1">
-                                <button onClick={handleCopyNotes} className="p-1.5 hover:bg-slate-200 rounded text-slate-500"><Copy className="h-4 w-4"/></button>
-                                <button onClick={handleClearNotes} className="p-1.5 hover:bg-slate-200 rounded text-slate-500"><Eraser className="h-4 w-4"/></button>
-                            </div>
-                        </div>
-                        <textarea
-                            value={sessionNotes}
-                            onChange={(e) => setSessionNotes(e.target.value)}
-                            placeholder="Type notes here..."
-                            className="flex-1 input-field resize-none bg-white mb-2"
-                        />
-                         <p className="text-xs text-slate-500 text-center">
-                            Notes are saved locally
-                        </p>
+                        )}
                     </div>
                 </div>
             </div>
@@ -803,8 +954,8 @@ const PowerBIGuru = () => {
     }
 
     return (
-        <div className="h-[calc(100vh-8rem)] flex flex-col">
-            <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-col gap-4 min-h-[calc(100vh-10rem)] sm:min-h-[calc(100vh-8rem)]">
+            <div className="flex flex-wrap items-start justify-between gap-3 mb-2 sm:mb-4">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
                         <Sparkles className="h-6 w-6 text-brand-600" />
@@ -832,26 +983,38 @@ const PowerBIGuru = () => {
                         </p>
                     )}
                 </div>
-                <div className="flex gap-2">
-                     <button
+                <div className="flex flex-wrap items-center gap-2">
+                    <button
+                        onClick={toggleNotesPanel}
+                        aria-pressed={!isNotesPanelCollapsed}
+                        aria-label={isNotesPanelCollapsed ? 'Show notes panel' : 'Hide notes panel'}
+                        className={`p-2 rounded-lg text-sm font-medium flex items-center gap-2 border transition-colors ${isNotesPanelCollapsed
+                            ? 'border-slate-200 text-slate-600 hover:bg-slate-100'
+                            : 'bg-brand-50 text-brand-700 border-brand-100'
+                            }`}
+                    >
+                        {isNotesPanelCollapsed ? <PanelRightOpen className="h-4 w-4" /> : <PanelRightClose className="h-4 w-4" />}
+                        <span className="hidden sm:inline">{isNotesPanelCollapsed ? 'Show notes' : 'Hide notes'}</span>
+                    </button>
+                    <button
                         onClick={toggleMaximize}
                         className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
                         title="Maximize (Fullscreen Mode)"
                     >
                         <Maximize2 className="h-5 w-5" />
                     </button>
-                <button
-                    onClick={() => setShowSettings(!showSettings)}
-                    className={`p-2 rounded-lg transition-colors ${showSettings
-                        ? 'bg-brand-50 text-brand-700'
-                        : isUsingCustomKey
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
-                    title="Manage AI Access Code"
-                >
-                    <Settings className="h-5 w-5" />
-                </button>
+                    <button
+                        onClick={() => setShowSettings(!showSettings)}
+                        className={`p-2 rounded-lg transition-colors ${showSettings
+                            ? 'bg-brand-50 text-brand-700'
+                            : isUsingCustomKey
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            }`}
+                        title="Manage AI Access Code"
+                    >
+                        <Settings className="h-5 w-5" />
+                    </button>
                 </div>
             </div>
 
@@ -900,11 +1063,12 @@ const PowerBIGuru = () => {
             </AnimatePresence>
 
             {/* Workspace */}
-            <div className="flex-1 flex flex-col lg:flex-row gap-4 overflow-hidden">
-            {/* Chat Area */}
-                <div className="flex-1 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col relative min-w-0">
-                    {/* Chat Header */}
-                    <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex flex-wrap items-center gap-3">
+            <div
+                ref={workspaceRef}
+                className="flex-1 flex flex-col gap-4 lg:flex-row lg:items-stretch overflow-hidden"
+            >
+                <div className="flex-1 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col relative min-w-0 min-h-[420px]">
+                    <div className="bg-slate-50 border-b border-slate-200 px-3 sm:px-4 py-2 sm:py-3 flex flex-wrap items-center gap-3">
                         <div className="flex items-center gap-2">
                             <MessageSquare className="h-4 w-4 text-slate-500" />
                             <span className="text-sm font-medium text-slate-700">Conversation</span>
@@ -912,7 +1076,7 @@ const PowerBIGuru = () => {
                                 {messages.filter(msg => !msg.isSystem).length} messages
                             </span>
                         </div>
-                        <div className="flex gap-2 ml-auto">
+                        <div className="flex gap-1.5 sm:gap-2 ml-auto">
                             <button
                                 onClick={handleExportChat}
                                 className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded transition-colors"
@@ -930,8 +1094,7 @@ const PowerBIGuru = () => {
                         </div>
                     </div>
 
-                    {/* Quick Prompts */}
-                    <div className="px-4 py-3 border-b border-slate-100 bg-white flex flex-wrap items-center gap-2">
+                    <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-slate-100 bg-white flex flex-wrap items-center gap-2">
                         <div className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500">
                             <Wand2 className="h-3 w-3 text-brand-500" />
                             Quick prompts
@@ -956,7 +1119,7 @@ const PowerBIGuru = () => {
                     </div>
 
                     {currentQuestion && (
-                        <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex flex-wrap items-center gap-3">
+                        <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-slate-100 bg-slate-50 flex flex-wrap items-center gap-3">
                             <div className="flex-1 min-w-[240px]">
                                 <p className="text-xs uppercase font-semibold text-slate-500 tracking-wide">Current question</p>
                                 <p className="font-medium text-slate-900">{truncateText(currentQuestion.text, 160)}</p>
@@ -980,74 +1143,73 @@ const PowerBIGuru = () => {
 
                     <div
                         ref={messagesContainerRef}
-                        className={`flex-1 overflow-y-auto p-4 ${messageSpacingClass} relative`}
+                        className={`flex-1 overflow-y-auto p-3 sm:p-4 lg:p-5 ${messageSpacingClass} relative`}
                     >
-                    {messages.map((msg) => (
-                        <motion.div
-                            key={msg.id}
-                            id={`message-${msg.id}`}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                        >
-                            <div className={`max-w-[80%] rounded-2xl ${messagePaddingClass} group relative ${msg.sender === 'user'
-                                ? 'bg-brand-600 text-white rounded-br-none'
-                                : msg.isSystem
-                                    ? 'bg-amber-50 text-amber-800 border border-amber-100'
-                                    : 'bg-slate-100 text-slate-800 rounded-bl-none'
-                                } ${msg.id === lastAnswerId ? 'ring-2 ring-brand-200 shadow-lg shadow-brand-200/60' : ''}`}>
-                                <button
-                                    onClick={() => handleCopyMessage(msg.text)}
-                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600"
-                                    title="Copy message"
-                                >
-                                    <Copy className="h-4 w-4" />
-                                </button>
-                                {msg.sender === 'bot' && !msg.isSystem && (
+                        {messages.map((msg) => (
+                            <motion.div
+                                key={msg.id}
+                                id={`message-${msg.id}`}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                            >
+                                <div className={`max-w-[80%] rounded-2xl ${messagePaddingClass} group relative ${msg.sender === 'user'
+                                    ? 'bg-brand-600 text-white rounded-br-none'
+                                    : msg.isSystem
+                                        ? 'bg-amber-50 text-amber-800 border border-amber-100'
+                                        : 'bg-slate-100 text-slate-800 rounded-bl-none'
+                                    } ${msg.id === lastAnswerId ? 'ring-2 ring-brand-200 shadow-lg shadow-brand-200/60' : ''}`}>
                                     <button
-                                        onClick={() => handleAddMessageToNotes(msg.text)}
-                                        className="absolute top-2 right-10 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600"
-                                        title="Save to notes"
+                                        onClick={() => handleCopyMessage(msg.text)}
+                                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600"
+                                        title="Copy message"
                                     >
-                                        <BookmarkPlus className="h-4 w-4" />
+                                        <Copy className="h-4 w-4" />
                                     </button>
-                                )}
-                                <div className={`flex items-center justify-between mb-1 opacity-75 ${messageMetaClass}`}>
-                                    <div className="flex items-center gap-2">
-                                        {msg.sender === 'user' ? <User className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
-                                        <span className="uppercase font-bold tracking-wider">{msg.sender}</span>
+                                    {msg.sender === 'bot' && !msg.isSystem && (
+                                        <button
+                                            onClick={() => handleAddMessageToNotes(msg.text)}
+                                            className="absolute top-2 right-10 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600"
+                                            title="Save to notes"
+                                        >
+                                            <BookmarkPlus className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                    <div className={`flex items-center justify-between mb-1 opacity-75 ${messageMetaClass}`}>
+                                        <div className="flex items-center gap-2">
+                                            {msg.sender === 'user' ? <User className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
+                                            <span className="uppercase font-bold tracking-wider">{msg.sender}</span>
+                                        </div>
+                                        {formatMessageTime(msg) && (
+                                            <span className="text-slate-400">{formatMessageTime(msg)}</span>
+                                        )}
                                     </div>
-                                    {formatMessageTime(msg) && (
-                                        <span className="text-slate-400">{formatMessageTime(msg)}</span>
+                                    <MessageContent
+                                        text={msg.text}
+                                        shouldAnimate={msg.id === lastAnswerId && msg.sender === 'bot' && !msg.isSystem}
+                                    />
+                                    {msg.link && (
+                                        <div className="mt-3 pt-3 border-t border-black/10">
+                                            <a href={`#${msg.link}`} className="text-xs font-bold flex items-center gap-1 hover:underline">
+                                                View Resource <Database className="h-3 w-3" />
+                                            </a>
+                                        </div>
                                     )}
                                 </div>
-                                <MessageContent 
-                                    text={msg.text} 
-                                    shouldAnimate={msg.id === lastAnswerId && msg.sender === 'bot' && !msg.isSystem}
-                                />
-                                {msg.link && (
-                                    <div className="mt-3 pt-3 border-t border-black/10">
-                                        <a href={`#${msg.link}`} className="text-xs font-bold flex items-center gap-1 hover:underline">
-                                            View Resource <Database className="h-3 w-3" />
-                                        </a>
-                                    </div>
-                                )}
+                            </motion.div>
+                        ))}
+                        {isTyping && (
+                            <div className="flex justify-start">
+                                <div className="bg-slate-100 rounded-2xl rounded-bl-none p-4 flex gap-1">
+                                    <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" />
+                                    <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-75" />
+                                    <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-150" />
+                                </div>
                             </div>
-                        </motion.div>
-                    ))}
-                    {isTyping && (
-                        <div className="flex justify-start">
-                            <div className="bg-slate-100 rounded-2xl rounded-bl-none p-4 flex gap-1">
-                                <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" />
-                                <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-75" />
-                                <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-150" />
-                            </div>
-                        </div>
-                    )}
-                    <div ref={messagesEndRef} />
-                </div>
+                        )}
+                        <div ref={messagesEndRef} />
+                    </div>
 
-                    {/* Scroll to Bottom Button */}
                     <AnimatePresence>
                         {!isScrolledToBottom && (
                             <motion.button
@@ -1063,83 +1225,69 @@ const PowerBIGuru = () => {
                         )}
                     </AnimatePresence>
 
-                {/* Input Area */}
-                <div className="p-4 bg-slate-50 border-t border-slate-200">
-                    <div className="flex gap-2">
-                        <textarea
-                            ref={inputRef}
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault();
-                                    handleSend();
-                                }
-                            }}
-                            placeholder="Ask anything about Power BI... (Shift+Enter for new line)"
-                            className="input-field flex-1 shadow-sm resize-none min-h-[48px] max-h-[200px]"
-                            rows={1}
-                        />
-                        <button
-                            onClick={handleSend}
-                            disabled={!input.trim() || isTyping}
-                            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <Send className="h-4 w-4" />
-                        </button>
-                    </div>
-                    <p className="text-xs text-slate-400 mt-2 text-center flex flex-wrap items-center justify-center gap-2">
-                        <span>Enter = Send</span>
-                        <span>Shift+Enter = New line</span>
-                        <span>Copy buttons appear when you hover a message</span>
-                    </p>
-                    {!apiKey && (
-                        <p className="text-xs text-slate-400 mt-2 text-center">
-                            Running in <span className="font-semibold text-brand-600">Local Knowledge Mode</span>. Add an Access Code for full AI features.
+                    <div className="p-3 sm:p-4 bg-slate-50 border-t border-slate-200">
+                        <div className="flex gap-2">
+                            <textarea
+                                ref={inputRef}
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        handleSend();
+                                    }
+                                }}
+                                placeholder="Ask anything about Power BI... (Shift+Enter for new line)"
+                                className="input-field flex-1 shadow-sm resize-none min-h-[48px] max-h-[200px]"
+                                rows={1}
+                            />
+                            <button
+                                onClick={handleSend}
+                                disabled={!input.trim() || isTyping}
+                                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <Send className="h-4 w-4" />
+                            </button>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-2 text-center flex flex-wrap items-center justify-center gap-2">
+                            <span>Enter = Send</span>
+                            <span>Shift+Enter = New line</span>
+                            <span>Copy buttons appear when you hover a message</span>
                         </p>
-                    )}
-                </div>
+                        {!apiKey && (
+                            <p className="text-xs text-slate-400 mt-2 text-center">
+                                Running in <span className="font-semibold text-brand-600">Local Knowledge Mode</span>. Add an Access Code for full AI features.
+                            </p>
+                        )}
+                    </div>
                 </div>
 
-                {/* Session Notes Panel */}
-                <aside className="w-80 shrink-0 hidden lg:flex flex-col space-y-4">
-                    <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-col h-full">
-                        <div className="flex items-center justify-between mb-3">
-                            <div>
-                                <p className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                                    <NotebookPen className="h-4 w-4 text-brand-500" />
-                                    Session Notes
-                                </p>
-                                <p className="text-xs text-slate-500">Jot down insights or follow-ups</p>
+                {shouldRenderNotesPanel && (
+                    <div className="flex flex-col gap-4 lg:gap-0 lg:flex-row shrink-0 w-full lg:w-auto">
+                        {isDesktopLayout && (
+                            <div
+                                className="hidden lg:flex items-center justify-center w-4 cursor-col-resize select-none text-slate-400"
+                                role="separator"
+                                aria-label="Resize session notes panel"
+                                aria-orientation="vertical"
+                                tabIndex={0}
+                                onPointerDown={handleNotesResizeStart}
+                                onKeyDown={handleResizableKeyDown}
+                                title="Drag to resize notes"
+                            >
+                                <div className="flex flex-col items-center gap-1 bg-white/80 rounded-full px-1 py-3 shadow-sm border border-slate-200">
+                                    <GripVertical className="h-4 w-4" />
+                                </div>
                             </div>
-                            <div className="flex gap-1">
-                                <button
-                                    onClick={handleCopyNotes}
-                                    className="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded transition-colors"
-                                    title="Copy notes"
-                                >
-                                    <Copy className="h-4 w-4" />
-                                </button>
-                                <button
-                                    onClick={handleClearNotes}
-                                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                                    title="Clear notes"
-                                >
-                                    <Eraser className="h-4 w-4" />
-                                </button>
-                            </div>
-                        </div>
-                        <textarea
-                            value={sessionNotes}
-                            onChange={(e) => setSessionNotes(e.target.value)}
-                            placeholder="Capture project context, action items, or follow-ups..."
-                            className="input-field flex-1 min-h-[200px] resize-none"
-                        />
-                        <p className="text-[11px] text-slate-400 text-right mt-2">
-                            Autosaved locally • {sessionNotes.trim().length} chars
-                        </p>
+                        )}
+                        <aside
+                            className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 sm:p-5 flex flex-col w-full lg:w-auto min-h-[260px] transition-[width] duration-200"
+                            style={notesPanelStyle}
+                        >
+                            {sessionNotesContent}
+                        </aside>
                     </div>
-                </aside>
+                )}
             </div>
         </div>
     );
