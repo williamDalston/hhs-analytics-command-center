@@ -54,15 +54,15 @@ const App = () => {
             </nav>
 
             <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-brand-800">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-brand-700 flex items-center justify-center text-white font-bold border-2 border-brand-600">
+              <Link to="/guru" className="flex items-center gap-3 group cursor-default">
+                <div className="h-10 w-10 rounded-full bg-brand-700 flex items-center justify-center text-white font-bold border-2 border-brand-600 group-hover:border-brand-400 transition-colors">
                   WA
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-white">Will Alston</p>
+                  <p className="text-sm font-medium text-white group-hover:text-brand-200 transition-colors">Will Alston</p>
                   <p className="text-xs text-brand-300">WebFirst Analytics Lead</p>
                 </div>
-              </div>
+              </Link>
             </div>
           </div>
 

@@ -40,8 +40,14 @@ const PowerBIGuru = () => {
     const messagesEndRef = useRef(null);
 
     useEffect(() => {
-        const storedKey = localStorage.getItem('gemini_api_key');
-        if (storedKey) setApiKey(storedKey);
+        // Check for Env Var Key first, then Local Storage
+        const envKey = import.meta.env.VITE_GEMINI_API_KEY;
+        if (envKey) {
+            setApiKey(envKey);
+        } else {
+            const storedKey = localStorage.getItem('gemini_api_key');
+            if (storedKey) setApiKey(storedKey);
+        }
     }, []);
 
     useEffect(() => {
@@ -95,9 +101,9 @@ const PowerBIGuru = () => {
         if (apiKey) {
             try {
                 const genAI = new GoogleGenerativeAI(apiKey);
-                const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-                const prompt = `You are an expert Power BI Developer and Data Analyst for the US Department of Health and Human Services (HHS). 
+                const prompt = `You are an expert Power BI Developer and Data Analyst for the US Department of Health and Human Services (HHS).
                 Answer the following question concisely and professionally. If it involves DAX, provide code snippets.
                 Question: ${userMsg.text}`;
 
@@ -128,6 +134,8 @@ const PowerBIGuru = () => {
         setIsTyping(false);
     };
 
+    const isEnvKey = !!import.meta.env.VITE_GEMINI_API_KEY;
+
     return (
         <div className="h-[calc(100vh-8rem)] flex flex-col">
             <div className="flex justify-between items-center mb-4">
@@ -135,21 +143,24 @@ const PowerBIGuru = () => {
                     <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
                         <Sparkles className="h-6 w-6 text-brand-600" />
                         Power BI Guru
+                        {apiKey && <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">Pro Active</span>}
                     </h2>
                     <p className="text-slate-600">Your AI assistant for DAX, Design, and Strategy.</p>
                 </div>
-                <button
-                    onClick={() => setShowSettings(!showSettings)}
-                    className={`p-2 rounded-lg transition-colors ${apiKey ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                    title="AI Settings"
-                >
-                    <Settings className="h-5 w-5" />
-                </button>
+                {!isEnvKey && (
+                    <button
+                        onClick={() => setShowSettings(!showSettings)}
+                        className={`p-2 rounded-lg transition-colors ${apiKey ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                        title="AI Settings"
+                    >
+                        <Settings className="h-5 w-5" />
+                    </button>
+                )}
             </div>
 
             {/* Settings Panel */}
             <AnimatePresence>
-                {showSettings && (
+                {showSettings && !isEnvKey && (
                     <motion.div
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
@@ -192,10 +203,10 @@ const PowerBIGuru = () => {
                             className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                         >
                             <div className={`max-w-[80%] rounded-2xl p-4 ${msg.sender === 'user'
-                                    ? 'bg-brand-600 text-white rounded-br-none'
-                                    : msg.isSystem
-                                        ? 'bg-amber-50 text-amber-800 border border-amber-100'
-                                        : 'bg-slate-100 text-slate-800 rounded-bl-none'
+                                ? 'bg-brand-600 text-white rounded-br-none'
+                                : msg.isSystem
+                                    ? 'bg-amber-50 text-amber-800 border border-amber-100'
+                                    : 'bg-slate-100 text-slate-800 rounded-bl-none'
                                 }`}>
                                 <div className="flex items-center gap-2 mb-1 opacity-75 text-xs">
                                     {msg.sender === 'user' ? <User className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
