@@ -153,6 +153,8 @@ const SecureFilePortal = () => {
   const [textToDecrypt, setTextToDecrypt] = useState('');
   const [decryptedText, setDecryptedText] = useState('');
 
+  const [isDragging, setIsDragging] = useState(false);
+  
   // Refs
   const fileInputRef = useRef(null);
   const syncIntervalRef = useRef(null);
@@ -406,13 +408,12 @@ const SecureFilePortal = () => {
     }
   };
 
-  const handleFileUpload = async (e) => {
-    const selectedFiles = Array.from(e.target.files);
-    if (!selectedFiles.length || !encryptionKey) return;
+  const processFiles = async (filesToProcess) => {
+    if (!filesToProcess.length || !encryptionKey) return;
 
     setUploading(true);
     try {
-      for (const file of selectedFiles) {
+      for (const file of filesToProcess) {
         const buffer = await file.arrayBuffer();
         const { encrypted } = await encryptData(buffer, encryptionKey);
         const base64Data = btoa(String.fromCharCode(...encrypted));
@@ -453,6 +454,31 @@ const SecureFilePortal = () => {
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    const selectedFiles = Array.from(e.target.files);
+    await processFiles(selectedFiles);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    if (droppedFiles.length > 0) {
+      await processFiles(droppedFiles);
     }
   };
 
@@ -754,24 +780,36 @@ const SecureFilePortal = () => {
       {/* FILES TAB */}
       {activeTab === 'files' && (
         <div className="space-y-6">
-           <div className="card border-2 border-dashed border-brand-200 hover:border-brand-400 transition-colors bg-brand-50/30">
+           <div 
+             className={`card border-2 border-dashed transition-all duration-200 ${
+               isDragging 
+                 ? 'border-brand-500 bg-brand-50 scale-[1.01] shadow-lg' 
+                 : 'border-brand-200 hover:border-brand-400 bg-brand-50/30'
+             }`}
+             onDragOver={handleDragOver}
+             onDragLeave={handleDragLeave}
+             onDrop={handleDrop}
+           >
              <input
                type="file"
                multiple
                onChange={handleFileUpload}
                className="hidden"
                id="file-upload"
+               ref={fileInputRef}
                disabled={uploading}
              />
-             <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center py-8">
-               <div className="h-16 w-16 bg-white rounded-full shadow-sm flex items-center justify-center mb-4">
-                 <Upload className={`h-8 w-8 text-brand-600 ${uploading ? 'animate-bounce' : ''}`} />
+             <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center py-12">
+               <div className={`h-20 w-20 rounded-full shadow-sm flex items-center justify-center mb-4 transition-colors ${
+                 isDragging ? 'bg-brand-100' : 'bg-white'
+               }`}>
+                 <Upload className={`h-10 w-10 text-brand-600 ${uploading ? 'animate-bounce' : ''}`} />
                </div>
-               <span className="text-lg font-bold text-brand-900">
-                 {uploading ? 'Encrypting & Uploading...' : 'Click to Upload Files'}
+               <span className="text-xl font-bold text-brand-900 mb-2">
+                 {uploading ? 'Encrypting & Uploading...' : isDragging ? 'Drop Files to Securely Upload' : 'Click or Drag Files Here'}
                </span>
-               <span className="text-sm text-slate-500 mt-1">
-                 Files are encrypted client-side before upload
+               <span className="text-sm text-slate-500 max-w-xs text-center">
+                 Files are encrypted client-side with AES-GCM before leaving your browser
                </span>
              </label>
            </div>

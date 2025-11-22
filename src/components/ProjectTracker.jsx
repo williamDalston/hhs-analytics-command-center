@@ -391,6 +391,7 @@ NEXT STEPS:
                                                 {isSelectionMode && (
                                                     <button
                                                         onClick={() => toggleProjectSelection(project.id)}
+                                                        aria-label={`Select project ${project.name}`}
                                                         className={`mt-1 p-1 rounded transition-colors ${selectedProjects.includes(project.id)
                                                             ? 'bg-brand-100 text-brand-700'
                                                             : 'hover:bg-slate-100 text-slate-400'
@@ -425,6 +426,7 @@ NEXT STEPS:
                                             {!isSelectionMode && (
                                                 <button
                                                     onClick={() => handleDelete(project.id)}
+                                                    aria-label={`Delete project ${project.name}`}
                                                     className="p-2 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
                                                 >
                                                     <Trash2 className="h-4 w-4" />

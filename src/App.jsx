@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, Suspense, lazy } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Code, Ruler, Flag, Layers, Shield, Sparkles, FileText, Upload, X, MessageSquare, Share2, Moon, Sun, Menu, ChevronLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import DAXLibrary from './components/DAXLibrary';
-import StyleGuide from './components/StyleGuide';
 import ProjectTracker from './components/ProjectTracker';
-import PrototypeBuilder from './components/PrototypeBuilder';
-import SecureFilePortal from './components/SecureFilePortal';
-import PowerBIGuru from './components/PowerBIGuru';
+const DAXLibrary = lazy(() => import('./components/DAXLibrary'));
+const StyleGuide = lazy(() => import('./components/StyleGuide'));
+const PrototypeBuilder = lazy(() => import('./components/PrototypeBuilder'));
+const SecureFilePortal = lazy(() => import('./components/SecureFilePortal'));
+const PowerBIGuru = lazy(() => import('./components/PowerBIGuru'));
 
 // Global Search/Command Palette
 const CommandPalette = ({ isOpen, onClose }) => {
@@ -27,11 +27,6 @@ const CommandPalette = ({ isOpen, onClose }) => {
   const filteredCommands = commands.filter(cmd =>
     cmd.label.toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  // Reset selection when search changes
-  useEffect(() => {
-    setSelectedIndex(0); // eslint-disable-line react-hooks/set-state-in-effect
-  }, [searchQuery]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Escape') {
@@ -61,7 +56,10 @@ const CommandPalette = ({ isOpen, onClose }) => {
             type="text"
             placeholder="Search commands and navigate..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setSelectedIndex(0);
+            }}
             onKeyDown={handleKeyDown}
             className="w-full bg-transparent border-0 outline-none text-slate-900 dark:text-slate-100 placeholder-slate-500"
             autoFocus
@@ -202,7 +200,7 @@ const DataManager = ({ isOpen, onClose }) => {
     </div>
   );
 };
-import { ToastProvider } from './context/ToastContext';
+import { ToastProvider, ToastContext } from './context/ToastContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 
 // Page Transition Wrapper
@@ -508,14 +506,20 @@ const AnimatedRoutes = ({ onCommandPaletteOpen }) => {
 
   return (
     <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<PageTransition><ProjectTracker /></PageTransition>} />
-        <Route path="/builder" element={<PageTransition><PrototypeBuilder /></PageTransition>} />
-        <Route path="/dax" element={<PageTransition><DAXLibrary /></PageTransition>} />
-        <Route path="/style-guide" element={<PageTransition><StyleGuide /></PageTransition>} />
-        <Route path="/portal" element={<PageTransition><SecureFilePortal /></PageTransition>} />
-        <Route path="/guru" element={<PageTransition><PowerBIGuru /></PageTransition>} />
-      </Routes>
+      <Suspense fallback={
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-500"></div>
+        </div>
+      }>
+        <Routes location={location} key={location.pathname}>
+          <Route path="/" element={<PageTransition><ProjectTracker /></PageTransition>} />
+          <Route path="/builder" element={<PageTransition><PrototypeBuilder /></PageTransition>} />
+          <Route path="/dax" element={<PageTransition><DAXLibrary /></PageTransition>} />
+          <Route path="/style-guide" element={<PageTransition><StyleGuide /></PageTransition>} />
+          <Route path="/portal" element={<PageTransition><SecureFilePortal /></PageTransition>} />
+          <Route path="/guru" element={<PageTransition><PowerBIGuru /></PageTransition>} />
+        </Routes>
+      </Suspense>
     </AnimatePresence>
   );
 };

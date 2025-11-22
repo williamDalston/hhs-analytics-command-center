@@ -33,9 +33,9 @@ const LOCAL_KNOWLEDGE = [
     }
 ];
 
-const MIN_NOTES_WIDTH = 260;
-const MAX_NOTES_WIDTH = 520;
-const MIN_CHAT_WIDTH = 440;
+const MIN_NOTES_WIDTH = 180;
+const MAX_NOTES_WIDTH = 4000;
+const MIN_CHAT_WIDTH = 280;
 
 const clampValue = (value, min, max) => Math.min(Math.max(value, min), max);
 
@@ -425,7 +425,9 @@ const PowerBIGuru = () => {
         const handlePointerMove = (moveEvent) => {
             const maxWidth = getMaxNotesWidth();
             const delta = moveEvent.clientX - startX;
-            const nextWidth = clampValue(startWidth + delta, MIN_NOTES_WIDTH, maxWidth);
+            // Dragging right (positive delta) moves handle right -> decreases notes width (notes are on right)
+            // Dragging left (negative delta) moves handle left -> increases notes width
+            const nextWidth = clampValue(startWidth - delta, MIN_NOTES_WIDTH, maxWidth);
             setNotesPanelWidth(nextWidth);
         };
 
@@ -444,7 +446,9 @@ const PowerBIGuru = () => {
         if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
         event.preventDefault();
         const maxWidth = getMaxNotesWidth();
-        const delta = event.key === 'ArrowLeft' ? -24 : 24;
+        // Left arrow moves separator left -> increases notes width
+        // Right arrow moves separator right -> decreases notes width
+        const delta = event.key === 'ArrowLeft' ? 24 : -24;
         setNotesPanelWidth(prev => clampValue(prev + delta, MIN_NOTES_WIDTH, maxWidth));
     };
 
@@ -531,18 +535,19 @@ const PowerBIGuru = () => {
                         
                         return (
                             <div key={i} className="my-3 rounded-lg bg-slate-800 text-slate-100 overflow-hidden shadow-sm border border-slate-700">
-                                <div className="flex justify-between items-center px-3 py-1.5 bg-slate-900/50 text-xs text-slate-400 border-b border-white/10 select-none">
-                                    <span className="uppercase font-semibold tracking-wider text-[10px]">{language || 'CODE'}</span>
-                                    <button 
-                                       onClick={(e) => {
-                                           e.stopPropagation();
-                                           handleCopyMessage(content.trim());
-                                       }}
-                                       className="hover:text-white flex items-center gap-1.5 transition-colors"
-                                    >
-                                        <Copy className="h-3 w-3" /> Copy
-                                    </button>
-                                </div>
+                                        <div className="flex items-center justify-between px-3 py-1.5 bg-slate-900/50 text-xs text-slate-400 border-b border-white/10 select-none">
+                                            <span className="uppercase font-semibold tracking-wider text-[10px]">{language || 'CODE'}</span>
+                                            <button 
+                                               onClick={(e) => {
+                                                   e.stopPropagation();
+                                                   handleCopyMessage(content.trim());
+                                               }}
+                                               className="hover:text-white flex items-center gap-1.5 transition-colors"
+                                               aria-label="Copy code"
+                                            >
+                                                <Copy className="h-3 w-3" /> Copy
+                                            </button>
+                                        </div>
                                 <pre className="p-3 overflow-x-auto font-mono text-xs sm:text-sm scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent">
                                     <code>{content.trim()}</code>
                                 </pre>
@@ -833,6 +838,7 @@ const PowerBIGuru = () => {
                                         onClick={handleExportChat}
                                         className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded transition-colors"
                                         title="Export chat"
+                                        aria-label="Export chat"
                                     >
                                         <Download className="h-4 w-4" />
                                     </button>
@@ -840,6 +846,7 @@ const PowerBIGuru = () => {
                                         onClick={handleClearChat}
                                         className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
                                         title="Clear chat"
+                                        aria-label="Clear chat"
                                     >
                                         <Trash2 className="h-4 w-4" />
                                     </button>
@@ -868,15 +875,17 @@ const PowerBIGuru = () => {
                                                 onClick={() => handleCopyMessage(msg.text)}
                                                 className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600 bg-white/20 p-1 rounded"
                                                 title="Copy message"
+                                                aria-label="Copy message"
                                             >
                                                 <Copy className="h-3 w-3" />
                                             </button>
                                             {msg.sender === 'bot' && !msg.isSystem && (
-                                                <button
-                                                    onClick={() => handleAddMessageToNotes(msg.text)}
-                                                    className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600 bg-white/20 p-1 rounded"
-                                                    title="Save to notes"
-                                                >
+                                            <button
+                                                onClick={() => handleAddMessageToNotes(msg.text)}
+                                                className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600 bg-white/20 p-1 rounded"
+                                                title="Save to notes"
+                                                aria-label="Save to notes"
+                                            >
                                                     <BookmarkPlus className="h-3 w-3" />
                                                 </button>
                                             )}
@@ -942,6 +951,7 @@ const PowerBIGuru = () => {
                                         onClick={handleSend}
                                         disabled={!input.trim() || isTyping}
                                         className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed px-6"
+                                        aria-label="Send message"
                                     >
                                         <Send className="h-5 w-5" />
                                     </button>
@@ -957,9 +967,9 @@ const PowerBIGuru = () => {
                         {shouldRenderNotesPanel && (
                             <div className="flex flex-col gap-4 lg:gap-0 lg:flex-row shrink-0 w-full lg:w-auto">
                                 {isDesktopLayout && (
-                                    <div
-                                        className="hidden lg:flex items-center justify-center w-4 cursor-col-resize select-none text-slate-400"
-                                        role="separator"
+                            <div
+                                className="hidden lg:flex items-center justify-center w-5 cursor-col-resize select-none text-slate-400 hover:bg-slate-100 hover:text-brand-500 transition-colors -ml-2.5 z-10"
+                                role="separator"
                                         aria-label="Resize session notes panel"
                                         aria-orientation="vertical"
                                         tabIndex={0}
@@ -1196,6 +1206,7 @@ const PowerBIGuru = () => {
                                         onClick={() => handleCopyMessage(msg.text)}
                                         className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600"
                                         title="Copy message"
+                                        aria-label="Copy message"
                                     >
                                         <Copy className="h-4 w-4" />
                                     </button>
@@ -1204,6 +1215,7 @@ const PowerBIGuru = () => {
                                             onClick={() => handleAddMessageToNotes(msg.text)}
                                             className="absolute top-2 right-10 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600"
                                             title="Save to notes"
+                                            aria-label="Save to notes"
                                         >
                                             <BookmarkPlus className="h-4 w-4" />
                                         </button>
@@ -1281,11 +1293,12 @@ const PowerBIGuru = () => {
                                 className="input-field flex-1 shadow-sm resize-none min-h-[48px] max-h-[200px]"
                                 rows={1}
                             />
-                            <button
-                                onClick={handleSend}
-                                disabled={!input.trim() || isTyping}
-                                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
+                                    <button
+                                        onClick={handleSend}
+                                        disabled={!input.trim() || isTyping}
+                                        className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                                        aria-label="Send message"
+                                    >
                                 <Send className="h-4 w-4" />
                             </button>
                         </div>
@@ -1306,7 +1319,7 @@ const PowerBIGuru = () => {
                     <div className="flex flex-col gap-4 lg:gap-0 lg:flex-row shrink-0 w-full lg:w-auto">
                         {isDesktopLayout && (
                             <div
-                                className="hidden lg:flex items-center justify-center w-4 cursor-col-resize select-none text-slate-400"
+                                className="hidden lg:flex items-center justify-center w-5 cursor-col-resize select-none text-slate-400 hover:bg-slate-100 hover:text-brand-500 transition-colors -ml-2.5 z-10"
                                 role="separator"
                                 aria-label="Resize session notes panel"
                                 aria-orientation="vertical"

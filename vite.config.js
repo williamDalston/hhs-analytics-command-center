@@ -17,4 +17,9 @@ const getBasePath = () => {
 export default defineConfig({
   plugins: [react()],
   base: getBasePath(),
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/setupTests.js',
+  },
 })

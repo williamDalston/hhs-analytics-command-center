@@ -82,3 +82,4 @@ const SkeletonTable = ({ rows = 5, columns = 4, className = '' }) => {
 export { Skeleton, SkeletonCard, SkeletonList, SkeletonTable };
 export default Skeleton;
 
+
