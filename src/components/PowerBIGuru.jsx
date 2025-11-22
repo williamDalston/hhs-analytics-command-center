@@ -42,6 +42,8 @@ const PowerBIGuru = () => {
     useEffect(() => {
         // Check for Env Var Key first, then Local Storage
         const envKey = import.meta.env.VITE_GEMINI_API_KEY;
+        console.log("PowerBI Guru: Checking for API Key...", envKey ? "Found in Env" : "Not in Env");
+        
         if (envKey) {
             setApiKey(envKey);
         } else {
