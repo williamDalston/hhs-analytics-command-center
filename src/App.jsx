@@ -13,8 +13,8 @@ const SidebarItem = ({ icon: Icon, label, path }) => {
     <Link
       to={path}
       className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${isActive
-          ? 'bg-brand-800 text-white shadow-md'
-          : 'text-brand-100 hover:bg-brand-800/50 hover:text-white'
+        ? 'bg-brand-800 text-white shadow-md'
+        : 'text-brand-100 hover:bg-brand-800/50 hover:text-white'
         }`}
     >
       <Icon className="h-5 w-5" />
@@ -25,7 +25,7 @@ const SidebarItem = ({ icon: Icon, label, path }) => {
 
 const App = () => {
   return (
-    <Router>
+    <Router basename="/hhs-analytics-command-center">
       <div className="flex min-h-screen bg-slate-50 text-slate-900">
         {/* Sidebar */}
         <div className="w-64 bg-brand-900 border-r border-brand-800 flex-shrink-0 fixed h-full z-10">
