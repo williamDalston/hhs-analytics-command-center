@@ -87,7 +87,7 @@ const GEMINI_MODELS = ["gemini-pro", "gemini-1.5-flash", "gemini-1.5-pro"];
 const GEMINI_API_VERSIONS = ["v1beta", "v1"];
 const GEMINI_MODEL = GEMINI_MODELS[0]; // Default to latest
 const PROJECT_GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY?.trim() || '';
-const GEMINI_KEY_ALLOWED_HOSTS = import.meta.env.VITE_GEMINI_KEY_ALLOWED_HOSTS || 'localhost,127.0.0.1';
+const GEMINI_KEY_ALLOWED_HOSTS = import.meta.env.VITE_GEMINI_KEY_ALLOWED_HOSTS || 'localhost,127.0.0.1,williamdalston.github.io';
 
 const parseHostRules = (value) => {
     return value
