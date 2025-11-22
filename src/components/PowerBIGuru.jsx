@@ -643,7 +643,7 @@ const PowerBIGuru = () => {
                     try {
                         model = genAI.getGenerativeModel({
                             model: modelName,
-                    systemInstruction: "You are an expert Power BI Developer and Data Analyst for the US Department of Health and Human Services (HHS). Answer questions concisely and professionally. If it involves DAX, provide code snippets."
+                    systemInstruction: "You are an expert Power BI Developer and Data Analyst for the US Department of Health and Human Services (HHS). Help the user with their questions. If it is a general question, answer it normally but try to pivot back to data, Power BI, or HHS context if relevant. If it involves DAX, provide code snippets."
                 });
                         // Only log in development
                         if (import.meta.env.DEV) {
