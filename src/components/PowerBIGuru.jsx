@@ -87,6 +87,46 @@ const GEMINI_MODELS = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
 const GEMINI_API_VERSIONS = ["v1beta", "v1"];
 const GEMINI_MODEL = GEMINI_MODELS[0]; // Default to latest
 const PROJECT_GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY?.trim() || '';
+const GEMINI_KEY_ALLOWED_HOSTS = import.meta.env.VITE_GEMINI_KEY_ALLOWED_HOSTS || 'localhost,127.0.0.1';
+
+const parseHostRules = (value) => {
+    return value
+        .split(',')
+        .map(entry => entry.trim())
+        .filter(Boolean)
+        .map(entry => {
+            const withoutProtocol = entry.replace(/^https?:\/\//, '');
+            const beforePath = withoutProtocol.split('/')[0];
+            return beforePath.toLowerCase();
+        });
+};
+
+const matchesHostRule = (rule, hostname, hostWithPort) => {
+    if (rule === '*') return true;
+    if (rule.startsWith('.')) {
+        const normalizedRule = rule.slice(1);
+        return hostname === normalizedRule || hostname.endsWith(`.${normalizedRule}`);
+    }
+    if (rule.includes(':')) {
+        return hostWithPort === rule;
+    }
+    return hostname === rule;
+};
+
+const GEMINI_PROJECT_HOST_RULES = parseHostRules(GEMINI_KEY_ALLOWED_HOSTS);
+
+const isHostAllowedForProjectKey = () => {
+    if (!PROJECT_GEMINI_KEY) return false;
+    if (import.meta.env.DEV) return true;
+    if (typeof window === 'undefined') return false;
+    if (GEMINI_PROJECT_HOST_RULES.length === 0) return true;
+
+    const hostname = window.location.hostname.toLowerCase();
+    const hostWithPort = window.location.host.toLowerCase();
+    return GEMINI_PROJECT_HOST_RULES.some(rule => matchesHostRule(rule, hostname, hostWithPort));
+};
+
+const getProjectKeyForCurrentHost = () => (isHostAllowedForProjectKey() ? PROJECT_GEMINI_KEY : '');
 
 const getStoredCustomKey = () => {
     if (typeof window === 'undefined') return '';
@@ -99,8 +139,9 @@ const resolveInitialApiKey = () => {
     if (customKey) {
         return { key: customKey, source: 'custom' };
     }
-    if (PROJECT_GEMINI_KEY) {
-        return { key: PROJECT_GEMINI_KEY, source: 'project' };
+    const projectKey = getProjectKeyForCurrentHost();
+    if (projectKey) {
+        return { key: projectKey, source: 'project' };
     }
     return { key: '', source: 'none' };
 };
@@ -184,7 +225,16 @@ const PowerBIGuru = () => {
     useEffect(() => {
         // Debug: Log API key availability in development
         if (import.meta.env.DEV) {
-            console.log("PowerBI Guru: Project Access Code", PROJECT_GEMINI_KEY ? "Available" : "Not Configured");
+            if (!PROJECT_GEMINI_KEY) {
+                console.log("PowerBI Guru: Project Access Code Not Configured");
+            } else {
+                console.log(
+                    "PowerBI Guru: Project Access Code",
+                    isHostAllowedForProjectKey()
+                        ? "Available for this host"
+                        : `Configured but blocked for host ${(typeof window !== 'undefined' && window.location.hostname) || 'unknown'}`
+                );
+            }
         }
     }, []);
 
@@ -276,70 +326,11 @@ const PowerBIGuru = () => {
             return;
         }
 
-        let isCancelled = false;
-        const controller = new AbortController();
+        // Assume connected if key is present to avoid 404 checks on unsupported endpoints
+        setConnectionStatus('connected');
+        setConnectionError('');
+        setVerifiedApiVersion('v1beta'); // Default assumption
 
-        const verifyKey = async () => {
-            setConnectionStatus('connecting');
-            setConnectionError('');
-            setVerifiedApiVersion(null);
-            for (const apiVersion of GEMINI_API_VERSIONS) {
-                try {
-                    const response = await fetch(
-                        `https://generativelanguage.googleapis.com/${apiVersion}/models/${encodeURIComponent(GEMINI_MODEL)}?key=${encodeURIComponent(trimmedKey)}`,
-                        { signal: controller.signal }
-                    );
-
-                if (!response.ok) {
-                    const errorPayload = await response.json().catch(() => ({}));
-                        const errorMessage = errorPayload?.error?.message || 'Unable to verify access code';
-
-                        const isModelUnavailable = response.status === 404 || errorPayload?.error?.status === 'NOT_FOUND';
-                        if (isModelUnavailable) {
-                            // Only log in development
-                            if (import.meta.env.DEV) {
-                                console.warn(`[Gemini] Model ${GEMINI_MODEL} unavailable on API ${apiVersion}. Trying fallback version.`);
-                            }
-                            continue;
-                        }
-
-                        throw new Error(errorMessage);
-                    }
-
-                if (isCancelled) return;
-                setConnectionStatus('connected');
-                    setConnectionError('');
-                    setVerifiedApiVersion(apiVersion);
-                    // Only log in development
-                    if (import.meta.env.DEV) {
-                        console.info(`[Gemini] Verified ${GEMINI_MODEL} via ${apiVersion}.`);
-                    }
-                    return;
-            } catch (error) {
-                if (controller.signal.aborted || isCancelled) return;
-                    // Only log in development
-                    if (import.meta.env.DEV) {
-                        console.error(`[Gemini] verification error via ${apiVersion}:`, error);
-                    }
-                    break;
-                }
-            }
-
-            // Don't block the user - just log the issue
-            if (import.meta.env.DEV) {
-                console.warn('[Gemini] Verification failed, but user can still try to chat');
-            }
-            setConnectionStatus('idle'); // Allow user to try anyway
-            setConnectionError(''); // Clear any error to not show in UI
-            setVerifiedApiVersion(null);
-        };
-
-        verifyKey();
-
-        return () => {
-            isCancelled = true;
-            controller.abort();
-        };
     }, [apiKey]);
 
     const handleSaveKey = () => {
@@ -364,14 +355,19 @@ const PowerBIGuru = () => {
         if (typeof window !== 'undefined') {
             window.localStorage.removeItem('gemini_api_key');
         }
-        const fallbackKey = PROJECT_GEMINI_KEY || '';
+        const fallbackKey = getProjectKeyForCurrentHost() || '';
+        const hasRestrictedProjectKey = Boolean(PROJECT_GEMINI_KEY) && !fallbackKey;
         setIsUsingCustomKey(false);
         setKeyInput('');
         setApiKey(fallbackKey);
         setConnectionStatus(fallbackKey ? 'connecting' : 'idle');
         setConnectionError('');
         addToast(
-            fallbackKey ? 'Reverted to the built-in HHS access code.' : 'Access code removed. Running in local knowledge mode.',
+            fallbackKey
+                ? 'Reverted to the built-in HHS access code.'
+                : hasRestrictedProjectKey
+                    ? 'The built-in HHS access code is restricted on this domain. Add your personal key to enable AI responses.'
+                    : 'Access code removed. Running in local knowledge mode.',
             'info'
         );
     };
@@ -774,7 +770,10 @@ const PowerBIGuru = () => {
         }, 600);
     };
 
-    const isEnvKey = Boolean(PROJECT_GEMINI_KEY);
+    const projectKeyForHost = getProjectKeyForCurrentHost();
+    const isEnvKey = Boolean(projectKeyForHost);
+    const hasProjectKeyConfigured = Boolean(PROJECT_GEMINI_KEY);
+    const isProjectKeyBlocked = hasProjectKeyConfigured && !isEnvKey;
     const connectionBadge = (() => {
         if (!apiKey) return null;
         if (connectionStatus === 'connected') {
@@ -1159,6 +1158,12 @@ const PowerBIGuru = () => {
                                 : isEnvKey
                                     ? 'Using the built-in HHS Gemini access code.'
                                     : 'Using the currently stored Gemini access code.'}
+                        </p>
+                    )}
+                    {!apiKey && isProjectKeyBlocked && (
+                        <p className="mt-1 text-xs text-amber-600 flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3" />
+                            Built-in cloud access is limited to approved internal domains. Add your own access code in settings to chat from this site.
                         </p>
                     )}
                     {connectionStatus === 'error' && apiKey && (
