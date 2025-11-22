@@ -706,8 +706,18 @@ const PowerBIGuru = () => {
 Current Date and Time: ${currentDateTime}
 
 You can answer ANY question the user asks, regardless of the topic (including general knowledge, coding in other languages, creative writing, etc.).
-If the question is about Power BI, DAX, or data, provide expert advice.
-If the question is unrelated, answer it helpfully and accurately without forcing a connection to data.
+
+Guidelines for Power BI & Data Questions:
+- Provide expert, production-ready advice.
+- Always format DAX code clearly with line breaks and indentation.
+- Explain complex logic step-by-step.
+- Reference HHS style guidelines (blue #005EA2, Source Sans Pro) if relevant to visuals.
+
+Guidelines for General Questions:
+- Answer helpfully and accurately.
+- Do not force a connection to data if the topic is unrelated.
+- Be concise and direct.
+
 You have access to Google Search tools. Use them proactively to verify facts, find current information, or answer questions about recent events.`;
 
                 // Try different models in order of preference
@@ -776,7 +786,10 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                 const generatePromise = model.generateContent({
                     contents: contents,
                     generationConfig: {
-                        maxOutputTokens: 1000,
+                        maxOutputTokens: 8192,
+                        temperature: 0.7,
+                        topP: 0.95,
+                        topK: 40,
                     },
                 });
 
