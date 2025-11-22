@@ -247,7 +247,7 @@ const SidebarItem = ({ icon: Icon, label, path, shortcut }) => {
 
 const Sidebar = ({ onDataManagerOpen }) => {
   const { isDarkMode, toggleTheme } = useTheme();
-  const { isSidebarCollapsed } = useSidebar();
+  const { isSidebarCollapsed, toggleSidebar } = useSidebar();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Close mobile menu on route change
@@ -289,14 +289,23 @@ const Sidebar = ({ onDataManagerOpen }) => {
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
       } ${isSidebarCollapsed ? 'lg:-translate-x-full' : 'lg:translate-x-0'}`}>
       <div className="p-8 border-b border-white/10 dark:border-slate-700/10">
-        <div className="flex items-center gap-4 text-white">
-          <div className="h-12 w-12 bg-gradient-to-br from-white to-brand-100 rounded-xl flex items-center justify-center text-brand-700 font-bold text-2xl shadow-lg">
-            H
+        <div className="flex items-center justify-between gap-4 text-white">
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 bg-gradient-to-br from-white to-brand-100 rounded-xl flex items-center justify-center text-brand-700 font-bold text-2xl shadow-lg">
+              H
+            </div>
+            <div>
+              <h1 className="font-bold text-xl leading-none tracking-tight">HHS Analytics</h1>
+              <span className="text-xs text-brand-200 font-medium tracking-wider uppercase opacity-80 mt-1 block">Command Center</span>
+            </div>
           </div>
-          <div>
-            <h1 className="font-bold text-xl leading-none tracking-tight">HHS Analytics</h1>
-            <span className="text-xs text-brand-200 font-medium tracking-wider uppercase opacity-80 mt-1 block">Command Center</span>
-          </div>
+          <button
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="lg:hidden h-8 w-8 rounded-lg flex items-center justify-center text-white hover:bg-white/10 transition-colors"
+            aria-label="Close navigation menu"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
         </div>
       </div>
 
@@ -312,14 +321,6 @@ const Sidebar = ({ onDataManagerOpen }) => {
         <SidebarItem icon={Ruler} label="Style Guide" path="/style-guide" shortcut="⌘6" />
       </nav>
 
-      {/* Mobile Close Button */}
-      <button
-        onClick={() => setIsMobileMenuOpen(false)}
-        className="lg:hidden absolute top-4 right-4 h-8 w-8 bg-white/10 rounded-lg flex items-center justify-center text-white hover:bg-white/20 transition-colors"
-        aria-label="Close navigation menu"
-      >
-        <ChevronLeft className="h-5 w-5" />
-      </button>
 
       <div className="p-6 border-t border-white/10 dark:border-slate-700/10 bg-black/10 dark:bg-white/5 backdrop-blur-sm">
         <div className="flex items-center justify-between">
@@ -356,6 +357,14 @@ const Sidebar = ({ onDataManagerOpen }) => {
               aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </button>
+            <button
+              onClick={toggleSidebar}
+              className="hidden lg:block p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-white"
+              title="Collapse sidebar"
+              aria-label="Collapse sidebar"
+            >
+              <ChevronLeft className="h-5 w-5" />
             </button>
           </div>
         </div>
@@ -528,13 +537,25 @@ const AnimatedRoutes = ({ onCommandPaletteOpen }) => {
 const AppContent = () => {
   const [isDataManagerOpen, setIsDataManagerOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  const { isSidebarCollapsed } = useSidebar();
+  const { isSidebarCollapsed, toggleSidebar } = useSidebar();
 
   return (
     <div className="flex min-h-screen bg-gradient-subtle dark:bg-gradient-subtle-dark text-slate-900 dark:text-slate-100 font-sans">
       <Sidebar onDataManagerOpen={() => setIsDataManagerOpen(true)} />
       <DataManager isOpen={isDataManagerOpen} onClose={() => setIsDataManagerOpen(false)} />
       <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} />
+      
+      {/* Show Sidebar Button (when collapsed on desktop) */}
+      {isSidebarCollapsed && (
+        <button
+          onClick={toggleSidebar}
+          className="hidden lg:flex fixed top-4 left-4 z-40 h-10 w-10 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md rounded-lg items-center justify-center shadow-lg border border-white/20 dark:border-slate-700/20 hover:bg-white dark:hover:bg-slate-700 transition-all hover:scale-110"
+          aria-label="Show sidebar"
+          title="Show sidebar"
+        >
+          <Menu className="h-5 w-5 text-slate-700 dark:text-slate-200" />
+        </button>
+      )}
 
       {/* Main Content */}
       <div className={`flex-1 relative z-0 transition-all duration-300 ${isSidebarCollapsed ? 'lg:ml-0' : 'lg:ml-72'}`}>

@@ -1,21 +1,16 @@
 // Service Worker for HHS Analytics Command Center
-const CACHE_NAME = 'hhs-analytics-v1';
-const STATIC_CACHE = 'hhs-analytics-static-v1';
+const CACHE_NAME = 'hhs-analytics-v2';
+const STATIC_CACHE = 'hhs-analytics-static-v2';
 
-// Assets to cache immediately
-const STATIC_ASSETS = [
-  '/',
-  '/hhs-analytics-command-center/',
-  '/manifest.json',
-  '/vite.svg'
-];
-
-// Install event - cache static assets
+// Install event - skip waiting immediately
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(STATIC_CACHE)
-      .then((cache) => cache.addAll(STATIC_ASSETS))
       .then(() => self.skipWaiting())
+      .catch((error) => {
+        console.warn('Service Worker install failed:', error);
+        return self.skipWaiting();
+      })
   );
 });
 
