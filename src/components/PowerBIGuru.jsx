@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Bot, User, Sparkles, Settings, Key, Database, AlertCircle, Copy, Trash2, Download, MessageSquare, ChevronDown, NotebookPen, Eraser, Wand2, Maximize2, Minimize2 } from 'lucide-react';
+import { Send, Bot, User, Sparkles, Settings, Key, Database, AlertCircle, Copy, Trash2, Download, MessageSquare, ChevronDown, NotebookPen, Eraser, Wand2, Maximize2, Minimize2, BookmarkPlus, ArrowDownToLine } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { useToast } from '../context/ToastContext';
@@ -74,6 +74,11 @@ const resolveInitialApiKey = () => {
     return { key: '', source: 'none' };
 };
 
+const truncateText = (text, length = 120) => {
+    if (!text) return '';
+    return text.length > length ? `${text.slice(0, length)}…` : text;
+};
+
 const PowerBIGuru = () => {
     const { addToast } = useToast();
     const initialKeyInfoRef = useRef(resolveInitialApiKey());
@@ -106,6 +111,8 @@ const PowerBIGuru = () => {
     });
     const [isCompactMode, setIsCompactMode] = useState(false);
     const [isMaximized, setIsMaximized] = useState(false);
+    const [currentQuestion, setCurrentQuestion] = useState(null);
+    const [lastAnswerId, setLastAnswerId] = useState(null);
 
     useEffect(() => {
         console.log("PowerBI Guru: Project Access Code", PROJECT_GEMINI_KEY ? "Available" : "Not Configured");
@@ -116,24 +123,22 @@ const PowerBIGuru = () => {
         window.localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(messages));
     }, [messages]);
 
+    const scrollToMessage = (id) => {
+        if (!id) return;
+        const el = document.getElementById(`message-${id}`);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
+
     useEffect(() => {
         const lastMsg = messages[messages.length - 1];
-        // If it's a new bot message, scroll to the *User's* previous message to keep context
-        // This solves "start at the answer easily"
-        if (lastMsg?.sender === 'bot' && !lastMsg.isSystem) {
-             const prevMsg = messages[messages.length - 2];
-             if (prevMsg?.sender === 'user') {
-                 const el = document.getElementById(`message-${prevMsg.id}`);
-                 if (el) {
-                     el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                     return;
-                 }
-             }
+        if (lastMsg?.sender === 'bot' && !lastMsg.isSystem && currentQuestion?.id) {
+            scrollToMessage(currentQuestion.id);
+            return;
         }
-        
-        // Default behavior: scroll to bottom
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
+    }, [messages, currentQuestion]);
 
     // Track if user is scrolled to bottom
     useEffect(() => {
@@ -194,8 +199,8 @@ const PowerBIGuru = () => {
                         { signal: controller.signal }
                     );
 
-                    if (!response.ok) {
-                        const errorPayload = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    const errorPayload = await response.json().catch(() => ({}));
                         const errorMessage = errorPayload?.error?.message || 'Unable to verify access code';
 
                         const isModelUnavailable = response.status === 404 || errorPayload?.error?.status === 'NOT_FOUND';
@@ -207,14 +212,14 @@ const PowerBIGuru = () => {
                         throw new Error(errorMessage);
                     }
 
-                    if (isCancelled) return;
-                    setConnectionStatus('connected');
+                if (isCancelled) return;
+                setConnectionStatus('connected');
                     setConnectionError('');
                     setVerifiedApiVersion(apiVersion);
                     console.info(`[Gemini] Verified ${GEMINI_MODEL} via ${apiVersion}.`);
                     return;
-                } catch (error) {
-                    if (controller.signal.aborted || isCancelled) return;
+            } catch (error) {
+                if (controller.signal.aborted || isCancelled) return;
                     console.error(`[Gemini] verification error via ${apiVersion}:`, error);
                     break;
                 }
@@ -295,6 +300,8 @@ const PowerBIGuru = () => {
             setMessages([createInitialMessage()]);
             addToast('Conversation cleared', 'success');
             scrollToBottom();
+            setCurrentQuestion(null);
+            setLastAnswerId(null);
         }
     };
 
@@ -351,6 +358,12 @@ const PowerBIGuru = () => {
         setIsMaximized(prev => !prev);
     };
 
+    const handleAddMessageToNotes = (text) => {
+        if (!text) return;
+        setSessionNotes(prev => `${prev ? `${prev}\n\n` : ''}${text}`);
+        addToast('Saved to session notes', 'success');
+    };
+
     const formatMessageTime = (msg, fallbackToNow = false) => {
         if (msg.isSystem && msg.id === 'welcome' && !fallbackToNow) return '';
         const source = msg.createdAt || (typeof msg.id === 'number' ? new Date(msg.id).toISOString() : null);
@@ -364,11 +377,11 @@ const PowerBIGuru = () => {
     const messageMetaClass = isCompactMode ? 'text-[10px]' : 'text-xs';
 
     // Typing Effect Hook
-    const useTypingEffect = (text, shouldTyping) => {
-        const [displayedText, setDisplayedText] = useState(shouldTyping ? '' : text);
+    const useTypingEffect = (text, shouldAnimate) => {
+        const [displayedText, setDisplayedText] = useState(shouldAnimate ? '' : text);
         
         useEffect(() => {
-            if (!shouldTyping) {
+            if (!shouldAnimate) {
                 setDisplayedText(text);
                 return;
             }
@@ -389,14 +402,14 @@ const PowerBIGuru = () => {
             }, 10);
 
             return () => clearInterval(intervalId);
-        }, [text, shouldTyping]);
+        }, [text, shouldAnimate]);
 
         return displayedText;
     };
 
     // Message Content Component with Typing Support
-    const MessageContent = ({ text, isLastBotMessage }) => {
-        const display = useTypingEffect(text, isLastBotMessage);
+    const MessageContent = ({ text, shouldAnimate }) => {
+        const display = useTypingEffect(text, shouldAnimate);
         
         // Only run the split logic if we have text
         if (!display) return <span className="animate-pulse">...</span>;
@@ -446,19 +459,22 @@ const PowerBIGuru = () => {
         setMessages(prev => [...prev, userMsg]);
         setInput('');
         setIsTyping(true);
+        setCurrentQuestion({ id: userMsg.id, text: userMsg.text });
 
         // 1. Try Local Knowledge First
         const localMatch = processLocalQuery(userMsg.text);
 
         if (localMatch) {
             setTimeout(() => {
-                setMessages(prev => [...prev, {
+                const botMsg = {
                     id: Date.now() + 1,
                     text: localMatch.answer,
                     sender: 'bot',
                     link: localMatch.link,
                     createdAt: new Date().toISOString()
-                }]);
+                };
+                setMessages(prev => [...prev, botMsg]);
+                setLastAnswerId(botMsg.id);
                 setIsTyping(false);
             }, 600); // Fake delay for natural feel
             return;
@@ -479,8 +495,8 @@ const PowerBIGuru = () => {
                     try {
                         model = genAI.getGenerativeModel({
                             model: modelName,
-                            systemInstruction: "You are an expert Power BI Developer and Data Analyst for the US Department of Health and Human Services (HHS). Answer questions concisely and professionally. If it involves DAX, provide code snippets."
-                        });
+                    systemInstruction: "You are an expert Power BI Developer and Data Analyst for the US Department of Health and Human Services (HHS). Answer questions concisely and professionally. If it involves DAX, provide code snippets."
+                });
                         console.log(`Initialized model ${modelName}, attempting to use it...`);
                         // Don't test with generateContent - just try to use it directly
                         break; // Use this model
@@ -524,7 +540,9 @@ const PowerBIGuru = () => {
                 const response = await result.response;
                 const text = response.text();
 
-                setMessages(prev => [...prev, { id: Date.now() + 1, text: text, sender: 'bot', createdAt: new Date().toISOString() }]);
+                const botMsg = { id: Date.now() + 1, text, sender: 'bot', createdAt: new Date().toISOString() };
+                setMessages(prev => [...prev, botMsg]);
+                setLastAnswerId(botMsg.id);
             } catch (error) {
                 console.error("AI Connection Error:", error);
                 console.error("Error details:", error.message, error.stack);
@@ -540,7 +558,7 @@ const PowerBIGuru = () => {
                 }
 
                 // Show user-friendly error and suggest fallback
-                setMessages(prev => [...prev, {
+                const errorMsg = {
                     id: Date.now() + 1,
                     text: isAuthError
                         ? "I couldn't connect to the AI service with the current access code. Please update your API key in settings, or I can help with local knowledge about DAX and Power BI."
@@ -548,7 +566,9 @@ const PowerBIGuru = () => {
                     sender: 'bot',
                     isError: true,
                     createdAt: new Date().toISOString()
-                }]);
+                };
+                setMessages(prev => [...prev, errorMsg]);
+                setLastAnswerId(errorMsg.id);
 
                 // Don't return here - let it fall through to local knowledge
             } finally {
@@ -559,13 +579,15 @@ const PowerBIGuru = () => {
 
         // Fallback if no key and no local match
         setTimeout(() => {
-            setMessages(prev => [...prev, {
+            const fallbackMsg = {
                 id: Date.now() + 1,
                 text: "I don't have an answer for that in my local knowledge base. To unlock full AI capabilities, please configure the AI Access Code in settings.",
                 sender: 'bot',
                 isSystem: true,
                 createdAt: new Date().toISOString()
-            }]);
+            };
+            setMessages(prev => [...prev, fallbackMsg]);
+            setLastAnswerId(fallbackMsg.id);
             setIsTyping(false);
         }, 600);
     };
@@ -668,7 +690,7 @@ const PowerBIGuru = () => {
                                         : msg.isSystem
                                             ? 'bg-amber-50 text-amber-800 border border-amber-100'
                                             : 'bg-slate-100 text-slate-800 rounded-bl-none'
-                                        }`}>
+                                        } ${msg.id === lastAnswerId ? 'ring-2 ring-brand-200 shadow-brand-200/60' : ''}`}>
                                         <button
                                             onClick={() => handleCopyMessage(msg.text)}
                                             className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600 bg-white/20 p-1 rounded"
@@ -676,6 +698,15 @@ const PowerBIGuru = () => {
                                         >
                                             <Copy className="h-3 w-3" />
                                         </button>
+                                        {msg.sender === 'bot' && !msg.isSystem && (
+                                            <button
+                                                onClick={() => handleAddMessageToNotes(msg.text)}
+                                                className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600 bg-white/20 p-1 rounded"
+                                                title="Save to notes"
+                                            >
+                                                <BookmarkPlus className="h-3 w-3" />
+                                            </button>
+                                        )}
                                         <div className={`flex items-center justify-between mb-1 opacity-75 ${messageMetaClass}`}>
                                             <div className="flex items-center gap-2">
                                                 {msg.sender === 'user' ? <User className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
@@ -687,7 +718,7 @@ const PowerBIGuru = () => {
                                         </div>
                                         <MessageContent 
                                             text={msg.text} 
-                                            isLastBotMessage={msg.sender === 'bot' && !msg.isSystem && msg.id === messages[messages.length - 1].id}
+                                            shouldAnimate={msg.id === lastAnswerId && msg.sender === 'bot' && !msg.isSystem}
                                         />
                                         {msg.link && (
                                             <div className="mt-3 pt-3 border-t border-black/10">
@@ -809,18 +840,18 @@ const PowerBIGuru = () => {
                     >
                         <Maximize2 className="h-5 w-5" />
                     </button>
-                    <button
-                        onClick={() => setShowSettings(!showSettings)}
-                        className={`p-2 rounded-lg transition-colors ${showSettings
-                            ? 'bg-brand-50 text-brand-700'
-                            : isUsingCustomKey
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                            }`}
-                        title="Manage AI Access Code"
-                    >
-                        <Settings className="h-5 w-5" />
-                    </button>
+                <button
+                    onClick={() => setShowSettings(!showSettings)}
+                    className={`p-2 rounded-lg transition-colors ${showSettings
+                        ? 'bg-brand-50 text-brand-700'
+                        : isUsingCustomKey
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                    title="Manage AI Access Code"
+                >
+                    <Settings className="h-5 w-5" />
+                </button>
                 </div>
             </div>
 
@@ -870,7 +901,7 @@ const PowerBIGuru = () => {
 
             {/* Workspace */}
             <div className="flex-1 flex flex-col lg:flex-row gap-4 overflow-hidden">
-                {/* Chat Area */}
+            {/* Chat Area */}
                 <div className="flex-1 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col relative min-w-0">
                     {/* Chat Header */}
                     <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex flex-wrap items-center gap-3">
@@ -924,64 +955,97 @@ const PowerBIGuru = () => {
                         </button>
                     </div>
 
+                    {currentQuestion && (
+                        <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex flex-wrap items-center gap-3">
+                            <div className="flex-1 min-w-[240px]">
+                                <p className="text-xs uppercase font-semibold text-slate-500 tracking-wide">Current question</p>
+                                <p className="font-medium text-slate-900">{truncateText(currentQuestion.text, 160)}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => scrollToMessage(currentQuestion.id)}
+                                    className="px-3 py-1.5 text-xs rounded-full bg-white border border-slate-200 hover:border-brand-300 hover:text-brand-600 transition-colors flex items-center gap-1"
+                                >
+                                    <ArrowDownToLine className="h-3 w-3" /> Jump to question
+                                </button>
+                                <button
+                                    onClick={() => handleAddMessageToNotes(currentQuestion.text)}
+                                    className="px-3 py-1.5 text-xs rounded-full bg-brand-50 text-brand-700 border border-brand-100 flex items-center gap-1"
+                                >
+                                    <BookmarkPlus className="h-3 w-3" /> Save
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     <div
                         ref={messagesContainerRef}
                         className={`flex-1 overflow-y-auto p-4 ${messageSpacingClass} relative`}
                     >
-                        {messages.map((msg) => (
-                            <motion.div
-                                key={msg.id}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                            >
-                                <div className={`max-w-[80%] rounded-2xl ${messagePaddingClass} group relative ${msg.sender === 'user'
-                                    ? 'bg-brand-600 text-white rounded-br-none'
-                                    : msg.isSystem
-                                        ? 'bg-amber-50 text-amber-800 border border-amber-100'
-                                        : 'bg-slate-100 text-slate-800 rounded-bl-none'
-                                    }`}>
+                    {messages.map((msg) => (
+                        <motion.div
+                            key={msg.id}
+                            id={`message-${msg.id}`}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                        >
+                            <div className={`max-w-[80%] rounded-2xl ${messagePaddingClass} group relative ${msg.sender === 'user'
+                                ? 'bg-brand-600 text-white rounded-br-none'
+                                : msg.isSystem
+                                    ? 'bg-amber-50 text-amber-800 border border-amber-100'
+                                    : 'bg-slate-100 text-slate-800 rounded-bl-none'
+                                } ${msg.id === lastAnswerId ? 'ring-2 ring-brand-200 shadow-lg shadow-brand-200/60' : ''}`}>
+                                <button
+                                    onClick={() => handleCopyMessage(msg.text)}
+                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600"
+                                    title="Copy message"
+                                >
+                                    <Copy className="h-4 w-4" />
+                                </button>
+                                {msg.sender === 'bot' && !msg.isSystem && (
                                     <button
-                                        onClick={() => handleCopyMessage(msg.text)}
-                                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600"
-                                        title="Copy message"
+                                        onClick={() => handleAddMessageToNotes(msg.text)}
+                                        className="absolute top-2 right-10 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600"
+                                        title="Save to notes"
                                     >
-                                        <Copy className="h-4 w-4" />
+                                        <BookmarkPlus className="h-4 w-4" />
                                     </button>
-                                    <div className={`flex items-center justify-between mb-1 opacity-75 ${messageMetaClass}`}>
-                                        <div className="flex items-center gap-2">
-                                            {msg.sender === 'user' ? <User className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
-                                            <span className="uppercase font-bold tracking-wider">{msg.sender}</span>
-                                        </div>
-                                        {formatMessageTime(msg) && (
-                                            <span className="text-slate-400">{formatMessageTime(msg)}</span>
-                                        )}
+                                )}
+                                <div className={`flex items-center justify-between mb-1 opacity-75 ${messageMetaClass}`}>
+                                    <div className="flex items-center gap-2">
+                                        {msg.sender === 'user' ? <User className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
+                                        <span className="uppercase font-bold tracking-wider">{msg.sender}</span>
                                     </div>
-                                        <MessageContent 
-                                            text={msg.text} 
-                                            isLastBotMessage={msg.sender === 'bot' && !msg.isSystem && msg.id === messages[messages.length - 1].id}
-                                        />
-                                    {msg.link && (
-                                        <div className="mt-3 pt-3 border-t border-black/10">
-                                            <a href={`#${msg.link}`} className="text-xs font-bold flex items-center gap-1 hover:underline">
-                                                View Resource <Database className="h-3 w-3" />
-                                            </a>
-                                        </div>
+                                    {formatMessageTime(msg) && (
+                                        <span className="text-slate-400">{formatMessageTime(msg)}</span>
                                     )}
                                 </div>
-                            </motion.div>
-                        ))}
-                        {isTyping && (
-                            <div className="flex justify-start">
-                                <div className="bg-slate-100 rounded-2xl rounded-bl-none p-4 flex gap-1">
-                                    <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" />
-                                    <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-75" />
-                                    <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-150" />
-                                </div>
+                                <MessageContent 
+                                    text={msg.text} 
+                                    shouldAnimate={msg.id === lastAnswerId && msg.sender === 'bot' && !msg.isSystem}
+                                />
+                                {msg.link && (
+                                    <div className="mt-3 pt-3 border-t border-black/10">
+                                        <a href={`#${msg.link}`} className="text-xs font-bold flex items-center gap-1 hover:underline">
+                                            View Resource <Database className="h-3 w-3" />
+                                        </a>
+                                    </div>
+                                )}
                             </div>
-                        )}
-                        <div ref={messagesEndRef} />
-                    </div>
+                        </motion.div>
+                    ))}
+                    {isTyping && (
+                        <div className="flex justify-start">
+                            <div className="bg-slate-100 rounded-2xl rounded-bl-none p-4 flex gap-1">
+                                <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" />
+                                <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-75" />
+                                <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-150" />
+                            </div>
+                        </div>
+                    )}
+                    <div ref={messagesEndRef} />
+                </div>
 
                     {/* Scroll to Bottom Button */}
                     <AnimatePresence>
@@ -999,42 +1063,42 @@ const PowerBIGuru = () => {
                         )}
                     </AnimatePresence>
 
-                    {/* Input Area */}
-                    <div className="p-4 bg-slate-50 border-t border-slate-200">
-                        <div className="flex gap-2">
-                            <textarea
-                                ref={inputRef}
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && !e.shiftKey) {
-                                        e.preventDefault();
-                                        handleSend();
-                                    }
-                                }}
-                                placeholder="Ask anything about Power BI... (Shift+Enter for new line)"
-                                className="input-field flex-1 shadow-sm resize-none min-h-[48px] max-h-[200px]"
-                                rows={1}
-                            />
-                            <button
-                                onClick={handleSend}
-                                disabled={!input.trim() || isTyping}
-                                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                <Send className="h-4 w-4" />
-                            </button>
-                        </div>
-                        <p className="text-xs text-slate-400 mt-2 text-center flex flex-wrap items-center justify-center gap-2">
-                            <span>Enter = Send</span>
-                            <span>Shift+Enter = New line</span>
-                            <span>Copy buttons appear when you hover a message</span>
-                        </p>
-                        {!apiKey && (
-                            <p className="text-xs text-slate-400 mt-2 text-center">
-                                Running in <span className="font-semibold text-brand-600">Local Knowledge Mode</span>. Add an Access Code for full AI features.
-                            </p>
-                        )}
+                {/* Input Area */}
+                <div className="p-4 bg-slate-50 border-t border-slate-200">
+                    <div className="flex gap-2">
+                        <textarea
+                            ref={inputRef}
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleSend();
+                                }
+                            }}
+                            placeholder="Ask anything about Power BI... (Shift+Enter for new line)"
+                            className="input-field flex-1 shadow-sm resize-none min-h-[48px] max-h-[200px]"
+                            rows={1}
+                        />
+                        <button
+                            onClick={handleSend}
+                            disabled={!input.trim() || isTyping}
+                            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <Send className="h-4 w-4" />
+                        </button>
                     </div>
+                    <p className="text-xs text-slate-400 mt-2 text-center flex flex-wrap items-center justify-center gap-2">
+                        <span>Enter = Send</span>
+                        <span>Shift+Enter = New line</span>
+                        <span>Copy buttons appear when you hover a message</span>
+                    </p>
+                    {!apiKey && (
+                        <p className="text-xs text-slate-400 mt-2 text-center">
+                            Running in <span className="font-semibold text-brand-600">Local Knowledge Mode</span>. Add an Access Code for full AI features.
+                        </p>
+                    )}
+                </div>
                 </div>
 
                 {/* Session Notes Panel */}
