@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Bot, User, Sparkles, Settings, Key, Database, AlertCircle, Copy, Trash2, Download, MessageSquare, ChevronDown, NotebookPen, Eraser, Wand2 } from 'lucide-react';
+import { Send, Bot, User, Sparkles, Settings, Key, Database, AlertCircle, Copy, Trash2, Download, MessageSquare, ChevronDown, NotebookPen, Eraser, Wand2, Maximize2, Minimize2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { useToast } from '../context/ToastContext';
@@ -49,6 +49,7 @@ const QUICK_PROMPTS = [
 ];
 
 const NOTES_STORAGE_KEY = 'guru_session_notes';
+const MESSAGES_STORAGE_KEY = 'guru_messages';
 
 // Use Gemini models - try latest first, fallback to older versions
 const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-pro"];
@@ -76,7 +77,16 @@ const resolveInitialApiKey = () => {
 const PowerBIGuru = () => {
     const { addToast } = useToast();
     const initialKeyInfoRef = useRef(resolveInitialApiKey());
-    const [messages, setMessages] = useState([createInitialMessage()]);
+    const [messages, setMessages] = useState(() => {
+        if (typeof window === 'undefined') return [createInitialMessage()];
+        try {
+            const saved = window.localStorage.getItem(MESSAGES_STORAGE_KEY);
+            return saved ? JSON.parse(saved) : [createInitialMessage()];
+        } catch (e) {
+            console.error('Failed to parse messages', e);
+            return [createInitialMessage()];
+        }
+    });
     const [input, setInput] = useState('');
     const [apiKey, setApiKey] = useState(initialKeyInfoRef.current.key);
     const [keyInput, setKeyInput] = useState(initialKeyInfoRef.current.source === 'custom' ? initialKeyInfoRef.current.key : '');
@@ -95,10 +105,16 @@ const PowerBIGuru = () => {
         return window.localStorage.getItem(NOTES_STORAGE_KEY) || '';
     });
     const [isCompactMode, setIsCompactMode] = useState(false);
+    const [isMaximized, setIsMaximized] = useState(false);
 
     useEffect(() => {
         console.log("PowerBI Guru: Project Access Code", PROJECT_GEMINI_KEY ? "Available" : "Not Configured");
     }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        window.localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(messages));
+    }, [messages]);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -316,6 +332,10 @@ const PowerBIGuru = () => {
         setIsCompactMode(prev => !prev);
     };
 
+    const toggleMaximize = () => {
+        setIsMaximized(prev => !prev);
+    };
+
     const formatMessageTime = (msg, fallbackToNow = false) => {
         if (msg.isSystem && msg.id === 'welcome' && !fallbackToNow) return '';
         const source = msg.createdAt || (typeof msg.id === 'number' ? new Date(msg.id).toISOString() : null);
@@ -327,6 +347,43 @@ const PowerBIGuru = () => {
     const messageSpacingClass = isCompactMode ? 'space-y-2' : 'space-y-4';
     const messagePaddingClass = isCompactMode ? 'p-3 text-[13px]' : 'p-4 text-sm';
     const messageMetaClass = isCompactMode ? 'text-[10px]' : 'text-xs';
+
+    // Parse and render code blocks
+    const MessageContent = ({ text }) => {
+        const parts = text.split(/(```[\s\S]*?```)/g);
+        return (
+            <div className={`whitespace-pre-wrap leading-relaxed ${isCompactMode ? 'text-[13px]' : 'text-sm'}`}>
+                {parts.map((part, i) => {
+                    if (part.startsWith('```') && part.endsWith('```')) {
+                        const match = part.match(/^```(\w+)?\n([\s\S]*)```$/);
+                        const language = match ? match[1] : '';
+                        const content = match ? match[2] : part.slice(3, -3);
+                        
+                        return (
+                            <div key={i} className="my-3 rounded-lg bg-slate-800 text-slate-100 overflow-hidden shadow-sm border border-slate-700">
+                                <div className="flex justify-between items-center px-3 py-1.5 bg-slate-900/50 text-xs text-slate-400 border-b border-white/10 select-none">
+                                    <span className="uppercase font-semibold tracking-wider text-[10px]">{language || 'CODE'}</span>
+                                    <button 
+                                       onClick={(e) => {
+                                           e.stopPropagation();
+                                           handleCopyMessage(content.trim());
+                                       }}
+                                       className="hover:text-white flex items-center gap-1.5 transition-colors"
+                                    >
+                                        <Copy className="h-3 w-3" /> Copy
+                                    </button>
+                                </div>
+                                <pre className="p-3 overflow-x-auto font-mono text-xs sm:text-sm scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent">
+                                    <code>{content.trim()}</code>
+                                </pre>
+                            </div>
+                        );
+                    }
+                    return <span key={i}>{part}</span>;
+                })}
+            </div>
+        );
+    };
 
 
     const handleSend = async () => {
@@ -478,6 +535,185 @@ const PowerBIGuru = () => {
         return null;
     })();
 
+    if (isMaximized) {
+        return (
+            <div className="fixed inset-0 z-50 bg-white flex flex-col">
+                {/* Simplified Header for Fullscreen */}
+                <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex justify-between items-center shrink-0">
+                     <div className="flex items-center gap-2">
+                        <Sparkles className="h-5 w-5 text-brand-600" />
+                        <h2 className="text-lg font-bold text-slate-900">Power BI Guru</h2>
+                        {connectionBadge && (
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${connectionBadge.className}`}>
+                                {connectionBadge.text}
+                            </span>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                         <button
+                            onClick={toggleMaximize}
+                            className="p-2 hover:bg-slate-200 rounded-lg transition-colors text-slate-600"
+                            title="Exit Fullscreen"
+                        >
+                            <Minimize2 className="h-5 w-5" />
+                        </button>
+                    </div>
+                </div>
+
+                <div className="flex-1 flex overflow-hidden">
+                    {/* Main Chat Area - Full Height */}
+                    <div className="flex-1 flex flex-col min-w-0 bg-white relative">
+                        {/* Quick Prompts Bar */}
+                        <div className="px-4 py-2 border-b border-slate-100 bg-white flex items-center gap-2 overflow-x-auto shrink-0">
+                             <div className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500 whitespace-nowrap">
+                                <Wand2 className="h-3 w-3 text-brand-500" />
+                                Quick prompts
+                            </div>
+                            <div className="flex gap-2">
+                                {QUICK_PROMPTS.map(prompt => (
+                                    <button
+                                        key={prompt.label}
+                                        onClick={() => handleQuickPrompt(prompt.value)}
+                                        className="px-3 py-1 text-xs bg-slate-100 text-slate-700 rounded-full hover:bg-brand-50 hover:text-brand-700 transition-colors whitespace-nowrap"
+                                    >
+                                        {prompt.label}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="ml-auto flex items-center gap-2">
+                                <button
+                                    onClick={handleExportChat}
+                                    className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded transition-colors"
+                                    title="Export chat"
+                                >
+                                    <Download className="h-4 w-4" />
+                                </button>
+                                <button
+                                    onClick={handleClearChat}
+                                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                                    title="Clear chat"
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </button>
+                            </div>
+                        </div>
+
+                         <div
+                            ref={messagesContainerRef}
+                            className={`flex-1 overflow-y-auto p-4 md:p-8 ${messageSpacingClass} relative`}
+                        >
+                            {messages.map((msg) => (
+                                <motion.div
+                                    key={msg.id}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                                >
+                                    <div className={`max-w-[90%] md:max-w-[70%] rounded-2xl ${messagePaddingClass} group relative shadow-sm ${msg.sender === 'user'
+                                        ? 'bg-brand-600 text-white rounded-br-none'
+                                        : msg.isSystem
+                                            ? 'bg-amber-50 text-amber-800 border border-amber-100'
+                                            : 'bg-slate-100 text-slate-800 rounded-bl-none'
+                                        }`}>
+                                        <button
+                                            onClick={() => handleCopyMessage(msg.text)}
+                                            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600 bg-white/20 p-1 rounded"
+                                            title="Copy message"
+                                        >
+                                            <Copy className="h-3 w-3" />
+                                        </button>
+                                        <div className={`flex items-center justify-between mb-1 opacity-75 ${messageMetaClass}`}>
+                                            <div className="flex items-center gap-2">
+                                                {msg.sender === 'user' ? <User className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
+                                                <span className="uppercase font-bold tracking-wider">{msg.sender}</span>
+                                            </div>
+                                            {formatMessageTime(msg) && (
+                                                <span className="opacity-75">{formatMessageTime(msg)}</span>
+                                            )}
+                                        </div>
+                                        <MessageContent text={msg.text} />
+                                        {msg.link && (
+                                            <div className="mt-3 pt-3 border-t border-black/10">
+                                                <a href={`#${msg.link}`} className="text-xs font-bold flex items-center gap-1 hover:underline">
+                                                    View Resource <Database className="h-3 w-3" />
+                                                </a>
+                                            </div>
+                                        )}
+                                    </div>
+                                </motion.div>
+                            ))}
+                            {isTyping && (
+                                <div className="flex justify-start">
+                                    <div className="bg-slate-100 rounded-2xl rounded-bl-none p-4 flex gap-1">
+                                        <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" />
+                                        <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-75" />
+                                        <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-150" />
+                                    </div>
+                                </div>
+                            )}
+                            <div ref={messagesEndRef} />
+                        </div>
+
+                         {/* Input Area */}
+                        <div className="p-4 bg-slate-50 border-t border-slate-200 shrink-0">
+                            <div className="max-w-4xl mx-auto w-full flex gap-2">
+                                <textarea
+                                    ref={inputRef}
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleSend();
+                                        }
+                                    }}
+                                    placeholder="Ask anything about Power BI... (Shift+Enter for new line)"
+                                    className="input-field flex-1 shadow-sm resize-none min-h-[48px] max-h-[200px]"
+                                    rows={1}
+                                />
+                                <button
+                                    onClick={handleSend}
+                                    disabled={!input.trim() || isTyping}
+                                    className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed px-6"
+                                >
+                                    <Send className="h-5 w-5" />
+                                </button>
+                            </div>
+                             {!apiKey && (
+                                <p className="text-xs text-slate-400 mt-2 text-center">
+                                    Running in <span className="font-semibold text-brand-600">Local Knowledge Mode</span>. Add an Access Code for full AI features.
+                                </p>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Side Panel for Notes in Fullscreen */}
+                    <div className="w-80 border-l border-slate-200 bg-slate-50 p-4 flex flex-col shrink-0">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+                                <NotebookPen className="h-4 w-4 text-brand-500" />
+                                Session Notes
+                            </h3>
+                             <div className="flex gap-1">
+                                <button onClick={handleCopyNotes} className="p-1.5 hover:bg-slate-200 rounded text-slate-500"><Copy className="h-4 w-4"/></button>
+                                <button onClick={handleClearNotes} className="p-1.5 hover:bg-slate-200 rounded text-slate-500"><Eraser className="h-4 w-4"/></button>
+                            </div>
+                        </div>
+                        <textarea
+                            value={sessionNotes}
+                            onChange={(e) => setSessionNotes(e.target.value)}
+                            placeholder="Type notes here..."
+                            className="flex-1 input-field resize-none bg-white mb-2"
+                        />
+                         <p className="text-xs text-slate-500 text-center">
+                            Notes are saved locally
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="h-[calc(100vh-8rem)] flex flex-col">
             <div className="flex justify-between items-center mb-4">
@@ -508,18 +744,27 @@ const PowerBIGuru = () => {
                         </p>
                     )}
                 </div>
-                <button
-                    onClick={() => setShowSettings(!showSettings)}
-                    className={`p-2 rounded-lg transition-colors ${showSettings
-                        ? 'bg-brand-50 text-brand-700'
-                        : isUsingCustomKey
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
-                    title="Manage AI Access Code"
-                >
-                    <Settings className="h-5 w-5" />
-                </button>
+                <div className="flex gap-2">
+                     <button
+                        onClick={toggleMaximize}
+                        className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+                        title="Maximize (Fullscreen Mode)"
+                    >
+                        <Maximize2 className="h-5 w-5" />
+                    </button>
+                    <button
+                        onClick={() => setShowSettings(!showSettings)}
+                        className={`p-2 rounded-lg transition-colors ${showSettings
+                            ? 'bg-brand-50 text-brand-700'
+                            : isUsingCustomKey
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            }`}
+                        title="Manage AI Access Code"
+                    >
+                        <Settings className="h-5 w-5" />
+                    </button>
+                </div>
             </div>
 
             {/* Settings Panel */}
@@ -655,9 +900,7 @@ const PowerBIGuru = () => {
                                             <span className="text-slate-400">{formatMessageTime(msg)}</span>
                                         )}
                                     </div>
-                                    <div className={`whitespace-pre-wrap leading-relaxed ${isCompactMode ? 'text-[13px]' : 'text-sm'}`}>
-                                        {msg.text}
-                                    </div>
+                                        <MessageContent text={msg.text} />
                                     {msg.link && (
                                         <div className="mt-3 pt-3 border-t border-black/10">
                                             <a href={`#${msg.link}`} className="text-xs font-bold flex items-center gap-1 hover:underline">
