@@ -1,9 +1,8 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// Use relative paths for GitHub Pages compatibility
-// This works whether the site is at root or in a subdirectory
+// GitHub Pages serves from a subdirectory, so use the repo name as base path
 export default defineConfig({
   plugins: [react()],
-  base: './',
+  base: '/hhs-analytics-command-center/',
 })
