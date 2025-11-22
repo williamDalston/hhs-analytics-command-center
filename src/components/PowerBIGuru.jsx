@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Bot, User, Sparkles, Settings, Key, Database, AlertCircle, Copy, Trash2, Download, MessageSquare, ChevronDown } from 'lucide-react';
+import { Send, Bot, User, Sparkles, Settings, Key, Database, AlertCircle, Copy, Trash2, Download, MessageSquare, ChevronDown, NotebookPen, Eraser, Wand2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { useToast } from '../context/ToastContext';
@@ -33,6 +33,23 @@ const LOCAL_KNOWLEDGE = [
     }
 ];
 
+const createInitialMessage = () => ({
+    id: 'welcome',
+    text: "Hi, I'm your Analytics Assistant. Ask me about DAX, HHS Branding, or data strategy.",
+    sender: 'bot',
+    isSystem: true,
+    createdAt: new Date().toISOString()
+});
+
+const QUICK_PROMPTS = [
+    { label: 'Generate DAX', value: 'Create a reusable DAX measure for year-over-year revenue with clear comments.' },
+    { label: 'Explain Visual', value: 'Explain how to design an executive KPI card for Power BI with HHS branding guidance.' },
+    { label: 'Build Checklist', value: 'Give me a pre-publish checklist for a Power BI report destined for leadership review.' },
+    { label: 'Debug Measure', value: 'Help me troubleshoot why my DAX measure is returning blank values.' }
+];
+
+const NOTES_STORAGE_KEY = 'guru_session_notes';
+
 // Use Gemini models - try latest first, fallback to older versions
 const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-pro"];
 const GEMINI_API_VERSIONS = ["v1beta", "v1"];
@@ -59,9 +76,7 @@ const resolveInitialApiKey = () => {
 const PowerBIGuru = () => {
     const { addToast } = useToast();
     const initialKeyInfoRef = useRef(resolveInitialApiKey());
-    const [messages, setMessages] = useState([
-        { id: 1, text: "Hi, I'm your Analytics Assistant. Ask me about DAX, HHS Branding, or data strategy.", sender: 'bot', isSystem: true }
-    ]);
+    const [messages, setMessages] = useState([createInitialMessage()]);
     const [input, setInput] = useState('');
     const [apiKey, setApiKey] = useState(initialKeyInfoRef.current.key);
     const [keyInput, setKeyInput] = useState(initialKeyInfoRef.current.source === 'custom' ? initialKeyInfoRef.current.key : '');
@@ -75,6 +90,11 @@ const PowerBIGuru = () => {
     const messagesContainerRef = useRef(null);
     const [isScrolledToBottom, setIsScrolledToBottom] = useState(true);
     const inputRef = useRef(null);
+    const [sessionNotes, setSessionNotes] = useState(() => {
+        if (typeof window === 'undefined') return '';
+        return window.localStorage.getItem(NOTES_STORAGE_KEY) || '';
+    });
+    const [isCompactMode, setIsCompactMode] = useState(false);
 
     useEffect(() => {
         console.log("PowerBI Guru: Project Access Code", PROJECT_GEMINI_KEY ? "Available" : "Not Configured");
@@ -107,6 +127,11 @@ const PowerBIGuru = () => {
     };
 
     useEffect(() => {
+        if (typeof window === 'undefined') return;
+        window.localStorage.setItem(NOTES_STORAGE_KEY, sessionNotes);
+    }, [sessionNotes]);
+
+    useEffect(() => {
         if (!inputRef.current) return;
         const textarea = inputRef.current;
         textarea.style.height = 'auto';
@@ -131,8 +156,6 @@ const PowerBIGuru = () => {
             setConnectionStatus('connecting');
             setConnectionError('');
             setVerifiedApiVersion(null);
-            let lastErrorMessage = '';
-
             for (const apiVersion of GEMINI_API_VERSIONS) {
                 try {
                     const response = await fetch(
@@ -143,7 +166,6 @@ const PowerBIGuru = () => {
                     if (!response.ok) {
                         const errorPayload = await response.json().catch(() => ({}));
                         const errorMessage = errorPayload?.error?.message || 'Unable to verify access code';
-                        lastErrorMessage = errorMessage;
 
                         const isModelUnavailable = response.status === 404 || errorPayload?.error?.status === 'NOT_FOUND';
                         if (isModelUnavailable) {
@@ -162,7 +184,6 @@ const PowerBIGuru = () => {
                     return;
                 } catch (error) {
                     if (controller.signal.aborted || isCancelled) return;
-                    lastErrorMessage = error.message || 'Unable to verify access code';
                     console.error(`[Gemini] verification error via ${apiVersion}:`, error);
                     break;
                 }
@@ -239,35 +260,79 @@ const PowerBIGuru = () => {
     };
 
     const handleClearChat = () => {
-        if (confirm('Are you sure you want to clear all messages? This will start a fresh conversation.')) {
-            // Keep only the welcome message
-            setMessages([messages[0]]);
-            addToast('Chat cleared', 'success');
+        if (confirm('Clear this conversation and start fresh?')) {
+            setMessages([createInitialMessage()]);
+            addToast('Conversation cleared', 'success');
+            scrollToBottom();
         }
     };
 
     const handleExportChat = () => {
-        const chatContent = messages
-            .filter(msg => !msg.isSystem) // Don't export system messages
-            .map(msg => `${msg.sender.toUpperCase()}: ${msg.text}`)
-            .join('\n\n');
+        const exportText = messages
+            .filter(msg => !msg.isSystem)
+            .map(msg => `${msg.sender.toUpperCase()} (${formatMessageTime(msg, true)}):\n${msg.text}`)
+            .join('\n\n---\n\n');
 
-        const blob = new Blob([chatContent], { type: 'text/plain' });
+        const blob = new Blob([exportText], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `power-bi-chat-${new Date().toISOString().split('T')[0]}.txt`;
+        a.download = `power-bi-guru-chat-${new Date().toISOString().split('T')[0]}.txt`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        addToast('Chat exported successfully', 'success');
+        addToast('Chat exported', 'success');
     };
+
+    const handleQuickPrompt = (promptText) => {
+        setInput(promptText);
+        inputRef.current?.focus();
+    };
+
+    const handleCopyNotes = async () => {
+        if (!sessionNotes.trim()) {
+            addToast('No notes to copy', 'info');
+            return;
+        }
+        try {
+            await navigator.clipboard.writeText(sessionNotes);
+            addToast('Session notes copied', 'success');
+        } catch (error) {
+            console.error('Copy notes failed', error);
+            addToast('Unable to copy notes', 'error');
+        }
+    };
+
+    const handleClearNotes = () => {
+        if (!sessionNotes.trim()) return;
+        if (confirm('Clear session notes?')) {
+            setSessionNotes('');
+            addToast('Session notes cleared', 'success');
+        }
+    };
+
+    const toggleCompactMode = () => {
+        setIsCompactMode(prev => !prev);
+    };
+
+    const formatMessageTime = (msg, fallbackToNow = false) => {
+        if (msg.isSystem && msg.id === 'welcome' && !fallbackToNow) return '';
+        const source = msg.createdAt || (typeof msg.id === 'number' ? new Date(msg.id).toISOString() : null);
+        const date = source ? new Date(source) : (fallbackToNow ? new Date() : null);
+        if (!date) return '';
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
+    const messageSpacingClass = isCompactMode ? 'space-y-2' : 'space-y-4';
+    const messagePaddingClass = isCompactMode ? 'p-3 text-[13px]' : 'p-4 text-sm';
+    const messageMetaClass = isCompactMode ? 'text-[10px]' : 'text-xs';
+
 
     const handleSend = async () => {
         if (!input.trim()) return;
 
-        const userMsg = { id: Date.now(), text: input, sender: 'user' };
+        const userMsg = { id: Date.now(), text: input, sender: 'user', createdAt: new Date().toISOString() };
         setMessages(prev => [...prev, userMsg]);
         setInput('');
         setIsTyping(true);
@@ -281,7 +346,8 @@ const PowerBIGuru = () => {
                     id: Date.now() + 1,
                     text: localMatch.answer,
                     sender: 'bot',
-                    link: localMatch.link
+                    link: localMatch.link,
+                    createdAt: new Date().toISOString()
                 }]);
                 setIsTyping(false);
             }, 600); // Fake delay for natural feel
@@ -348,7 +414,7 @@ const PowerBIGuru = () => {
                 const response = await result.response;
                 const text = response.text();
 
-                setMessages(prev => [...prev, { id: Date.now() + 1, text: text, sender: 'bot' }]);
+                setMessages(prev => [...prev, { id: Date.now() + 1, text: text, sender: 'bot', createdAt: new Date().toISOString() }]);
             } catch (error) {
                 console.error("AI Connection Error:", error);
                 console.error("Error details:", error.message, error.stack);
@@ -370,7 +436,8 @@ const PowerBIGuru = () => {
                         ? "I couldn't connect to the AI service with the current access code. Please update your API key in settings, or I can help with local knowledge about DAX and Power BI."
                         : "I'm having trouble connecting to the AI service right now. Let me help with what I know about DAX and Power BI instead.",
                     sender: 'bot',
-                    isError: true
+                    isError: true,
+                    createdAt: new Date().toISOString()
                 }]);
 
                 // Don't return here - let it fall through to local knowledge
@@ -386,7 +453,8 @@ const PowerBIGuru = () => {
                 id: Date.now() + 1,
                 text: "I don't have an answer for that in my local knowledge base. To unlock full AI capabilities, please configure the AI Access Code in settings.",
                 sender: 'bot',
-                isSystem: true
+                isSystem: true,
+                createdAt: new Date().toISOString()
             }]);
             setIsTyping(false);
         }, 600);
@@ -498,144 +566,213 @@ const PowerBIGuru = () => {
                 )}
             </AnimatePresence>
 
-            {/* Chat Area */}
-            <div className="flex-1 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
-                {/* Chat Header */}
-                <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                        <MessageSquare className="h-4 w-4 text-slate-500" />
-                        <span className="text-sm font-medium text-slate-700">Conversation</span>
-                        <span className="text-xs text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full">
-                            {messages.filter(msg => !msg.isSystem).length} messages
-                        </span>
+            {/* Workspace */}
+            <div className="flex-1 flex flex-col lg:flex-row gap-4">
+                {/* Chat Area */}
+                <div className="flex-1 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col relative">
+                    {/* Chat Header */}
+                    <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-2">
+                            <MessageSquare className="h-4 w-4 text-slate-500" />
+                            <span className="text-sm font-medium text-slate-700">Conversation</span>
+                            <span className="text-xs text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full">
+                                {messages.filter(msg => !msg.isSystem).length} messages
+                            </span>
+                        </div>
+                        <div className="flex gap-2 ml-auto">
+                            <button
+                                onClick={handleExportChat}
+                                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded transition-colors"
+                                title="Export chat"
+                            >
+                                <Download className="h-4 w-4" />
+                            </button>
+                            <button
+                                onClick={handleClearChat}
+                                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                                title="Clear chat"
+                            >
+                                <Trash2 className="h-4 w-4" />
+                            </button>
+                        </div>
                     </div>
-                    <div className="flex gap-2">
+
+                    {/* Quick Prompts */}
+                    <div className="px-4 py-3 border-b border-slate-100 bg-white flex flex-wrap items-center gap-2">
+                        <div className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500">
+                            <Wand2 className="h-3 w-3 text-brand-500" />
+                            Quick prompts
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {QUICK_PROMPTS.map(prompt => (
+                                <button
+                                    key={prompt.label}
+                                    onClick={() => handleQuickPrompt(prompt.value)}
+                                    className="px-3 py-1 text-xs bg-slate-100 text-slate-700 rounded-full hover:bg-brand-50 hover:text-brand-700 transition-colors"
+                                >
+                                    {prompt.label}
+                                </button>
+                            ))}
+                        </div>
                         <button
-                            onClick={handleExportChat}
-                            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded transition-colors"
-                            title="Export chat"
+                            onClick={toggleCompactMode}
+                            className={`ml-auto text-xs px-3 py-1 rounded-full border ${isCompactMode ? 'bg-brand-600 text-white border-brand-600' : 'border-slate-200 text-slate-600'}`}
                         >
-                            <Download className="h-4 w-4" />
+                            {isCompactMode ? 'Compact mode on' : 'Compact mode off'}
                         </button>
-                        <button
-                            onClick={handleClearChat}
-                            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                            title="Clear chat"
-                        >
-                            <Trash2 className="h-4 w-4" />
-                        </button>
+                    </div>
+
+                    <div
+                        ref={messagesContainerRef}
+                        className={`flex-1 overflow-y-auto p-4 ${messageSpacingClass} relative`}
+                    >
+                        {messages.map((msg) => (
+                            <motion.div
+                                key={msg.id}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                            >
+                                <div className={`max-w-[80%] rounded-2xl ${messagePaddingClass} group relative ${msg.sender === 'user'
+                                    ? 'bg-brand-600 text-white rounded-br-none'
+                                    : msg.isSystem
+                                        ? 'bg-amber-50 text-amber-800 border border-amber-100'
+                                        : 'bg-slate-100 text-slate-800 rounded-bl-none'
+                                    }`}>
+                                    <button
+                                        onClick={() => handleCopyMessage(msg.text)}
+                                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600"
+                                        title="Copy message"
+                                    >
+                                        <Copy className="h-4 w-4" />
+                                    </button>
+                                    <div className={`flex items-center justify-between mb-1 opacity-75 ${messageMetaClass}`}>
+                                        <div className="flex items-center gap-2">
+                                            {msg.sender === 'user' ? <User className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
+                                            <span className="uppercase font-bold tracking-wider">{msg.sender}</span>
+                                        </div>
+                                        {formatMessageTime(msg) && (
+                                            <span className="text-slate-400">{formatMessageTime(msg)}</span>
+                                        )}
+                                    </div>
+                                    <div className={`whitespace-pre-wrap leading-relaxed ${isCompactMode ? 'text-[13px]' : 'text-sm'}`}>
+                                        {msg.text}
+                                    </div>
+                                    {msg.link && (
+                                        <div className="mt-3 pt-3 border-t border-black/10">
+                                            <a href={`#${msg.link}`} className="text-xs font-bold flex items-center gap-1 hover:underline">
+                                                View Resource <Database className="h-3 w-3" />
+                                            </a>
+                                        </div>
+                                    )}
+                                </div>
+                            </motion.div>
+                        ))}
+                        {isTyping && (
+                            <div className="flex justify-start">
+                                <div className="bg-slate-100 rounded-2xl rounded-bl-none p-4 flex gap-1">
+                                    <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" />
+                                    <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-75" />
+                                    <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-150" />
+                                </div>
+                            </div>
+                        )}
+                        <div ref={messagesEndRef} />
+                    </div>
+
+                    {/* Scroll to Bottom Button */}
+                    <AnimatePresence>
+                        {!isScrolledToBottom && (
+                            <motion.button
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.8 }}
+                                onClick={scrollToBottom}
+                                className="absolute bottom-24 right-4 bg-brand-600 text-white p-2 rounded-full shadow-lg hover:bg-brand-700 transition-colors z-10"
+                                title="Scroll to bottom"
+                            >
+                                <ChevronDown className="h-4 w-4" />
+                            </motion.button>
+                        )}
+                    </AnimatePresence>
+
+                    {/* Input Area */}
+                    <div className="p-4 bg-slate-50 border-t border-slate-200">
+                        <div className="flex gap-2">
+                            <textarea
+                                ref={inputRef}
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        handleSend();
+                                    }
+                                }}
+                                placeholder="Ask anything about Power BI... (Shift+Enter for new line)"
+                                className="input-field flex-1 shadow-sm resize-none min-h-[48px] max-h-[200px]"
+                                rows={1}
+                            />
+                            <button
+                                onClick={handleSend}
+                                disabled={!input.trim() || isTyping}
+                                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <Send className="h-4 w-4" />
+                            </button>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-2 text-center flex flex-wrap items-center justify-center gap-2">
+                            <span>Enter = Send</span>
+                            <span>Shift+Enter = New line</span>
+                            <span>Copy buttons appear when you hover a message</span>
+                        </p>
+                        {!apiKey && (
+                            <p className="text-xs text-slate-400 mt-2 text-center">
+                                Running in <span className="font-semibold text-brand-600">Local Knowledge Mode</span>. Add an Access Code for full AI features.
+                            </p>
+                        )}
                     </div>
                 </div>
-                <div
-                    ref={messagesContainerRef}
-                    className="flex-1 overflow-y-auto p-4 space-y-4 relative"
-                >
-                    {messages.map((msg) => (
-                        <motion.div
-                            key={msg.id}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                        >
-                            <div className={`max-w-[80%] rounded-2xl p-4 group relative ${msg.sender === 'user'
-                                ? 'bg-brand-600 text-white rounded-br-none'
-                                : msg.isSystem
-                                    ? 'bg-amber-50 text-amber-800 border border-amber-100'
-                                    : 'bg-slate-100 text-slate-800 rounded-bl-none'
-                                }`}>
+
+                {/* Session Notes Panel */}
+                <aside className="lg:w-80 space-y-4">
+                    <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-col h-full">
+                        <div className="flex items-center justify-between mb-3">
+                            <div>
+                                <p className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                                    <NotebookPen className="h-4 w-4 text-brand-500" />
+                                    Session Notes
+                                </p>
+                                <p className="text-xs text-slate-500">Jot down insights or follow-ups</p>
+                            </div>
+                            <div className="flex gap-1">
                                 <button
-                                    onClick={() => handleCopyMessage(msg.text)}
-                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600"
-                                    title="Copy message"
+                                    onClick={handleCopyNotes}
+                                    className="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded transition-colors"
+                                    title="Copy notes"
                                 >
                                     <Copy className="h-4 w-4" />
                                 </button>
-                                <div className="flex items-center justify-between mb-1 opacity-75 text-xs">
-                                    <div className="flex items-center gap-2">
-                                        {msg.sender === 'user' ? <User className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
-                                        <span className="uppercase font-bold tracking-wider">{msg.sender}</span>
-                                    </div>
-                                    <span className="text-slate-400">
-                                        {new Date(msg.id).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                </div>
-                                <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                                    {msg.text}
-                                </div>
-                                {msg.link && (
-                                    <div className="mt-3 pt-3 border-t border-black/10">
-                                        <a href={`#${msg.link}`} className="text-xs font-bold flex items-center gap-1 hover:underline">
-                                            View Resource <Database className="h-3 w-3" />
-                                        </a>
-                                    </div>
-                                )}
-                            </div>
-                        </motion.div>
-                    ))}
-                    {isTyping && (
-                        <div className="flex justify-start">
-                            <div className="bg-slate-100 rounded-2xl rounded-bl-none p-4 flex gap-1">
-                                <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" />
-                                <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-75" />
-                                <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-150" />
+                                <button
+                                    onClick={handleClearNotes}
+                                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                                    title="Clear notes"
+                                >
+                                    <Eraser className="h-4 w-4" />
+                                </button>
                             </div>
                         </div>
-                    )}
-                    <div ref={messagesEndRef} />
-                </div>
-
-                {/* Scroll to Bottom Button */}
-                <AnimatePresence>
-                    {!isScrolledToBottom && (
-                        <motion.button
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.8 }}
-                            onClick={scrollToBottom}
-                            className="absolute bottom-4 right-4 bg-brand-600 text-white p-2 rounded-full shadow-lg hover:bg-brand-700 transition-colors z-10"
-                            title="Scroll to bottom"
-                        >
-                            <ChevronDown className="h-4 w-4" />
-                        </motion.button>
-                    )}
-                </AnimatePresence>
-
-                {/* Input Area */}
-                <div className="p-4 bg-slate-50 border-t border-slate-200">
-                    <div className="flex gap-2">
                         <textarea
-                            ref={inputRef}
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault();
-                                    handleSend();
-                                }
-                            }}
-                            placeholder="Ask anything about Power BI... (Shift+Enter for new line)"
-                            className="input-field flex-1 shadow-sm resize-none min-h-[48px] max-h-[200px]"
-                            rows={1}
+                            value={sessionNotes}
+                            onChange={(e) => setSessionNotes(e.target.value)}
+                            placeholder="Capture project context, action items, or follow-ups..."
+                            className="input-field flex-1 min-h-[200px] resize-none"
                         />
-                        <button
-                            onClick={handleSend}
-                            disabled={!input.trim() || isTyping}
-                            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <Send className="h-4 w-4" />
-                        </button>
-                    </div>
-                    <p className="text-xs text-slate-400 mt-2 text-center flex flex-wrap items-center justify-center gap-2">
-                        <span>Enter = Send</span>
-                        <span>Shift+Enter = New line</span>
-                        <span>Copy buttons appear when you hover a message</span>
-                    </p>
-                    {!apiKey && (
-                        <p className="text-xs text-slate-400 mt-2 text-center">
-                            Running in <span className="font-semibold text-brand-600">Local Knowledge Mode</span>. Add an Access Code for full AI features.
+                        <p className="text-[11px] text-slate-400 text-right mt-2">
+                            Autosaved locally • {sessionNotes.trim().length} chars
                         </p>
-                    )}
-                </div>
+                    </div>
+                </aside>
             </div>
         </div>
     );
