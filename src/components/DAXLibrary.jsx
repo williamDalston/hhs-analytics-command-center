@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Copy, Check } from 'lucide-react';
+import { Search, Copy, Check, BookOpen } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
 
@@ -175,40 +175,53 @@ const DAXLibrary = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-6">
-                {filteredPatterns.map((pattern) => (
-                    <motion.div
-                        key={pattern.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="card group"
-                    >
-                        <div className="flex justify-between items-start mb-4">
-                            <div>
-                                <div className="flex items-center gap-3 mb-1">
-                                    <h3 className="text-lg font-semibold text-brand-700">{pattern.title}</h3>
-                                    <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
-                                        {pattern.category}
-                                    </span>
+            {filteredPatterns.length > 0 ? (
+                <div className="grid grid-cols-1 gap-6">
+                    {filteredPatterns.map((pattern) => (
+                        <motion.div
+                            key={pattern.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="card group"
+                        >
+                            <div className="flex justify-between items-start mb-4">
+                                <div>
+                                    <div className="flex items-center gap-3 mb-1">
+                                        <h3 className="text-lg font-semibold text-brand-700">{pattern.title}</h3>
+                                        <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                                            {pattern.category}
+                                        </span>
+                                    </div>
+                                    <p className="text-sm text-slate-600">{pattern.description}</p>
                                 </div>
-                                <p className="text-sm text-slate-600">{pattern.description}</p>
+                                <button
+                                    onClick={() => copyToClipboard(pattern.code, pattern.id)}
+                                    className="p-2 rounded-lg bg-slate-100 hover:bg-brand-600 text-slate-500 hover:text-white transition-colors duration-200"
+                                    title="Copy DAX"
+                                >
+                                    {copiedId === pattern.id ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
+                                </button>
                             </div>
-                            <button
-                                onClick={() => copyToClipboard(pattern.code, pattern.id)}
-                                className="p-2 rounded-lg bg-slate-100 hover:bg-brand-600 text-slate-500 hover:text-white transition-colors duration-200"
-                                title="Copy DAX"
-                            >
-                                {copiedId === pattern.id ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
-                            </button>
-                        </div>
-                        <div className="relative">
-                            <pre className="bg-slate-50 p-4 rounded-lg overflow-x-auto text-sm font-mono text-slate-700 border border-slate-200">
-                                <code>{pattern.code}</code>
-                            </pre>
-                        </div>
-                    </motion.div>
-                ))}
-            </div>
+                            <div className="relative">
+                                <pre className="bg-slate-50 p-4 rounded-lg overflow-x-auto text-sm font-mono text-slate-700 border border-slate-200">
+                                    <code>{pattern.code}</code>
+                                </pre>
+                            </div>
+                        </motion.div>
+                    ))}
+                </div>
+            ) : (
+                <div className="text-center py-12 text-slate-400">
+                    <BookOpen className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                    <p>No patterns found for "{searchTerm}"</p>
+                    <button 
+                        onClick={() => setSearchTerm('')}
+                        className="text-brand-600 font-medium hover:underline mt-2"
+                    >
+                        Clear search
+                    </button>
+                </div>
+            )}
         </div>
     );
 };

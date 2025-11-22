@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Calendar, User, FileText, Briefcase, AlertCircle, CheckCircle2, Users, LayoutList, AlertTriangle, Activity } from 'lucide-react';
+import { Plus, Trash2, Calendar, User, FileText, Briefcase, AlertCircle, CheckCircle2, Users, LayoutList, AlertTriangle, Activity, ClipboardList } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
 
@@ -287,48 +287,56 @@ NEXT STEPS:
                     )}
 
                     <div className="grid grid-cols-1 gap-4">
-                        {projects.map((project) => (
-                            <motion.div
-                                key={project.id}
-                                layout
-                                className="card hover:border-brand-300 group bg-white"
-                            >
-                                <div className="flex justify-between items-start">
-                                    <div className="space-y-1">
-                                        <div className="flex items-center gap-3">
-                                            <h3 className="text-lg font-semibold text-slate-900">{project.name}</h3>
-                                            <span className={`text-xs px-2 py-0.5 rounded-full border ${project.status === 'Done' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
-                                                project.status === 'Review' ? 'bg-amber-100 text-amber-700 border-amber-200' :
-                                                    'bg-brand-100 text-brand-700 border-brand-200'
-                                                }`}>
-                                                {project.status}
-                                            </span>
-                                            <span className={`text-xs px-2 py-0.5 rounded-full border ${getPriorityColor(project.priority)}`}>
-                                                {project.priority}
-                                            </span>
+                        {projects.length > 0 ? (
+                            projects.map((project) => (
+                                <motion.div
+                                    key={project.id}
+                                    layout
+                                    className="card hover:border-brand-300 group bg-white"
+                                >
+                                    <div className="flex justify-between items-start">
+                                        <div className="space-y-1">
+                                            <div className="flex items-center gap-3">
+                                                <h3 className="text-lg font-semibold text-slate-900">{project.name}</h3>
+                                                <span className={`text-xs px-2 py-0.5 rounded-full border ${project.status === 'Done' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                                                    project.status === 'Review' ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                                                        'bg-brand-100 text-brand-700 border-brand-200'
+                                                    }`}>
+                                                    {project.status}
+                                                </span>
+                                                <span className={`text-xs px-2 py-0.5 rounded-full border ${getPriorityColor(project.priority)}`}>
+                                                    {project.priority}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-4 text-sm text-slate-500">
+                                                <span className="flex items-center gap-1"><User className="h-3 w-3" /> {project.stakeholder}</span>
+                                                <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {project.deadline}</span>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-4 text-sm text-slate-500">
-                                            <span className="flex items-center gap-1"><User className="h-3 w-3" /> {project.stakeholder}</span>
-                                            <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {project.deadline}</span>
-                                        </div>
+                                        <button
+                                            onClick={() => handleDelete(project.id)}
+                                            className="p-2 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={() => handleDelete(project.id)}
-                                        className="p-2 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </button>
-                                </div>
-                                {project.requirements && (
-                                    <div className="mt-4 pt-4 border-t border-slate-100">
-                                        <div className="flex items-start gap-2 text-sm text-slate-600">
-                                            <FileText className="h-4 w-4 mt-0.5 text-slate-400" />
-                                            <p>{project.requirements}</p>
+                                    {project.requirements && (
+                                        <div className="mt-4 pt-4 border-t border-slate-100">
+                                            <div className="flex items-start gap-2 text-sm text-slate-600">
+                                                <FileText className="h-4 w-4 mt-0.5 text-slate-400" />
+                                                <p>{project.requirements}</p>
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
-                            </motion.div>
-                        ))}
+                                    )}
+                                </motion.div>
+                            ))
+                        ) : (
+                            <div className="text-center py-12 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
+                                <ClipboardList className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                                <p className="font-medium text-slate-600">No active projects</p>
+                                <p className="text-sm text-slate-400 mt-1">Click "New Project" to start tracking.</p>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -338,32 +346,38 @@ NEXT STEPS:
                 <div className="space-y-4">
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                         <h4 className="font-semibold text-blue-800 flex items-center gap-2">
-                            <AlertTriangle className="h-4 w-4" /> Why track this?
+                            <AlertTriangle className="h-4 w-4" /> Strategic Tracking
                         </h4>
                         <p className="text-sm text-blue-700 mt-1">
-                            Documenting key technical decisions and blockers is critical for the recompete. It proves we are proactive and strategic, not just "order takers."
+                            Track technical decisions and blockers here to demonstrate proactive management for the recompete.
                         </p>
                     </div>
 
-                    {decisions.map((item) => (
-                        <div key={item.id} className="card flex gap-4">
-                            <div className={`mt-1 p-2 rounded-lg shrink-0 ${item.type === 'Decision' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                                {item.type === 'Decision' ? <CheckCircle2 className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
-                            </div>
-                            <div className="flex-1">
-                                <div className="flex justify-between items-start">
-                                    <h3 className="font-semibold text-slate-900">{item.title}</h3>
-                                    <span className="text-xs text-slate-500">{item.date}</span>
+                    {decisions.length > 0 ? (
+                        decisions.map((item) => (
+                            <div key={item.id} className="card flex gap-4">
+                                <div className={`mt-1 p-2 rounded-lg shrink-0 ${item.type === 'Decision' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                                    {item.type === 'Decision' ? <CheckCircle2 className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
                                 </div>
-                                <p className="text-sm text-slate-600 mt-1">{item.description}</p>
-                                <div className="mt-3 flex gap-2">
-                                    <span className="text-xs font-medium px-2 py-1 bg-slate-100 rounded text-slate-600 border border-slate-200">
-                                        {item.status}
-                                    </span>
+                                <div className="flex-1">
+                                    <div className="flex justify-between items-start">
+                                        <h3 className="font-semibold text-slate-900">{item.title}</h3>
+                                        <span className="text-xs text-slate-500">{item.date}</span>
+                                    </div>
+                                    <p className="text-sm text-slate-600 mt-1">{item.description}</p>
+                                    <div className="mt-3 flex gap-2">
+                                        <span className="text-xs font-medium px-2 py-1 bg-slate-100 rounded text-slate-600 border border-slate-200">
+                                            {item.status}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
+                        ))
+                    ) : (
+                        <div className="text-center py-12 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
+                            <p className="font-medium text-slate-600">No decisions or blockers logged</p>
                         </div>
-                    ))}
+                    )}
                 </div>
             )}
 
@@ -382,14 +396,18 @@ NEXT STEPS:
                             </div>
                             <div className="space-y-3">
                                 <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Active Projects</div>
-                                {projects.map(p => (
-                                    <div key={p.id} className="flex items-center justify-between text-sm p-2 bg-slate-50 rounded border border-slate-100">
-                                        <span className="truncate max-w-[180px]">{p.name}</span>
-                                        <span className={`text-[10px] px-1.5 py-0.5 rounded border ${p.status === 'Done' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-brand-50 border-brand-200 text-brand-700'}`}>
-                                            {p.status}
-                                        </span>
-                                    </div>
-                                ))}
+                                {projects.length > 0 ? (
+                                    projects.map(p => (
+                                        <div key={p.id} className="flex items-center justify-between text-sm p-2 bg-slate-50 rounded border border-slate-100">
+                                            <span className="truncate max-w-[180px]">{p.name}</span>
+                                            <span className={`text-[10px] px-1.5 py-0.5 rounded border ${p.status === 'Done' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-brand-50 border-brand-200 text-brand-700'}`}>
+                                                {p.status}
+                                            </span>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="text-sm text-slate-400 italic">No active projects</div>
+                                )}
                             </div>
                         </div>
 
