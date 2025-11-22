@@ -1,6 +1,7 @@
-import React from 'react';
-import { HashRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Code, Palette, Flag, Layers, Shield, Sparkles } from 'lucide-react';
+import React, { useState } from 'react';
+import { HashRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, Code, Palette, Flag, Layers, Shield, Sparkles, FileText, Upload, X, MessageSquare, Share2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import DAXLibrary from './components/DAXLibrary';
 import StyleGuide from './components/StyleGuide';
 import ProjectTracker from './components/ProjectTracker';
@@ -24,6 +25,75 @@ const SidebarItem = ({ icon: Icon, label, path }) => {
       <Icon className="h-5 w-5" />
       <span className="font-medium">{label}</span>
     </Link>
+  );
+};
+
+const QuickActions = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const handleAction = (path) => {
+    navigate(path);
+    setIsOpen(false);
+  };
+
+  return (
+    <div className="fixed bottom-8 right-8 z-50 flex flex-col items-end gap-3">
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            <motion.button
+              initial={{ opacity: 0, y: 20, scale: 0.8 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.8 }}
+              onClick={() => handleAction('/guru')}
+              className="flex items-center gap-3 px-4 py-2 bg-white text-slate-900 rounded-full shadow-lg border border-slate-200 hover:bg-slate-50 transition-colors"
+            >
+              <span className="font-medium text-sm">Ask AI Guru</span>
+              <div className="h-10 w-10 rounded-full bg-brand-600 text-white flex items-center justify-center shadow-sm">
+                <Sparkles className="h-5 w-5" />
+              </div>
+            </motion.button>
+
+            <motion.button
+              initial={{ opacity: 0, y: 20, scale: 0.8 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.8 }}
+              transition={{ delay: 0.05 }}
+              onClick={() => handleAction('/portal')}
+              className="flex items-center gap-3 px-4 py-2 bg-white text-slate-900 rounded-full shadow-lg border border-slate-200 hover:bg-slate-50 transition-colors"
+            >
+              <span className="font-medium text-sm">Share File</span>
+              <div className="h-10 w-10 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-sm">
+                <Upload className="h-5 w-5" />
+              </div>
+            </motion.button>
+
+            <motion.button
+              initial={{ opacity: 0, y: 20, scale: 0.8 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.8 }}
+              transition={{ delay: 0.1 }}
+              onClick={() => handleAction('/portal?tab=encrypt')}
+              className="flex items-center gap-3 px-4 py-2 bg-white text-slate-900 rounded-full shadow-lg border border-slate-200 hover:bg-slate-50 transition-colors"
+            >
+              <span className="font-medium text-sm">Share Text</span>
+              <div className="h-10 w-10 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-sm">
+                <FileText className="h-5 w-5" />
+              </div>
+            </motion.button>
+          </>
+        )}
+      </AnimatePresence>
+
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`h-14 w-14 rounded-full shadow-xl flex items-center justify-center transition-all duration-300 ${isOpen ? 'bg-slate-800 rotate-45' : 'bg-brand-600 hover:bg-brand-700'
+          }`}
+      >
+        {isOpen ? <X className="h-6 w-6 text-white" /> : <Share2 className="h-6 w-6 text-white" />}
+      </button>
+    </div>
   );
 };
 
@@ -56,15 +126,15 @@ const App = () => {
             </nav>
 
             <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-brand-800">
-              <Link to="/guru" className="flex items-center gap-3 group cursor-default">
-                <div className="h-10 w-10 rounded-full bg-brand-700 flex items-center justify-center text-white font-bold border-2 border-brand-600 group-hover:border-brand-400 transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-brand-700 flex items-center justify-center text-white font-bold border-2 border-brand-600">
                   WA
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-white group-hover:text-brand-200 transition-colors">Will Alston</p>
+                  <p className="text-sm font-medium text-white">Will Alston</p>
                   <p className="text-xs text-brand-300">WebFirst Analytics Lead</p>
                 </div>
-              </Link>
+              </div>
             </div>
           </div>
 
@@ -78,7 +148,7 @@ const App = () => {
               </div>
             </div>
 
-            <main className="p-8 max-w-5xl mx-auto">
+            <main className="p-8 max-w-5xl mx-auto relative">
               <Routes>
                 <Route path="/" element={<ProjectTracker />} />
                 <Route path="/builder" element={<PrototypeBuilder />} />
@@ -87,6 +157,7 @@ const App = () => {
                 <Route path="/portal" element={<SecureFilePortal />} />
                 <Route path="/guru" element={<PowerBIGuru />} />
               </Routes>
+              <QuickActions />
             </main>
           </div>
         </div>
