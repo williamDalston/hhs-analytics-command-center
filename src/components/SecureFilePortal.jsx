@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Upload, Download, Lock, Unlock, FileText, Image, File, X, Shield, Eye, EyeOff, Send, AlertCircle, Cloud, HardDrive, Key, Copy, Trash2, RefreshCw, Link as LinkIcon, Shuffle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getSupabaseClient } from '../config/supabase';
@@ -59,6 +59,7 @@ const decryptData = async (encryptedData, key) => {
     );
     return decrypted;
   } catch (error) {
+    console.error('Decryption failed', error);
     throw new Error('Decryption failed');
   }
 };
@@ -123,7 +124,15 @@ const SecureFilePortal = () => {
 
   // Check URL params for tab and token
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+    if (typeof window === 'undefined') return;
+    // Support HashRouter (#/portal?token=...) and direct query (?token=...)
+    let params;
+    if (window.location.hash && window.location.hash.includes('?')) {
+      const qs = window.location.hash.split('?')[1];
+      params = new URLSearchParams(qs);
+    } else {
+      params = new URLSearchParams(window.location.search);
+    }
     const tab = params.get('tab');
     const tokenParam = params.get('token');
 
@@ -135,7 +144,7 @@ const SecureFilePortal = () => {
       setAccessToken(tokenParam);
       addToast('Token loaded from link. Click "Unlock Portal" to enter.', 'info');
     }
-  }, []);
+  }, [addToast, isAuthenticated]);
 
   // Check Supabase availability
   useEffect(() => {
@@ -144,26 +153,72 @@ const SecureFilePortal = () => {
 
   // Initialize from LocalStorage
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     const storedToken = localStorage.getItem('portal_access_token');
     if (storedToken) {
       setAccessToken(storedToken);
       handleAuthenticate(storedToken);
     }
-  }, []);
+  }, [handleAuthenticate]);
 
   // Auto-sync
   useEffect(() => {
-    if (isAuthenticated) {
-      syncIntervalRef.current = setInterval(() => {
-        loadData();
-      }, 5000); // 5s sync
-      return () => clearInterval(syncIntervalRef.current);
-    }
-  }, [isAuthenticated, encryptionKey]);
+    if (!isAuthenticated) return;
+    syncIntervalRef.current = setInterval(() => {
+      loadData();
+    }, 5000); // 5s sync
+    return () => clearInterval(syncIntervalRef.current);
+  }, [isAuthenticated, encryptionKey, loadData]);
 
   // --- Actions ---
 
-  const handleAuthenticate = async (tokenToUse) => {
+  const loadData = useCallback(async (tokenOverride) => {
+    const token = tokenOverride || accessToken;
+    if (!token || !useCloudStorage || !supabase) return;
+
+    // Load Files
+    const { data: fileData, error: fileError } = await supabase
+      .from('portal_files')
+      .select('*')
+      .eq('token', token)
+      .order('uploaded_at', { ascending: false });
+
+    if (fileError) {
+      console.error('Failed to load files', fileError);
+    } else if (fileData) {
+      const mappedFiles = fileData.map(f => ({
+        id: f.id,
+        name: f.file_name,
+        type: f.file_type,
+        size: f.file_size,
+        encrypted: f.encrypted_data,
+        uploadedAt: f.uploaded_at,
+        uploadedBy: f.uploaded_by
+      }));
+      setFiles(mappedFiles);
+    }
+
+    // Load Messages
+    const { data: msgData, error: messageError } = await supabase
+      .from('portal_messages')
+      .select('*')
+      .eq('token', token)
+      .order('created_at', { ascending: true });
+
+    if (messageError) {
+      console.error('Failed to load messages', messageError);
+    } else if (msgData) {
+      const mappedMsgs = msgData.map(m => ({
+        id: m.id,
+        text: m.message_text,
+        author: m.author,
+        timestamp: m.created_at
+      }));
+      setMessages(mappedMsgs);
+    }
+  }, [accessToken, supabase, useCloudStorage]);
+
+  const handleAuthenticate = useCallback(async (tokenToUse) => {
     const token = tokenToUse || accessToken;
     if (!token || token.length < 8) {
       setError('Token must be at least 8 characters');
@@ -176,70 +231,30 @@ const SecureFilePortal = () => {
       setAccessToken(token);
       setIsAuthenticated(true);
       setError('');
-      localStorage.setItem('portal_access_token', token);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('portal_access_token', token);
+      }
       
       // Load initial data
       await loadData(token);
     } catch (err) {
       setError('Authentication failed');
-      console.error(err);
+      console.error('Authentication failed', err);
     }
-  };
+  }, [accessToken, loadData]);
 
   const logout = () => {
-    localStorage.removeItem('portal_access_token');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('portal_access_token');
+      window.history.replaceState({}, '', window.location.pathname);
+    }
     setIsAuthenticated(false);
     setAccessToken('');
     setEncryptionKey(null);
     setFiles([]);
     setMessages([]);
-    // Clear URL params
-    window.history.replaceState({}, '', window.location.pathname);
   };
 
-  const loadData = async (tokenOverride) => {
-    const token = tokenOverride || accessToken;
-    if (!token) return;
-
-    if (useCloudStorage && supabase) {
-      // Load Files
-      const { data: fileData } = await supabase
-        .from('portal_files')
-        .select('*')
-        .eq('token', token)
-        .order('uploaded_at', { ascending: false });
-      
-      if (fileData) {
-        const mappedFiles = fileData.map(f => ({
-          id: f.id,
-          name: f.file_name,
-          type: f.file_type,
-          size: f.file_size,
-          encrypted: f.encrypted_data, // Base64 string
-          uploadedAt: f.uploaded_at,
-          uploadedBy: f.uploaded_by
-        }));
-        setFiles(mappedFiles);
-      }
-
-      // Load Messages
-      const { data: msgData } = await supabase
-        .from('portal_messages')
-        .select('*')
-        .eq('token', token)
-        .order('created_at', { ascending: true });
-
-      if (msgData) {
-        const mappedMsgs = msgData.map(m => ({
-          id: m.id,
-          text: m.message_text,
-          author: m.author,
-          timestamp: m.created_at
-        }));
-        setMessages(mappedMsgs);
-      }
-    }
-  };
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !encryptionKey) return;
@@ -265,6 +280,7 @@ const SecureFilePortal = () => {
       if (messageInputRef.current) messageInputRef.current.focus();
     } catch (err) {
       addToast('Failed to send message', 'error');
+      console.error('Failed to send message', err);
     }
   };
 
@@ -340,6 +356,7 @@ const SecureFilePortal = () => {
       URL.revokeObjectURL(url);
     } catch (err) {
       addToast('Decryption failed. Check your key/token.', 'error');
+      console.error('Decryption failed during download', err);
     }
   };
 
@@ -370,6 +387,7 @@ const SecureFilePortal = () => {
       setDecryptedText(decoder.decode(decrypted));
     } catch (err) {
       addToast('Decryption failed', 'error');
+      console.error('Text decryption failed', err);
     }
   };
 
@@ -424,7 +442,7 @@ const SecureFilePortal = () => {
                 </button>
               </div>
               <p className="text-xs text-slate-500 mt-2">
-                Don't have a token? Click the shuffle button to create a new secure room.
+                Don&apos;t have a token? Click the shuffle button to create a new secure room.
               </p>
             </div>
             {error && (
@@ -546,7 +564,7 @@ const SecureFilePortal = () => {
                 </div>
                 <p className="font-medium text-slate-600">No messages yet</p>
                 <p className="text-sm text-slate-400 mt-1 max-w-xs text-center">
-                  Share this room's token with others to start chatting securely.
+                  Share this room&apos;s token with others to start chatting securely.
                 </p>
                 <button 
                   onClick={handleCopyInviteLink}

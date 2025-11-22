@@ -213,7 +213,7 @@ const DAXLibrary = () => {
             ) : (
                 <div className="text-center py-12 text-slate-400">
                     <BookOpen className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                    <p>No patterns found for "{searchTerm}"</p>
+                    <p>No patterns found for &ldquo;{searchTerm}&rdquo;</p>
                     <button 
                         onClick={() => setSearchTerm('')}
                         className="text-brand-600 font-medium hover:underline mt-2"

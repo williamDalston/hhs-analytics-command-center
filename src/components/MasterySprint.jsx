@@ -75,18 +75,23 @@ const sprintDays = [
     }
 ];
 
+const getInitialSprintState = () => {
+    if (typeof window === 'undefined') return {};
+    const saved = localStorage.getItem('pbi-mastery-sprint');
+    try {
+        return saved ? JSON.parse(saved) : {};
+    } catch (error) {
+        console.warn('Failed to parse mastery sprint progress', error);
+        return {};
+    }
+};
+
 const MasterySprint = () => {
-    const [completedTasks, setCompletedTasks] = useState({});
+    const [completedTasks, setCompletedTasks] = useState(getInitialSprintState);
     const [expandedDay, setExpandedDay] = useState(1);
 
     useEffect(() => {
-        const saved = localStorage.getItem('pbi-mastery-sprint');
-        if (saved) {
-            setCompletedTasks(JSON.parse(saved));
-        }
-    }, []);
-
-    useEffect(() => {
+        if (typeof window === 'undefined') return;
         localStorage.setItem('pbi-mastery-sprint', JSON.stringify(completedTasks));
     }, [completedTasks]);
 
@@ -115,7 +120,7 @@ const MasterySprint = () => {
             <div className="flex justify-between items-end">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-900">7-Day Mastery Sprint</h2>
-                    <p className="text-slate-600">From "Power BI User" to "Analytics Lead" in one week.</p>
+                    <p className="text-slate-600">From Power BI User to Analytics Lead in one week.</p>
                 </div>
                 <div className="text-right">
                     <div className="text-3xl font-bold text-brand-600">{totalProgress}%</div>
@@ -207,7 +212,7 @@ const MasterySprint = () => {
                     <Trophy className="h-12 w-12 text-amber-600 mx-auto mb-4" />
                     <h3 className="text-2xl font-bold text-amber-900 mb-2">Sprint Completed!</h3>
                     <p className="text-amber-800">
-                        You've completed the 7-Day Mastery Sprint. You are now ready to lead HHS Analytics with confidence.
+                        You&apos;ve completed the 7-Day Mastery Sprint. You are now ready to lead HHS Analytics with confidence.
                     </p>
                 </motion.div>
             )}

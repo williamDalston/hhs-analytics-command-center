@@ -36,7 +36,7 @@ const ProjectTracker = () => {
         }
     ]);
 
-    const [decisions, setDecisions] = useState([
+    const [decisions] = useState([
         {
             id: 1,
             type: 'Decision',
@@ -334,7 +334,7 @@ NEXT STEPS:
                             <div className="text-center py-12 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
                                 <ClipboardList className="h-12 w-12 mx-auto mb-3 opacity-20" />
                                 <p className="font-medium text-slate-600">No active projects</p>
-                                <p className="text-sm text-slate-400 mt-1">Click "New Project" to start tracking.</p>
+                                <p className="text-sm text-slate-400 mt-1">Click the New Project button to start tracking.</p>
                             </div>
                         )}
                     </div>

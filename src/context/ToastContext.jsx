@@ -15,15 +15,16 @@ export const useToast = () => {
 export const ToastProvider = ({ children }) => {
     const [toasts, setToasts] = useState([]);
 
-    const addToast = useCallback((message, type = 'success') => {
-        const id = Date.now();
-        setToasts(prev => [...prev, { id, message, type }]);
-        setTimeout(() => removeToast(id), 3000);
-    }, []);
-
     const removeToast = useCallback((id) => {
         setToasts(prev => prev.filter(toast => toast.id !== id));
     }, []);
+
+    const addToast = useCallback((message, type = 'success') => {
+        const id = Date.now();
+        setToasts(prev => [...prev, { id, message, type }]);
+        const timeout = setTimeout(() => removeToast(id), 3000);
+        return () => clearTimeout(timeout);
+    }, [removeToast]);
 
     return (
         <ToastContext.Provider value={{ addToast }}>

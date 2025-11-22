@@ -44,19 +44,23 @@ const checklistItems = [
     }
 ];
 
-const DesignChecklist = () => {
-    const [checkedItems, setCheckedItems] = useState({});
+const getInitialChecklistState = () => {
+    if (typeof window === 'undefined') return {};
+    const saved = localStorage.getItem('pbi-checklist-hhs');
+    try {
+        return saved ? JSON.parse(saved) : {};
+    } catch (error) {
+        console.warn('Failed to parse checklist state', error);
+        return {};
+    }
+};
 
-    // Load state from local storage on mount
-    useEffect(() => {
-        const saved = localStorage.getItem('pbi-checklist-hhs');
-        if (saved) {
-            setCheckedItems(JSON.parse(saved));
-        }
-    }, []);
+const DesignChecklist = () => {
+    const [checkedItems, setCheckedItems] = useState(getInitialChecklistState);
 
     // Save state to local storage on change
     useEffect(() => {
+        if (typeof window === 'undefined') return;
         localStorage.setItem('pbi-checklist-hhs', JSON.stringify(checkedItems));
     }, [checkedItems]);
 
@@ -130,7 +134,7 @@ const DesignChecklist = () => {
                 <div>
                     <h4 className="font-medium text-amber-800">Recompete Critical</h4>
                     <p className="text-sm text-amber-700 mt-1">
-                        Attention to detail matters. A polished, accessible, and branded dashboard demonstrates WebFirst's value to HHS leadership.
+                        Attention to detail matters. A polished, accessible, and branded dashboard demonstrates WebFirst&apos;s value to HHS leadership.
                     </p>
                 </div>
             </div>

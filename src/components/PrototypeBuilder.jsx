@@ -63,37 +63,45 @@ const layers = [
     }
 ];
 
+const projects = [
+    'ASPA Analytics Dashboard',
+    'Jira Delivery Dashboard',
+    'HHS Social Media Audit',
+    'General / Template'
+];
+
+const getInitialPrototypeState = () => {
+    if (typeof window === 'undefined') {
+        return { checked: {}, project: projects[0] };
+    }
+    const savedChecked = localStorage.getItem('pbi-prototype-builder');
+    const savedProject = localStorage.getItem('pbi-prototype-project');
+    let parsedChecked = {};
+    if (savedChecked) {
+        try {
+            parsedChecked = JSON.parse(savedChecked);
+        } catch (error) {
+            console.warn('Failed to parse prototype checklist state', error);
+        }
+    }
+    return {
+        checked: parsedChecked,
+        project: savedProject || projects[0]
+    };
+};
+
 const PrototypeBuilder = () => {
-    const [checkedItems, setCheckedItems] = useState({});
+    const [checkedItems, setCheckedItems] = useState(() => getInitialPrototypeState().checked);
     const [expandedLayer, setExpandedLayer] = useState('data');
-    const [selectedProject, setSelectedProject] = useState('');
-
-    // Mock projects for context - in a real app this would come from shared state/context
-    const projects = [
-        'ASPA Analytics Dashboard',
-        'Jira Delivery Dashboard',
-        'HHS Social Media Audit',
-        'General / Template'
-    ];
+    const [selectedProject, setSelectedProject] = useState(() => getInitialPrototypeState().project);
 
     useEffect(() => {
-        const saved = localStorage.getItem('pbi-prototype-builder');
-        if (saved) {
-            setCheckedItems(JSON.parse(saved));
-        }
-        const savedProject = localStorage.getItem('pbi-prototype-project');
-        if (savedProject) {
-            setSelectedProject(savedProject);
-        } else {
-            setSelectedProject(projects[0]);
-        }
-    }, []);
-
-    useEffect(() => {
+        if (typeof window === 'undefined') return;
         localStorage.setItem('pbi-prototype-builder', JSON.stringify(checkedItems));
     }, [checkedItems]);
 
     useEffect(() => {
+        if (typeof window === 'undefined') return;
         localStorage.setItem('pbi-prototype-project', selectedProject);
     }, [selectedProject]);
 
