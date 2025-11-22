@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Bot, User, Sparkles, Settings, Key, Database, AlertCircle, Copy } from 'lucide-react';
+import { Send, Bot, User, Sparkles, Settings, Key, Database, AlertCircle, Copy, Trash2, Download, MessageSquare, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { useToast } from '../context/ToastContext';
@@ -72,6 +72,8 @@ const PowerBIGuru = () => {
     const [connectionError, setConnectionError] = useState('');
     const [verifiedApiVersion, setVerifiedApiVersion] = useState(null);
     const messagesEndRef = useRef(null);
+    const messagesContainerRef = useRef(null);
+    const [isScrolledToBottom, setIsScrolledToBottom] = useState(true);
     const inputRef = useRef(null);
 
     useEffect(() => {
@@ -81,6 +83,28 @@ const PowerBIGuru = () => {
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
+
+    // Track if user is scrolled to bottom
+    useEffect(() => {
+        const container = messagesContainerRef.current;
+        if (!container) return;
+
+        const handleScroll = () => {
+            const { scrollTop, scrollHeight, clientHeight } = container;
+            const atBottom = scrollTop + clientHeight >= scrollHeight - 10; // 10px tolerance
+            setIsScrolledToBottom(atBottom);
+        };
+
+        container.addEventListener('scroll', handleScroll);
+        // Initial check
+        handleScroll();
+
+        return () => container.removeEventListener('scroll', handleScroll);
+    }, [messages]);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
 
     useEffect(() => {
         if (!inputRef.current) return;
@@ -212,6 +236,32 @@ const PowerBIGuru = () => {
             console.error('Copy failed', error);
             addToast('Unable to copy message', 'error');
         }
+    };
+
+    const handleClearChat = () => {
+        if (confirm('Are you sure you want to clear all messages? This will start a fresh conversation.')) {
+            // Keep only the welcome message
+            setMessages([messages[0]]);
+            addToast('Chat cleared', 'success');
+        }
+    };
+
+    const handleExportChat = () => {
+        const chatContent = messages
+            .filter(msg => !msg.isSystem) // Don't export system messages
+            .map(msg => `${msg.sender.toUpperCase()}: ${msg.text}`)
+            .join('\n\n');
+
+        const blob = new Blob([chatContent], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `power-bi-chat-${new Date().toISOString().split('T')[0]}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        addToast('Chat exported successfully', 'success');
     };
 
     const handleSend = async () => {
@@ -450,7 +500,36 @@ const PowerBIGuru = () => {
 
             {/* Chat Area */}
             <div className="flex-1 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {/* Chat Header */}
+                <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4 text-slate-500" />
+                        <span className="text-sm font-medium text-slate-700">Conversation</span>
+                        <span className="text-xs text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full">
+                            {messages.filter(msg => !msg.isSystem).length} messages
+                        </span>
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={handleExportChat}
+                            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded transition-colors"
+                            title="Export chat"
+                        >
+                            <Download className="h-4 w-4" />
+                        </button>
+                        <button
+                            onClick={handleClearChat}
+                            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                            title="Clear chat"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </button>
+                    </div>
+                </div>
+                <div
+                    ref={messagesContainerRef}
+                    className="flex-1 overflow-y-auto p-4 space-y-4 relative"
+                >
                     {messages.map((msg) => (
                         <motion.div
                             key={msg.id}
@@ -471,9 +550,14 @@ const PowerBIGuru = () => {
                                 >
                                     <Copy className="h-4 w-4" />
                                 </button>
-                                <div className="flex items-center gap-2 mb-1 opacity-75 text-xs">
-                                    {msg.sender === 'user' ? <User className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
-                                    <span className="uppercase font-bold tracking-wider">{msg.sender}</span>
+                                <div className="flex items-center justify-between mb-1 opacity-75 text-xs">
+                                    <div className="flex items-center gap-2">
+                                        {msg.sender === 'user' ? <User className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
+                                        <span className="uppercase font-bold tracking-wider">{msg.sender}</span>
+                                    </div>
+                                    <span className="text-slate-400">
+                                        {new Date(msg.id).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
                                 </div>
                                 <div className="whitespace-pre-wrap text-sm leading-relaxed">
                                     {msg.text}
@@ -499,6 +583,22 @@ const PowerBIGuru = () => {
                     )}
                     <div ref={messagesEndRef} />
                 </div>
+
+                {/* Scroll to Bottom Button */}
+                <AnimatePresence>
+                    {!isScrolledToBottom && (
+                        <motion.button
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.8 }}
+                            onClick={scrollToBottom}
+                            className="absolute bottom-4 right-4 bg-brand-600 text-white p-2 rounded-full shadow-lg hover:bg-brand-700 transition-colors z-10"
+                            title="Scroll to bottom"
+                        >
+                            <ChevronDown className="h-4 w-4" />
+                        </motion.button>
+                    )}
+                </AnimatePresence>
 
                 {/* Input Area */}
                 <div className="p-4 bg-slate-50 border-t border-slate-200">
