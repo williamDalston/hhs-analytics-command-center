@@ -33,9 +33,10 @@ const LOCAL_KNOWLEDGE = [
     }
 ];
 
-// Use the latest stable Gemini 1.5 Flash model and try both GA API versions (v1beta, v1)
-const GEMINI_MODEL = "gemini-1.5-flash-latest";
+// Use Gemini models - try latest first, fallback to older versions
+const GEMINI_MODELS = ["gemini-1.5-flash-latest", "gemini-1.5-flash", "gemini-pro"];
 const GEMINI_API_VERSIONS = ["v1beta", "v1"];
+const GEMINI_MODEL = GEMINI_MODELS[0]; // Default to latest
 const PROJECT_GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY?.trim() || '';
 
 const getStoredCustomKey = () => {
@@ -143,8 +144,10 @@ const PowerBIGuru = () => {
                 }
             }
 
-            setConnectionStatus('error');
-            setConnectionError(lastErrorMessage || 'Unable to verify access code');
+            // Don't block the user - just log the issue
+            console.warn('[Gemini] Verification failed, but user can still try to chat');
+            setConnectionStatus('idle'); // Allow user to try anyway
+            setConnectionError(''); // Clear any error to not show in UI
             setVerifiedApiVersion(null);
         };
 
@@ -237,37 +240,35 @@ const PowerBIGuru = () => {
 
         const trimmedKey = apiKey.trim();
 
-        // 2. Try Cloud AI if Key exists and connection is healthy
+        // 2. Try Cloud AI if Key exists (don't block on verification status)
         if (trimmedKey) {
-            if (connectionStatus === 'connecting') {
-                setMessages(prev => [...prev, {
-                    id: Date.now() + 1,
-                    text: "I'm still verifying the AI connection. Please try again in a moment.",
-                    sender: 'bot',
-                    isSystem: true
-                }]);
-                setIsTyping(false);
-                return;
-            }
-
-            if (connectionStatus === 'error') {
-                setMessages(prev => [...prev, {
-                    id: Date.now() + 1,
-                    text: "I couldn't verify the AI access code. Open the AI Settings to update it.",
-                    sender: 'bot',
-                    isSystem: true,
-                    isError: true
-                }]);
-                setIsTyping(false);
-                return;
-            }
 
             try {
                 const genAI = new GoogleGenerativeAI(trimmedKey);
-                const model = genAI.getGenerativeModel({ 
-                    model: GEMINI_MODEL,
-                    systemInstruction: "You are an expert Power BI Developer and Data Analyst for the US Department of Health and Human Services (HHS). Answer questions concisely and professionally. If it involves DAX, provide code snippets."
-                });
+                let model;
+                let lastModelError;
+
+                // Try different models in order of preference
+                for (const modelName of GEMINI_MODELS) {
+                    try {
+                        model = genAI.getGenerativeModel({
+                            model: modelName,
+                            systemInstruction: "You are an expert Power BI Developer and Data Analyst for the US Department of Health and Human Services (HHS). Answer questions concisely and professionally. If it involves DAX, provide code snippets."
+                        });
+                        // Test the model with a simple request
+                        await model.generateContent('test');
+                        console.log(`Successfully connected to ${modelName}`);
+                        break; // Success, use this model
+                    } catch (modelError) {
+                        console.warn(`Model ${modelName} failed:`, modelError.message);
+                        lastModelError = modelError;
+                        continue; // Try next model
+                    }
+                }
+
+                if (!model) {
+                    throw lastModelError || new Error('No compatible Gemini model found');
+                }
 
                 // Format history for Gemini
                 const history = messages
@@ -291,12 +292,28 @@ const PowerBIGuru = () => {
                 setMessages(prev => [...prev, { id: Date.now() + 1, text: text, sender: 'bot' }]);
             } catch (error) {
                 console.error("AI Connection Error:", error);
+
+                // Check if it's an authentication/key error
+                const isAuthError = error.message?.includes('API_KEY') ||
+                                   error.message?.includes('PERMISSION_DENIED') ||
+                                   error.message?.includes('INVALID_ARGUMENT');
+
+                if (isAuthError) {
+                    setConnectionStatus('error');
+                    setConnectionError('Invalid API key or insufficient permissions');
+                }
+
+                // Show user-friendly error and suggest fallback
                 setMessages(prev => [...prev, {
                     id: Date.now() + 1,
-                    text: "I encountered an error connecting to the AI. Please check your access code or internet connection.",
+                    text: isAuthError
+                        ? "I couldn't connect to the AI service with the current access code. Please update your API key in settings, or I can help with local knowledge about DAX and Power BI."
+                        : "I'm having trouble connecting to the AI service right now. Let me help with what I know about DAX and Power BI instead.",
                     sender: 'bot',
                     isError: true
                 }]);
+
+                // Don't return here - let it fall through to local knowledge
             } finally {
                 setIsTyping(false);
             }
