@@ -1,6 +1,8 @@
 // Service Worker for HHS Analytics Command Center
-const CACHE_NAME = 'hhs-analytics-v2';
-const STATIC_CACHE = 'hhs-analytics-static-v2';
+const CACHE_VERSION = 'v3';
+const CACHE_NAME = `hhs-analytics-${CACHE_VERSION}`;
+const STATIC_CACHE = `hhs-analytics-static-${CACHE_VERSION}`;
+const APP_SHELL_URL = '/hhs-analytics-command-center/';
 
 // Install event - skip waiting immediately
 self.addEventListener('install', (event) => {
@@ -34,6 +36,24 @@ self.addEventListener('fetch', (event) => {
   // Only handle GET requests
   if (event.request.method !== 'GET') return;
 
+  // Always try network first for navigation so new deployments take effect
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+          return response;
+        })
+        .catch(async () => {
+          const cachedResponse = await caches.match(event.request);
+          if (cachedResponse) return cachedResponse;
+          return caches.match(APP_SHELL_URL);
+        })
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then((cachedResponse) => {
@@ -57,12 +77,7 @@ self.addEventListener('fetch', (event) => {
 
             return response;
           })
-          .catch(() => {
-            // Return offline fallback for navigation requests
-            if (event.request.mode === 'navigate') {
-              return caches.match('/hhs-analytics-command-center/');
-            }
-          });
+          .catch(() => undefined);
       })
   );
 });
