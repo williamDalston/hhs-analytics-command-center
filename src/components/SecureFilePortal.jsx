@@ -66,6 +66,13 @@ const SecureFilePortal = () => {
   const syncIntervalRef = useRef(null);
   const supabase = getSupabaseClient();
 
+  // Check if Supabase is available and enable cloud storage
+  useEffect(() => {
+    if (supabase) {
+      setUseCloudStorage(true);
+    }
+  }, [supabase]);
+
   // Initialize encryption key
   useEffect(() => {
     const initEncryption = async () => {
