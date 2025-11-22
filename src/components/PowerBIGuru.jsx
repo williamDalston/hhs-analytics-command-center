@@ -269,25 +269,32 @@ const PowerBIGuru = () => {
                     throw lastModelError || new Error('No compatible Gemini model found');
                 }
 
-                // Format history for Gemini
-                const history = messages
+                // Format conversation for Gemini API
+                const conversationHistory = messages
                     .filter(msg => !msg.isError && !msg.isSystem) // Exclude errors and system prompts
                     .map(msg => ({
                         role: msg.sender === 'user' ? 'user' : 'model',
                         parts: [{ text: msg.text }]
                     }));
 
-                console.log('Chat history for AI:', history);
-                console.log('Current user message:', userMsg.text);
+                // Add current user message
+                const contents = [
+                    ...conversationHistory,
+                    {
+                        role: 'user',
+                        parts: [{ text: userMsg.text }]
+                    }
+                ];
 
-                const chat = model.startChat({
-                    history: history,
+                console.log('Full conversation for AI:', contents);
+
+                const result = await model.generateContent({
+                    contents: contents,
                     generationConfig: {
                         maxOutputTokens: 1000,
                     },
                 });
 
-                const result = await chat.sendMessage(userMsg.text);
                 const response = await result.response;
                 const text = response.text();
 
