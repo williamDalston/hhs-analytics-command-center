@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Send, User, Sparkles, Settings, Key, Database, AlertCircle, Copy, Trash2, Download, MessageSquare, ChevronDown, ChevronUp, NotebookPen, Eraser, Wand2, Maximize2, Minimize2, BookmarkPlus, ArrowDownToLine, GripVertical, PanelRightOpen, PanelRightClose, PanelLeftOpen, PanelLeftClose, Type, RotateCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, DynamicRetrievalMode } from '@google/generative-ai';
 import { useToast } from '../context/ToastContext';
 import { useSidebar } from '../context/SidebarContext';
 
@@ -87,7 +87,10 @@ const LINE_HEIGHTS = {
 const GEMINI_MODELS = ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro"];
 const GEMINI_API_VERSIONS = ["v1beta", "v1"];
 const GEMINI_MODEL = GEMINI_MODELS[0]; // Default to latest
-const PROJECT_GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY?.trim() || '';
+
+// Check for placeholder key and treat as empty
+const rawKey = import.meta.env.VITE_GEMINI_API_KEY?.trim() || '';
+const PROJECT_GEMINI_KEY = rawKey === 'YOUR_GOOGLE_GEMINI_API_KEY' ? '' : rawKey;
 const GEMINI_KEY_ALLOWED_HOSTS = import.meta.env.VITE_GEMINI_KEY_ALLOWED_HOSTS || 'localhost,127.0.0.1,williamdalston.github.io';
 
 const parseHostRules = (value) => {
@@ -230,6 +233,8 @@ const PowerBIGuru = () => {
     useEffect(() => {
         // Debug: Log API key availability in development
         if (import.meta.env.DEV) {
+            console.log("Raw VITE_GEMINI_API_KEY:", import.meta.env.VITE_GEMINI_API_KEY);
+            console.log("Processed PROJECT_GEMINI_KEY:", PROJECT_GEMINI_KEY);
             if (!PROJECT_GEMINI_KEY) {
                 console.log("PowerBI Guru: Project Access Code Not Configured");
             } else {
@@ -740,11 +745,29 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                             tools: [{
                                 googleSearchRetrieval: {
                                     dynamicRetrievalConfig: {
-                                        mode: "MODE_DYNAMIC",
+                                        mode: DynamicRetrievalMode.MODE_DYNAMIC,
                                         dynamicThreshold: 0.6,
                                     },
                                 },
                             }],
+                            safetySettings: [
+                                {
+                                    category: "HARM_CATEGORY_HARASSMENT",
+                                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                                },
+                                {
+                                    category: "HARM_CATEGORY_HATE_SPEECH",
+                                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                                },
+                                {
+                                    category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                                },
+                                {
+                                    category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+                                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                                }
+                            ]
                         });
                         // Only log in development
                         if (import.meta.env.DEV) {
