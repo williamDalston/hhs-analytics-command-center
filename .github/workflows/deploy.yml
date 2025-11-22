@@ -26,12 +26,18 @@ jobs:
         run: |
           npm install
           npm run build
+          # Ensure .nojekyll is in dist for GitHub Pages
+          cp public/.nojekyll dist/.nojekyll || touch dist/.nojekyll
           
       - name: Verify Build
         run: |
           ls -la dist/
           ls -la dist/assets/
+          echo "=== index.html ==="
           cat dist/index.html
+          echo ""
+          echo "=== Checking for .nojekyll ==="
+          test -f dist/.nojekyll && echo ".nojekyll exists" || echo ".nojekyll missing"
 
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4
