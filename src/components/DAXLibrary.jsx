@@ -182,22 +182,25 @@ const DAXLibrary = () => {
                     <h2 className="text-2xl font-bold text-slate-900">DAX Pattern Library</h2>
                     <p className="text-slate-600">HHS & WebFirst approved metrics and patterns.</p>
                 </div>
-                <div className="flex gap-3 w-full md:w-auto">
+                <div className="flex gap-2 sm:gap-3 w-full md:w-auto">
                     <div className="relative flex-1 md:w-64">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
                         <input
                             type="text"
                             placeholder="Search patterns..."
-                            className="input-field pl-10"
+                            className="input-field pl-10 text-sm"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
                     <button
                         onClick={() => addToast('Request submitted to Analytics Lead.', 'info')}
-                        className="btn-secondary whitespace-nowrap"
+                        className="btn-secondary whitespace-nowrap flex-shrink-0 text-xs sm:text-sm"
+                        title="Request a new DAX pattern"
                     >
-                        Request Pattern
+                        <Database className="h-4 w-4 sm:mr-2" />
+                        <span className="hidden xs:inline">Request</span>
+                        <span className="hidden sm:inline">Pattern</span>
                     </button>
                 </div>
             </div>

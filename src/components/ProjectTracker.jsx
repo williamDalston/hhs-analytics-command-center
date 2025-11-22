@@ -242,24 +242,36 @@ NEXT STEPS:
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit">
+            <div className="flex gap-1 bg-slate-100 dark:bg-slate-800/50 p-1 rounded-lg w-full sm:w-fit overflow-x-auto">
                 <button
                     onClick={() => setActiveTab('projects')}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'projects' ? 'bg-white dark:bg-slate-700 text-brand-700 dark:text-brand-300 shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100'}`}
+                    className={`flex-shrink-0 px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${activeTab === 'projects' ? 'bg-white dark:bg-slate-700 text-brand-700 dark:text-brand-300 shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100'}`}
                 >
-                    <div className="flex items-center gap-2"><LayoutList className="h-4 w-4" /> Projects</div>
+                    <div className="flex items-center gap-2">
+                        <LayoutList className="h-4 w-4" /> 
+                        <span>Projects</span>
+                    </div>
                 </button>
                 <button
                     onClick={() => setActiveTab('decisions')}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'decisions' ? 'bg-white dark:bg-slate-700 text-brand-700 dark:text-brand-300 shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100'}`}
+                    className={`flex-shrink-0 px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${activeTab === 'decisions' ? 'bg-white dark:bg-slate-700 text-brand-700 dark:text-brand-300 shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100'}`}
                 >
-                    <div className="flex items-center gap-2"><AlertCircle className="h-4 w-4" /> Decisions & Blockers</div>
+                    <div className="flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4" /> 
+                        <span className="hidden xs:inline">Decisions</span>
+                        <span className="xs:hidden">Dec.</span>
+                        <span className="hidden sm:inline">& Blockers</span>
+                    </div>
                 </button>
                 <button
                     onClick={() => setActiveTab('team')}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'team' ? 'bg-white dark:bg-slate-700 text-brand-700 dark:text-brand-300 shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100'}`}
+                    className={`flex-shrink-0 px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${activeTab === 'team' ? 'bg-white dark:bg-slate-700 text-brand-700 dark:text-brand-300 shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100'}`}
                 >
-                    <div className="flex items-center gap-2"><Users className="h-4 w-4" /> Team View</div>
+                    <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4" /> 
+                        <span>Team</span>
+                        <span className="hidden sm:inline">View</span>
+                    </div>
                 </button>
             </div>
 

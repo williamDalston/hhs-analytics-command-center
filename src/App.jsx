@@ -395,11 +395,11 @@ const QuickActions = () => {
               whileHover={{ scale: 1.05, x: -5 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => handleAction('/guru')}
-              className="flex items-center gap-3 px-5 py-3 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-slate-900 dark:text-slate-100 rounded-full shadow-xl shadow-brand-900/10 border border-white/50 dark:border-slate-600/50 hover:border-brand-300 dark:hover:border-brand-500 transition-colors"
+              className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2 sm:py-3 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-slate-900 dark:text-slate-100 rounded-full shadow-xl shadow-brand-900/10 border border-white/50 dark:border-slate-600/50 hover:border-brand-300 dark:hover:border-brand-500 transition-colors whitespace-nowrap"
             >
-              <span className="font-medium text-sm">Ask AI Guru</span>
-              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white flex items-center justify-center shadow-lg shadow-brand-500/30">
-                <Sparkles className="h-5 w-5" />
+              <span className="font-medium text-xs sm:text-sm">Ask AI Guru</span>
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white flex items-center justify-center shadow-lg shadow-brand-500/30 flex-shrink-0">
+                <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
             </motion.button>
 
@@ -411,11 +411,11 @@ const QuickActions = () => {
               whileHover={{ scale: 1.05, x: -5 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => handleAction('/portal')}
-              className="flex items-center gap-3 px-5 py-3 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-slate-900 dark:text-slate-100 rounded-full shadow-xl shadow-emerald-900/10 border border-white/50 dark:border-slate-600/50 hover:border-emerald-300 dark:hover:border-emerald-500 transition-colors"
+              className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2 sm:py-3 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-slate-900 dark:text-slate-100 rounded-full shadow-xl shadow-emerald-900/10 border border-white/50 dark:border-slate-600/50 hover:border-emerald-300 dark:hover:border-emerald-500 transition-colors whitespace-nowrap"
             >
-              <span className="font-medium text-sm">Share File</span>
-              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30">
-                <Upload className="h-5 w-5" />
+              <span className="font-medium text-xs sm:text-sm">Share File</span>
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30 flex-shrink-0">
+                <Upload className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
             </motion.button>
 
@@ -427,11 +427,11 @@ const QuickActions = () => {
               whileHover={{ scale: 1.05, x: -5 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => handleAction('/portal?tab=encrypt')}
-              className="flex items-center gap-3 px-5 py-3 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-slate-900 dark:text-slate-100 rounded-full shadow-xl shadow-amber-900/10 border border-white/50 dark:border-slate-600/50 hover:border-amber-300 dark:hover:border-amber-500 transition-colors"
+              className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2 sm:py-3 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md text-slate-900 dark:text-slate-100 rounded-full shadow-xl shadow-amber-900/10 border border-white/50 dark:border-slate-600/50 hover:border-amber-300 dark:hover:border-amber-500 transition-colors whitespace-nowrap"
             >
-              <span className="font-medium text-sm">Share Text</span>
-              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center shadow-lg shadow-amber-500/30">
-                <FileText className="h-5 w-5" />
+              <span className="font-medium text-xs sm:text-sm">Share Text</span>
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center shadow-lg shadow-amber-500/30 flex-shrink-0">
+                <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
             </motion.button>
           </>
@@ -442,12 +442,13 @@ const QuickActions = () => {
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
         onClick={() => setIsOpen(!isOpen)}
-        className={`h-16 w-16 rounded-full flex items-center justify-center transition-all duration-300 shadow-2xl z-50 ${isOpen 
+        className={`h-14 w-14 sm:h-16 sm:w-16 rounded-full flex items-center justify-center transition-all duration-300 shadow-2xl z-50 touch-target ${isOpen 
           ? 'bg-slate-800 rotate-45 shadow-slate-900/20' 
           : 'bg-gradient-to-br from-brand-500 to-brand-700 shadow-brand-600/30'
         }`}
+        aria-label={isOpen ? 'Close quick actions' : 'Open quick actions'}
       >
-        {isOpen ? <X className="h-7 w-7 text-white" /> : <Share2 className="h-7 w-7 text-white" />}
+        {isOpen ? <X className="h-6 w-6 sm:h-7 sm:w-7 text-white" /> : <Share2 className="h-6 w-6 sm:h-7 sm:w-7 text-white" />}
       </motion.button>
     </div>
   );

@@ -1301,7 +1301,7 @@ const PowerBIGuru = () => {
                                 <button
                                     key={prompt.label}
                                     onClick={() => handleQuickPrompt(prompt.value)}
-                                    className="px-3 py-1 text-xs bg-slate-100 text-slate-700 rounded-full hover:bg-brand-50 hover:text-brand-700 transition-colors"
+                                    className="px-3 py-1 text-xs bg-slate-100 text-slate-700 rounded-full hover:bg-brand-50 hover:text-brand-700 transition-colors whitespace-nowrap flex-shrink-0"
                                 >
                                     {prompt.label}
                                 </button>
