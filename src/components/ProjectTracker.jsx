@@ -153,7 +153,7 @@ NEXT STEPS:
             <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
                 <div className="flex justify-between items-start mb-4">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 dark:text-slate-100">Welcome back, Will.</h1>
+                        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 dark:text-slate-100">Welcome back, Power BI Developer.</h1>
                         <p className="text-slate-500 dark:text-slate-400 dark:text-slate-500">Here is your morning brief for WebFirst Analytics.</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -511,12 +511,12 @@ NEXT STEPS:
             {activeTab === 'team' && (
                 <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Will Alston */}
+                        {/* Power BI Developer */}
                         <div className="card border-brand-200">
                             <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-100">
-                                <div className="h-10 w-10 rounded-full bg-brand-700 flex items-center justify-center text-white font-bold">WA</div>
+                                <div className="h-10 w-10 rounded-full bg-brand-700 flex items-center justify-center text-white font-bold">PD</div>
                                 <div>
-                                    <h3 className="font-bold text-slate-900 dark:text-slate-100">Will Alston</h3>
+                                    <h3 className="font-bold text-slate-900 dark:text-slate-100">Power BI Developer</h3>
                                     <p className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">Analytics Lead</p>
                                 </div>
                             </div>

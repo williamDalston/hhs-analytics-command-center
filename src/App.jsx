@@ -334,7 +334,7 @@ const Sidebar = ({ onDataManagerOpen }) => {
               💾
             </button>
             <div>
-              <p className="text-sm font-bold text-white tracking-wide">Will Alston</p>
+              <p className="text-sm font-bold text-white tracking-wide">Power BI Developer</p>
               <p className="text-xs text-brand-200 font-medium">WebFirst Analytics Lead</p>
             </div>
           </div>

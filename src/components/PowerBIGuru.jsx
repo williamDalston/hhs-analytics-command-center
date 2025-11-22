@@ -616,7 +616,7 @@ const PowerBIGuru = () => {
         };
 
         return (
-            <div className={`whitespace-pre-wrap ${currentLineHeight.class} ${currentFontSize.message}`}>
+            <div className={`whitespace-pre-wrap break-words overflow-hidden ${currentLineHeight.class} ${currentFontSize.message}`}>
                 {parts.map((part, i) => {
                     // Check for complete code blocks
                     if (part.startsWith('```') && part.endsWith('```')) {
@@ -639,7 +639,7 @@ const PowerBIGuru = () => {
                                                 <Copy className="h-3 w-3" /> Copy
                                             </button>
                                         </div>
-                                <pre className={`p-3 overflow-x-auto font-mono ${currentFontSize.code} scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent`}>
+                                <pre className={`p-3 overflow-x-auto font-mono ${currentFontSize.code} scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent whitespace-pre`}>
                                     <code>{content.trim()}</code>
                                 </pre>
                             </div>
