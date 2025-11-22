@@ -547,7 +547,7 @@ const SecureFilePortal = () => {
                   type="password"
                   value={accessToken}
                   onChange={(e) => setAccessToken(e.target.value)}
-                  className="input-field flex-1 text-lg tracking-widest"
+                  className="input-field flex-1 text-base sm:text-lg tracking-widest"
                   placeholder="Paste token here..."
                   onKeyDown={e => e.key === 'Enter' && handleAuthenticate()}
                 />
@@ -617,7 +617,7 @@ const SecureFilePortal = () => {
         <div className="flex gap-2">
           <button 
             onClick={handleCopyInviteLink}
-            className="btn-secondary text-sm hidden sm:flex"
+            className="btn-secondary text-sm hidden lg:flex"
           >
             <LinkIcon className="h-4 w-4 mr-2" /> Invite
           </button>

@@ -1,7 +1,25 @@
 import React, { useState } from 'react';
-import { Search, Copy, Check, BookOpen } from 'lucide-react';
+import { Search, Copy, Check, Database } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
+
+// Utility function to highlight search terms
+const highlightText = (text, searchTerm) => {
+  if (!searchTerm || !text) return text;
+
+  const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  const parts = text.split(regex);
+
+  return parts.map((part, index) =>
+    regex.test(part) ? (
+      <mark key={index} className="bg-yellow-200 dark:bg-yellow-600 px-1 rounded">
+        {part}
+      </mark>
+    ) : (
+      part
+    )
+  );
+};
 
 const daxPatterns = [
     // Social Media Metrics
@@ -135,11 +153,12 @@ const DAXLibrary = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [copiedId, setCopiedId] = useState(null);
 
-    const filteredPatterns = daxPatterns.filter(pattern =>
-        pattern.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        pattern.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        pattern.category.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredPatterns = daxPatterns.filter(pattern => {
+        const searchLower = searchTerm.toLowerCase();
+        return pattern.title.toLowerCase().includes(searchLower) ||
+               pattern.description.toLowerCase().includes(searchLower) ||
+               pattern.category.toLowerCase().includes(searchLower);
+    });
 
     const copyToClipboard = (code, id) => {
         navigator.clipboard.writeText(code);
@@ -150,7 +169,7 @@ const DAXLibrary = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-900">DAX Pattern Library</h2>
                     <p className="text-slate-600">HHS & WebFirst approved metrics and patterns.</p>
@@ -187,12 +206,16 @@ const DAXLibrary = () => {
                             <div className="flex justify-between items-start mb-4">
                                 <div>
                                     <div className="flex items-center gap-3 mb-1">
-                                        <h3 className="text-lg font-semibold text-brand-700">{pattern.title}</h3>
+                                        <h3 className="text-lg font-semibold text-brand-700">
+                                            {highlightText(pattern.title, searchTerm)}
+                                        </h3>
                                         <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
-                                            {pattern.category}
+                                            {highlightText(pattern.category, searchTerm)}
                                         </span>
                                     </div>
-                                    <p className="text-sm text-slate-600">{pattern.description}</p>
+                                    <p className="text-sm text-slate-600">
+                                        {highlightText(pattern.description, searchTerm)}
+                                    </p>
                                 </div>
                                 <button
                                     onClick={() => copyToClipboard(pattern.code, pattern.id)}
@@ -212,7 +235,7 @@ const DAXLibrary = () => {
                 </div>
             ) : (
                 <div className="text-center py-12 text-slate-400">
-                    <BookOpen className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                    <Database className="h-12 w-12 mx-auto mb-3 opacity-20" />
                     <p>No patterns found for &ldquo;{searchTerm}&rdquo;</p>
                     <button 
                         onClick={() => setSearchTerm('')}

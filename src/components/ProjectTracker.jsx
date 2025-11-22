@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Calendar, User, FileText, Briefcase, AlertCircle, CheckCircle2, Users, LayoutList, AlertTriangle, Activity, ClipboardList } from 'lucide-react';
+import { Plus, Trash2, Calendar, User, FileText, Briefcase, AlertCircle, CheckCircle2, Users, LayoutList, AlertTriangle, Activity, ClipboardList, CheckSquare, Square, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
 
@@ -56,6 +56,8 @@ const ProjectTracker = () => {
     ]);
 
     const [isAdding, setIsAdding] = useState(false);
+    const [selectedProjects, setSelectedProjects] = useState([]);
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
     const [newProject, setNewProject] = useState({
         name: '',
         stakeholder: '',
@@ -76,6 +78,39 @@ const ProjectTracker = () => {
     const handleDelete = (id) => {
         setProjects(projects.filter(p => p.id !== id));
         addToast('Project deleted', 'info');
+    };
+
+    const handleBulkDelete = () => {
+        if (selectedProjects.length === 0) return;
+
+        const confirmMessage = `Are you sure you want to delete ${selectedProjects.length} project${selectedProjects.length > 1 ? 's' : ''}?`;
+        if (window.confirm(confirmMessage)) {
+            setProjects(projects.filter(p => !selectedProjects.includes(p.id)));
+            setSelectedProjects([]);
+            setIsSelectionMode(false);
+            addToast(`${selectedProjects.length} project${selectedProjects.length > 1 ? 's' : ''} deleted`, 'info');
+        }
+    };
+
+    const toggleProjectSelection = (projectId) => {
+        setSelectedProjects(prev =>
+            prev.includes(projectId)
+                ? prev.filter(id => id !== projectId)
+                : [...prev, projectId]
+        );
+    };
+
+    const toggleSelectionMode = () => {
+        setIsSelectionMode(!isSelectionMode);
+        setSelectedProjects([]);
+    };
+
+    const selectAllProjects = () => {
+        if (selectedProjects.length === projects.length) {
+            setSelectedProjects([]);
+        } else {
+            setSelectedProjects(projects.map(p => p.id));
+        }
     };
 
     const generateReport = () => {
@@ -121,20 +156,56 @@ NEXT STEPS:
                         <h1 className="text-2xl font-bold text-slate-900">Welcome back, Will.</h1>
                         <p className="text-slate-500">Here is your morning brief for WebFirst Analytics.</p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                         <button
                             onClick={generateReport}
-                            className="btn-secondary"
+                            className="btn-secondary text-sm"
                         >
-                            <FileText className="h-4 w-4" /> Generate Report
+                            <FileText className="h-4 w-4" />
+                            <span className="hidden sm:inline ml-2">Generate Report</span>
                         </button>
                         {activeTab === 'projects' && (
-                            <button
-                                onClick={() => setIsAdding(!isAdding)}
-                                className="btn-primary"
-                            >
-                                <Plus className="h-4 w-4" /> New Project
-                            </button>
+                            <>
+                                {isSelectionMode ? (
+                                    <div className="flex gap-2">
+                                        {selectedProjects.length > 0 && (
+                                            <button
+                                                onClick={handleBulkDelete}
+                                                className="btn-secondary text-red-600 hover:bg-red-50 border-red-200 text-xs sm:text-sm"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                                <span className="hidden sm:inline ml-2">Delete ({selectedProjects.length})</span>
+                                                <span className="sm:hidden ml-1">({selectedProjects.length})</span>
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={toggleSelectionMode}
+                                            className="btn-secondary text-xs sm:text-sm"
+                                        >
+                                            <X className="h-4 w-4" />
+                                            <span className="hidden sm:inline ml-2">Cancel</span>
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={toggleSelectionMode}
+                                            className="btn-secondary text-xs sm:text-sm"
+                                            title="Select multiple projects"
+                                        >
+                                            <CheckSquare className="h-4 w-4" />
+                                            <span className="hidden sm:inline ml-2">Select</span>
+                                        </button>
+                                        <button
+                                            onClick={() => setIsAdding(!isAdding)}
+                                            className="btn-primary text-xs sm:text-sm"
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                            <span className="hidden sm:inline ml-2">New Project</span>
+                                        </button>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
                 </div>
@@ -202,7 +273,7 @@ NEXT STEPS:
                             className="card border-brand-200 bg-white"
                             onSubmit={handleAdd}
                         >
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                                 <div>
                                     <label className="block text-sm text-slate-600 mb-1">Dashboard Name</label>
                                     <input
@@ -288,38 +359,78 @@ NEXT STEPS:
 
                     <div className="grid grid-cols-1 gap-4">
                         {projects.length > 0 ? (
-                            projects.map((project) => (
-                                <motion.div
-                                    key={project.id}
-                                    layout
-                                    className="card hover:border-brand-300 group bg-white"
-                                >
-                                    <div className="flex justify-between items-start">
-                                        <div className="space-y-1">
-                                            <div className="flex items-center gap-3">
-                                                <h3 className="text-lg font-semibold text-slate-900">{project.name}</h3>
-                                                <span className={`text-xs px-2 py-0.5 rounded-full border ${project.status === 'Done' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
-                                                    project.status === 'Review' ? 'bg-amber-100 text-amber-700 border-amber-200' :
-                                                        'bg-brand-100 text-brand-700 border-brand-200'
-                                                    }`}>
-                                                    {project.status}
-                                                </span>
-                                                <span className={`text-xs px-2 py-0.5 rounded-full border ${getPriorityColor(project.priority)}`}>
-                                                    {project.priority}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-4 text-sm text-slate-500">
-                                                <span className="flex items-center gap-1"><User className="h-3 w-3" /> {project.stakeholder}</span>
-                                                <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {project.deadline}</span>
-                                            </div>
+                            <>
+                                {isSelectionMode && (
+                                    <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                onClick={selectAllProjects}
+                                                className="flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-brand-700"
+                                            >
+                                                {selectedProjects.length === projects.length ? (
+                                                    <CheckSquare className="h-4 w-4" />
+                                                ) : (
+                                                    <Square className="h-4 w-4" />
+                                                )}
+                                                {selectedProjects.length === projects.length ? 'Deselect All' : 'Select All'}
+                                            </button>
+                                            <span className="text-sm text-slate-500">
+                                                {selectedProjects.length} of {projects.length} selected
+                                            </span>
                                         </div>
-                                        <button
-                                            onClick={() => handleDelete(project.id)}
-                                            className="p-2 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </button>
                                     </div>
+                                )}
+                                {projects.map((project) => (
+                                    <motion.div
+                                        key={project.id}
+                                        layout
+                                        className={`card hover:border-brand-300 group bg-white ${selectedProjects.includes(project.id) ? 'ring-2 ring-brand-500 border-brand-500' : ''}`}
+                                    >
+                                        <div className="flex justify-between items-start">
+                                            <div className="flex items-start gap-3 flex-1">
+                                                {isSelectionMode && (
+                                                    <button
+                                                        onClick={() => toggleProjectSelection(project.id)}
+                                                        className={`mt-1 p-1 rounded transition-colors ${selectedProjects.includes(project.id)
+                                                            ? 'bg-brand-100 text-brand-700'
+                                                            : 'hover:bg-slate-100 text-slate-400'
+                                                        }`}
+                                                    >
+                                                        {selectedProjects.includes(project.id) ? (
+                                                            <CheckSquare className="h-4 w-4" />
+                                                        ) : (
+                                                            <Square className="h-4 w-4" />
+                                                        )}
+                                                    </button>
+                                                )}
+                                                <div className="space-y-1 flex-1">
+                                                    <div className="flex items-center gap-3">
+                                                        <h3 className="text-lg font-semibold text-slate-900">{project.name}</h3>
+                                                        <span className={`text-xs px-2 py-0.5 rounded-full border ${project.status === 'Done' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                                                            project.status === 'Review' ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                                                                'bg-brand-100 text-brand-700 border-brand-200'
+                                                            }`}>
+                                                            {project.status}
+                                                        </span>
+                                                        <span className={`text-xs px-2 py-0.5 rounded-full border ${getPriorityColor(project.priority)}`}>
+                                                            {project.priority}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-4 text-sm text-slate-500">
+                                                        <span className="flex items-center gap-1"><User className="h-3 w-3" /> {project.stakeholder}</span>
+                                                        <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {project.deadline}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {!isSelectionMode && (
+                                                <button
+                                                    onClick={() => handleDelete(project.id)}
+                                                    className="p-2 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
+                                            )}
+                                        </div>
                                     {project.requirements && (
                                         <div className="mt-4 pt-4 border-t border-slate-100">
                                             <div className="flex items-start gap-2 text-sm text-slate-600">
@@ -329,7 +440,8 @@ NEXT STEPS:
                                         </div>
                                     )}
                                 </motion.div>
-                            ))
+                            ))}
+                            </>
                         ) : (
                             <div className="text-center py-12 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
                                 <ClipboardList className="h-12 w-12 mx-auto mb-3 opacity-20" />

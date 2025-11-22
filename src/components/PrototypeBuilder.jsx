@@ -121,7 +121,7 @@ const PrototypeBuilder = () => {
 
     return (
         <div className="space-y-8">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-900">Prototype Builder</h2>
                     <p className="text-slate-600">Comprehensive technical checklist for HHS deliverables.</p>

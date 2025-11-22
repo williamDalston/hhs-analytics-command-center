@@ -1,5 +1,5 @@
 import React from 'react';
-import { Palette, Type, Download, Layout, ShieldCheck, Copy } from 'lucide-react';
+import { Ruler, Type, Download, Layout, ShieldCheck, Copy } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
 
@@ -29,7 +29,7 @@ const StyleGuide = () => {
             {/* Colors Section */}
             <section className="space-y-4">
                 <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
-                    <Palette className="h-5 w-5 text-brand-600" />
+                    <Ruler className="h-5 w-5 text-brand-600" />
                     <h3 className="text-lg font-semibold text-slate-800">Brand Colors</h3>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">

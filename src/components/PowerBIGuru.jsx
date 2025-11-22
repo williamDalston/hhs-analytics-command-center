@@ -33,8 +33,9 @@ const LOCAL_KNOWLEDGE = [
     }
 ];
 
-// Use the latest stable Gemini 1.5 Flash alias to stay compatible with v1 APIs
+// Use the latest stable Gemini 1.5 Flash model and try both GA API versions (v1beta, v1)
 const GEMINI_MODEL = "gemini-1.5-flash-latest";
+const GEMINI_API_VERSIONS = ["v1beta", "v1"];
 const PROJECT_GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY?.trim() || '';
 
 const getStoredCustomKey = () => {
@@ -68,6 +69,7 @@ const PowerBIGuru = () => {
     const [isTyping, setIsTyping] = useState(false);
     const [connectionStatus, setConnectionStatus] = useState(initialKeyInfoRef.current.key ? 'connecting' : 'idle');
     const [connectionError, setConnectionError] = useState('');
+    const [verifiedApiVersion, setVerifiedApiVersion] = useState(null);
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
 
@@ -93,6 +95,7 @@ const PowerBIGuru = () => {
         if (!trimmedKey) {
             setConnectionStatus('idle');
             setConnectionError('');
+            setVerifiedApiVersion(null);
             return;
         }
 
@@ -102,22 +105,47 @@ const PowerBIGuru = () => {
         const verifyKey = async () => {
             setConnectionStatus('connecting');
             setConnectionError('');
-            try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}?key=${encodeURIComponent(trimmedKey)}`, {
-                    signal: controller.signal
-                });
-                if (!response.ok) {
-                    const errorPayload = await response.json().catch(() => ({}));
-                    throw new Error(errorPayload?.error?.message || 'Unable to verify access code');
+            setVerifiedApiVersion(null);
+            let lastErrorMessage = '';
+
+            for (const apiVersion of GEMINI_API_VERSIONS) {
+                try {
+                    const response = await fetch(
+                        `https://generativelanguage.googleapis.com/${apiVersion}/models/${encodeURIComponent(GEMINI_MODEL)}?key=${encodeURIComponent(trimmedKey)}`,
+                        { signal: controller.signal }
+                    );
+
+                    if (!response.ok) {
+                        const errorPayload = await response.json().catch(() => ({}));
+                        const errorMessage = errorPayload?.error?.message || 'Unable to verify access code';
+                        lastErrorMessage = errorMessage;
+
+                        const isModelUnavailable = response.status === 404 || errorPayload?.error?.status === 'NOT_FOUND';
+                        if (isModelUnavailable) {
+                            console.warn(`[Gemini] Model ${GEMINI_MODEL} unavailable on API ${apiVersion}. Trying fallback version.`);
+                            continue;
+                        }
+
+                        throw new Error(errorMessage);
+                    }
+
+                    if (isCancelled) return;
+                    setConnectionStatus('connected');
+                    setConnectionError('');
+                    setVerifiedApiVersion(apiVersion);
+                    console.info(`[Gemini] Verified ${GEMINI_MODEL} via ${apiVersion}.`);
+                    return;
+                } catch (error) {
+                    if (controller.signal.aborted || isCancelled) return;
+                    lastErrorMessage = error.message || 'Unable to verify access code';
+                    console.error(`[Gemini] verification error via ${apiVersion}:`, error);
+                    break;
                 }
-                if (isCancelled) return;
-                setConnectionStatus('connected');
-            } catch (error) {
-                if (controller.signal.aborted || isCancelled) return;
-                console.error("Gemini verification failed:", error);
-                setConnectionStatus('error');
-                setConnectionError(error.message || 'Unable to verify access code');
             }
+
+            setConnectionStatus('error');
+            setConnectionError(lastErrorMessage || 'Unable to verify access code');
+            setVerifiedApiVersion(null);
         };
 
         verifyKey();
@@ -291,7 +319,10 @@ const PowerBIGuru = () => {
     const connectionBadge = (() => {
         if (!apiKey) return null;
         if (connectionStatus === 'connected') {
-            return { text: 'AI Connected', className: 'bg-emerald-100 text-emerald-700' };
+            return {
+                text: verifiedApiVersion ? `AI Connected (${verifiedApiVersion})` : 'AI Connected',
+                className: 'bg-emerald-100 text-emerald-700'
+            };
         }
         if (connectionStatus === 'connecting') {
             return { text: 'Verifying Access Code', className: 'bg-sky-100 text-sky-700' };

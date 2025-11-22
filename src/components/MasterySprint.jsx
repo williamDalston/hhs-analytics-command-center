@@ -156,7 +156,7 @@ const MasterySprint = () => {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-4">
-                                    <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden hidden sm:block">
+                                    <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden hidden lg:block">
                                         <div
                                             className={`h-full transition-all duration-500 ${isComplete ? 'bg-emerald-500' : 'bg-brand-500'}`}
                                             style={{ width: `${progress.percent}%` }}
