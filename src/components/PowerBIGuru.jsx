@@ -740,7 +740,7 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                             tools: [{
                                 googleSearchRetrieval: {
                                     dynamicRetrievalConfig: {
-                                        mode: "dynamic",
+                                        mode: "MODE_DYNAMIC",
                                         dynamicThreshold: 0.6,
                                     },
                                 },
