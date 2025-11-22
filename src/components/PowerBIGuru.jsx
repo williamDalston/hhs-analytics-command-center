@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, Bot, User, Sparkles, Settings, Key, Database, AlertCircle, Copy, Trash2, Download, MessageSquare, ChevronDown, NotebookPen, Eraser, Wand2, Maximize2, Minimize2, BookmarkPlus, ArrowDownToLine, GripVertical, PanelRightOpen, PanelRightClose, PanelLeftOpen, PanelLeftClose, Type } from 'lucide-react';
+import { Send, User, Sparkles, Settings, Key, Database, AlertCircle, Copy, Trash2, Download, MessageSquare, ChevronDown, NotebookPen, Eraser, Wand2, Maximize2, Minimize2, BookmarkPlus, ArrowDownToLine, GripVertical, PanelRightOpen, PanelRightClose, PanelLeftOpen, PanelLeftClose, Type } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { useToast } from '../context/ToastContext';
@@ -50,7 +50,7 @@ const getInitialNotesWidth = () => {
 const createInitialMessage = () => ({
     id: 'welcome',
     text: "Hi, I'm your Analytics Assistant. Ask me about DAX, HHS Branding, or data strategy.",
-    sender: 'bot',
+    sender: 'guru',
     isSystem: true,
     createdAt: new Date().toISOString()
 });
@@ -159,7 +159,11 @@ const PowerBIGuru = () => {
         if (typeof window === 'undefined') return [createInitialMessage()];
         try {
             const saved = window.localStorage.getItem(MESSAGES_STORAGE_KEY);
-            return saved ? JSON.parse(saved) : [createInitialMessage()];
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                return parsed.map(msg => msg.sender === 'bot' ? { ...msg, sender: 'guru' } : msg);
+            }
+            return [createInitialMessage()];
         } catch (e) {
             console.error('Failed to parse messages', e);
             return [createInitialMessage()];
@@ -264,7 +268,7 @@ const PowerBIGuru = () => {
 
     useEffect(() => {
         const lastMsg = messages[messages.length - 1];
-        if (lastMsg?.sender === 'bot' && !lastMsg.isSystem && currentQuestion?.id) {
+        if (lastMsg?.sender === 'guru' && !lastMsg.isSystem && currentQuestion?.id) {
             scrollToMessage(currentQuestion.id);
             return;
         }
@@ -311,9 +315,12 @@ const PowerBIGuru = () => {
     useEffect(() => {
         if (!inputRef.current) return;
         const textarea = inputRef.current;
+        // Reset height to auto to correctly calculate new scrollHeight
         textarea.style.height = 'auto';
         const maxHeight = 200;
-        textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
+        // Set new height based on content
+        const newHeight = Math.min(textarea.scrollHeight, maxHeight);
+        textarea.style.height = `${newHeight}px`;
     }, [input]);
 
     useEffect(() => {
@@ -614,15 +621,15 @@ const PowerBIGuru = () => {
 
         if (localMatch) {
             setTimeout(() => {
-                const botMsg = {
+                const guruMsg = {
                     id: Date.now() + 1,
                     text: localMatch.answer,
-                    sender: 'bot',
+                    sender: 'guru',
                     link: localMatch.link,
                     createdAt: new Date().toISOString()
                 };
-                setMessages(prev => [...prev, botMsg]);
-                setLastAnswerId(botMsg.id);
+                setMessages(prev => [...prev, guruMsg]);
+                setLastAnswerId(guruMsg.id);
                 setIsTyping(false);
             }, 600); // Fake delay for natural feel
             return;
@@ -704,9 +711,9 @@ const PowerBIGuru = () => {
                 const response = await result.response;
                 const text = response.text();
 
-                const botMsg = { id: Date.now() + 1, text, sender: 'bot', createdAt: new Date().toISOString() };
-                setMessages(prev => [...prev, botMsg]);
-                setLastAnswerId(botMsg.id);
+                const guruMsg = { id: Date.now() + 1, text, sender: 'guru', createdAt: new Date().toISOString() };
+                setMessages(prev => [...prev, guruMsg]);
+                setLastAnswerId(guruMsg.id);
             } catch (error) {
                 // Keep error logging for production debugging
                 console.error("AI Connection Error:", error.message);
@@ -741,7 +748,7 @@ const PowerBIGuru = () => {
                 const errorMsg = {
                     id: Date.now() + 1,
                     text: errorText,
-                    sender: 'bot',
+                    sender: 'guru',
                     isError: true,
                     createdAt: new Date().toISOString()
                 };
@@ -760,7 +767,7 @@ const PowerBIGuru = () => {
             const fallbackMsg = {
                 id: Date.now() + 1,
                 text: "I don't have an answer for that in my local knowledge base. To unlock full AI capabilities, please configure the AI Access Code in settings.",
-                sender: 'bot',
+                sender: 'guru',
                 isSystem: true,
                 createdAt: new Date().toISOString()
             };
@@ -1020,7 +1027,7 @@ const PowerBIGuru = () => {
                                             >
                                                 <Copy className="h-3 w-3" />
                                             </button>
-                                            {msg.sender === 'bot' && !msg.isSystem && (
+                                            {msg.sender === 'guru' && !msg.isSystem && (
                                             <button
                                                 onClick={() => handleAddMessageToNotes(msg.text)}
                                                 className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600 bg-white/20 p-1 rounded"
@@ -1032,7 +1039,7 @@ const PowerBIGuru = () => {
                                             )}
                                             <div className={`flex items-center justify-between mb-1 opacity-75 ${messageMetaClass}`}>
                                                 <div className="flex items-center gap-2">
-                                                    {msg.sender === 'user' ? <User className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
+                                                    {msg.sender === 'user' ? <User className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
                                                     <span className="uppercase font-bold tracking-wider">{msg.sender}</span>
                                                 </div>
                                                 {formatMessageTime(msg) && (
@@ -1041,7 +1048,7 @@ const PowerBIGuru = () => {
                                             </div>
                                             <MessageContent
                                                 text={msg.text}
-                                                shouldAnimate={msg.id === lastAnswerId && msg.sender === 'bot' && !msg.isSystem}
+                                                shouldAnimate={msg.id === lastAnswerId && msg.sender === 'guru' && !msg.isSystem}
                                             />
                                             {msg.link && (
                                                 <div className="mt-3 pt-3 border-t border-black/10">
@@ -1445,7 +1452,7 @@ const PowerBIGuru = () => {
                                     >
                                         <Copy className="h-4 w-4" />
                                     </button>
-                                    {msg.sender === 'bot' && !msg.isSystem && (
+                                    {msg.sender === 'guru' && !msg.isSystem && (
                                         <button
                                             onClick={() => handleAddMessageToNotes(msg.text)}
                                             className="absolute top-2 right-10 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600"
@@ -1457,7 +1464,7 @@ const PowerBIGuru = () => {
                                     )}
                                     <div className={`flex items-center justify-between mb-1 opacity-75 ${messageMetaClass}`}>
                                         <div className="flex items-center gap-2">
-                                            {msg.sender === 'user' ? <User className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
+                                            {msg.sender === 'user' ? <User className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
                                             <span className="uppercase font-bold tracking-wider">{msg.sender}</span>
                                         </div>
                                         {formatMessageTime(msg) && (
@@ -1466,7 +1473,7 @@ const PowerBIGuru = () => {
                                     </div>
                                     <MessageContent
                                         text={msg.text}
-                                        shouldAnimate={msg.id === lastAnswerId && msg.sender === 'bot' && !msg.isSystem}
+                                        shouldAnimate={msg.id === lastAnswerId && msg.sender === 'guru' && !msg.isSystem}
                                     />
                                     {msg.link && (
                                         <div className="mt-3 pt-3 border-t border-black/10">
