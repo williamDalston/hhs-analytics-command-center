@@ -348,12 +348,47 @@ const PowerBIGuru = () => {
     const messagePaddingClass = isCompactMode ? 'p-3 text-[13px]' : 'p-4 text-sm';
     const messageMetaClass = isCompactMode ? 'text-[10px]' : 'text-xs';
 
-    // Parse and render code blocks
-    const MessageContent = ({ text }) => {
-        const parts = text.split(/(```[\s\S]*?```)/g);
+    // Typing Effect Hook
+    const useTypingEffect = (text, shouldTyping) => {
+        const [displayedText, setDisplayedText] = useState(shouldTyping ? '' : text);
+        
+        useEffect(() => {
+            if (!shouldTyping) {
+                setDisplayedText(text);
+                return;
+            }
+
+            let index = 0;
+            const intervalId = setInterval(() => {
+                if (index >= text.length) {
+                    clearInterval(intervalId);
+                    setDisplayedText(text); // Ensure full match at end
+                    return;
+                }
+                // Type faster for longer text to avoid boredom
+                const step = text.length > 500 ? 5 : 2; 
+                setDisplayedText(text.slice(0, index + step));
+                index += step;
+            }, 10);
+
+            return () => clearInterval(intervalId);
+        }, [text, shouldTyping]);
+
+        return displayedText;
+    };
+
+    // Message Content Component with Typing Support
+    const MessageContent = ({ text, isLastBotMessage }) => {
+        const display = useTypingEffect(text, isLastBotMessage);
+        
+        // Only run the split logic if we have text
+        if (!display) return <span className="animate-pulse">...</span>;
+
+        const parts = display.split(/(```[\s\S]*?```)/g);
         return (
             <div className={`whitespace-pre-wrap leading-relaxed ${isCompactMode ? 'text-[13px]' : 'text-sm'}`}>
                 {parts.map((part, i) => {
+                    // Check for complete code blocks
                     if (part.startsWith('```') && part.endsWith('```')) {
                         const match = part.match(/^```(\w+)?\n([\s\S]*)```$/);
                         const language = match ? match[1] : '';
@@ -379,6 +414,7 @@ const PowerBIGuru = () => {
                             </div>
                         );
                     }
+                    // Handle incomplete code blocks (during typing) or regular text
                     return <span key={i}>{part}</span>;
                 })}
             </div>
@@ -631,7 +667,10 @@ const PowerBIGuru = () => {
                                                 <span className="opacity-75">{formatMessageTime(msg)}</span>
                                             )}
                                         </div>
-                                        <MessageContent text={msg.text} />
+                                        <MessageContent 
+                                            text={msg.text} 
+                                            isLastBotMessage={msg.sender === 'bot' && !msg.isSystem && msg.id === messages[messages.length - 1].id}
+                                        />
                                         {msg.link && (
                                             <div className="mt-3 pt-3 border-t border-black/10">
                                                 <a href={`#${msg.link}`} className="text-xs font-bold flex items-center gap-1 hover:underline">
@@ -688,7 +727,7 @@ const PowerBIGuru = () => {
                     </div>
 
                     {/* Side Panel for Notes in Fullscreen */}
-                    <div className="w-80 border-l border-slate-200 bg-slate-50 p-4 flex flex-col shrink-0">
+                    <div className="w-80 shrink-0 border-l border-slate-200 bg-slate-50 p-4 flex flex-col">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="font-semibold text-slate-900 flex items-center gap-2">
                                 <NotebookPen className="h-4 w-4 text-brand-500" />
@@ -812,9 +851,9 @@ const PowerBIGuru = () => {
             </AnimatePresence>
 
             {/* Workspace */}
-            <div className="flex-1 flex flex-col lg:flex-row gap-4">
+            <div className="flex-1 flex flex-col lg:flex-row gap-4 overflow-hidden">
                 {/* Chat Area */}
-                <div className="flex-1 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col relative">
+                <div className="flex-1 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col relative min-w-0">
                     {/* Chat Header */}
                     <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex flex-wrap items-center gap-3">
                         <div className="flex items-center gap-2">
@@ -900,7 +939,10 @@ const PowerBIGuru = () => {
                                             <span className="text-slate-400">{formatMessageTime(msg)}</span>
                                         )}
                                     </div>
-                                        <MessageContent text={msg.text} />
+                                        <MessageContent 
+                                            text={msg.text} 
+                                            isLastBotMessage={msg.sender === 'bot' && !msg.isSystem && msg.id === messages[messages.length - 1].id}
+                                        />
                                     {msg.link && (
                                         <div className="mt-3 pt-3 border-t border-black/10">
                                             <a href={`#${msg.link}`} className="text-xs font-bold flex items-center gap-1 hover:underline">
@@ -978,7 +1020,7 @@ const PowerBIGuru = () => {
                 </div>
 
                 {/* Session Notes Panel */}
-                <aside className="lg:w-80 space-y-4">
+                <aside className="w-80 shrink-0 hidden lg:flex flex-col space-y-4">
                     <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-col h-full">
                         <div className="flex items-center justify-between mb-3">
                             <div>
