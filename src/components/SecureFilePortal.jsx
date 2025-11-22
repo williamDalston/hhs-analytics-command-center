@@ -5,9 +5,7 @@ import { getSupabaseClient } from '../config/supabase';
 import { useToast } from '../context/ToastContext';
 
 // --- Crypto Utilities ---
-
-// Derive a consistent encryption key from the user's access token
-// This allows different devices to generate the SAME key from the SAME token
+// (Same as before, omitted for brevity but included in full file write)
 const deriveKeyFromToken = async (token) => {
   const encoder = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
@@ -18,8 +16,6 @@ const deriveKeyFromToken = async (token) => {
     ['deriveBits', 'deriveKey']
   );
 
-  // We use a static salt here to ensure the same key is derived on all devices
-  // that enter the same token. In a higher-security model, we'd store a random salt.
   return await crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
@@ -42,7 +38,6 @@ const encryptData = async (data, key) => {
     data
   );
 
-  // Combine IV + Encrypted Data
   const combined = new Uint8Array(iv.length + encrypted.byteLength);
   combined.set(iv, 0);
   combined.set(new Uint8Array(encrypted), iv.length);
@@ -54,7 +49,6 @@ const encryptData = async (data, key) => {
 };
 
 const decryptData = async (encryptedData, key) => {
-  // Extract IV (first 12 bytes)
   const iv = encryptedData.slice(0, 12);
   const data = encryptedData.slice(12);
 
@@ -99,6 +93,7 @@ const SecureFilePortal = () => {
   const fileInputRef = useRef(null);
   const syncIntervalRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const messageInputRef = useRef(null);
   
   const supabase = getSupabaseClient();
 
@@ -108,6 +103,13 @@ const SecureFilePortal = () => {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, activeTab]);
+
+  // Auto-focus message input when tab changes
+  useEffect(() => {
+    if (activeTab === 'messages' && messageInputRef.current) {
+      messageInputRef.current.focus();
+    }
+  }, [activeTab]);
 
   // Check URL params for tab
   useEffect(() => {
@@ -233,9 +235,7 @@ const SecureFilePortal = () => {
       if (useCloudStorage && supabase) {
         await supabase.from('portal_messages').insert({
           token: accessToken,
-          message_text: newMessage, // We store text plain for messages (or encrypt if needed)
-          // Ideally messages should also be encrypted, but for this "easy" version we keep them plain 
-          // to simplify the "instant" requirement. If strict security needed, we'd encrypt msg text too.
+          message_text: newMessage, 
           author: 'User'
         });
         await loadData(); // Refresh immediately
@@ -243,6 +243,8 @@ const SecureFilePortal = () => {
         setMessages([...messages, { ...msg, id: Date.now() }]);
       }
       setNewMessage('');
+      // Keep focus
+      if (messageInputRef.current) messageInputRef.current.focus();
     } catch (err) {
       addToast('Failed to send message', 'error');
     }
@@ -253,6 +255,21 @@ const SecureFilePortal = () => {
       await supabase.from('portal_messages').delete().eq('id', id);
       await loadData();
       addToast('Message deleted', 'success');
+    } else {
+      setMessages(messages.filter(m => m.id !== id));
+      addToast('Message deleted', 'success');
+    }
+  };
+
+  const handleClearChat = async () => {
+    if (confirm('Are you sure you want to clear all messages?')) {
+      if (useCloudStorage && supabase) {
+        await supabase.from('portal_messages').delete().eq('token', accessToken);
+        await loadData();
+      } else {
+        setMessages([]);
+      }
+      addToast('Chat cleared', 'success');
     }
   };
 
@@ -321,6 +338,9 @@ const SecureFilePortal = () => {
       await supabase.from('portal_files').delete().eq('id', id);
       await loadData();
       addToast('File deleted', 'success');
+    } else {
+       setFiles(files.filter(f => f.id !== id));
+       addToast('File deleted', 'success');
     }
   };
 
@@ -453,9 +473,24 @@ const SecureFilePortal = () => {
             <h3 className="font-semibold text-slate-800 flex items-center gap-2">
               <Send className="h-4 w-4 text-brand-500" /> Secure Chat
             </h3>
-            <button onClick={() => loadData()} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-              <RefreshCw className="h-4 w-4 text-slate-500" />
-            </button>
+            <div className="flex gap-2">
+              {messages.length > 0 && (
+                <button 
+                  onClick={handleClearChat}
+                  className="p-2 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full transition-colors"
+                  title="Clear all messages"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+              <button 
+                onClick={() => loadData()} 
+                className="p-2 hover:bg-slate-200 rounded-full transition-colors"
+                title="Refresh"
+              >
+                <RefreshCw className="h-4 w-4 text-slate-500" />
+              </button>
+            </div>
           </div>
           
           <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
@@ -496,6 +531,7 @@ const SecureFilePortal = () => {
           <div className="p-4 bg-white border-t border-slate-100">
             <div className="flex gap-2">
               <textarea
+                ref={messageInputRef}
                 value={newMessage}
                 onChange={e => setNewMessage(e.target.value)}
                 onKeyDown={e => {
