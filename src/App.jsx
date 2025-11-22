@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Code, CheckSquare, Flag } from 'lucide-react';
 import DAXLibrary from './components/DAXLibrary';
 import DesignChecklist from './components/DesignChecklist';
@@ -25,7 +25,7 @@ const SidebarItem = ({ icon: Icon, label, path }) => {
 
 const App = () => {
   return (
-    <Router basename="/hhs-analytics-command-center">
+    <Router>
       <div className="flex min-h-screen bg-slate-50 text-slate-900">
         {/* Sidebar */}
         <div className="w-64 bg-brand-900 border-r border-brand-800 flex-shrink-0 fixed h-full z-10">
