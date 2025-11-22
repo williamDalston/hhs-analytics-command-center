@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, Bot, User, Sparkles, Settings, Key, Database, AlertCircle, Copy, Trash2, Download, MessageSquare, ChevronDown, NotebookPen, Eraser, Wand2, Maximize2, Minimize2, BookmarkPlus, ArrowDownToLine, GripVertical, PanelRightOpen, PanelRightClose } from 'lucide-react';
+import { Send, Bot, User, Sparkles, Settings, Key, Database, AlertCircle, Copy, Trash2, Download, MessageSquare, ChevronDown, NotebookPen, Eraser, Wand2, Maximize2, Minimize2, BookmarkPlus, ArrowDownToLine, GripVertical, PanelRightOpen, PanelRightClose, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { useToast } from '../context/ToastContext';
+import { useSidebar } from '../context/SidebarContext';
 
 // Local Knowledge Base (Mocking internal data for "Free Tier")
 const LOCAL_KNOWLEDGE = [
@@ -94,6 +95,7 @@ const truncateText = (text, length = 120) => {
 
 const PowerBIGuru = () => {
     const { addToast } = useToast();
+    const { isSidebarCollapsed, toggleSidebar } = useSidebar();
     const initialKeyInfoRef = useRef(resolveInitialApiKey());
     const [messages, setMessages] = useState(() => {
         if (typeof window === 'undefined') return [createInitialMessage()];
@@ -790,6 +792,19 @@ const PowerBIGuru = () => {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <button
+                            onClick={toggleSidebar}
+                            aria-pressed={isSidebarCollapsed}
+                            aria-label={isSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+                            className={`hidden lg:flex p-2 rounded-lg text-sm font-medium items-center gap-2 border transition-colors ${isSidebarCollapsed
+                                ? 'border-slate-200 text-slate-600 hover:bg-slate-100'
+                                : 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                }`}
+                            title={isSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+                        >
+                            {isSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+                            <span className="hidden xl:inline">{isSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}</span>
+                        </button>
+                        <button
                             onClick={toggleNotesPanel}
                             aria-pressed={!isNotesPanelCollapsed}
                             aria-label={isNotesPanelCollapsed ? 'Show notes panel' : 'Hide notes panel'}
@@ -1027,6 +1042,19 @@ const PowerBIGuru = () => {
                     )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                    <button
+                        onClick={toggleSidebar}
+                        aria-pressed={isSidebarCollapsed}
+                        aria-label={isSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+                        className={`hidden lg:flex p-2 rounded-lg text-sm font-medium items-center gap-2 border transition-colors ${isSidebarCollapsed
+                            ? 'border-slate-200 text-slate-600 hover:bg-slate-100'
+                            : 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                            }`}
+                        title={isSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+                    >
+                        {isSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+                        <span className="hidden xl:inline">{isSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}</span>
+                    </button>
                     <button
                         onClick={toggleNotesPanel}
                         aria-pressed={!isNotesPanelCollapsed}

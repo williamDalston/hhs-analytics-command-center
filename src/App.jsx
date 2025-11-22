@@ -1,7 +1,10 @@
-import React, { useState, useEffect, useContext, Suspense, lazy } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Code, Ruler, Flag, Layers, Shield, Sparkles, FileText, Upload, X, MessageSquare, Share2, Moon, Sun, Menu, ChevronLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ToastProvider, useToast } from './context/ToastContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { SidebarProvider, useSidebar } from './context/SidebarContext';
 import ProjectTracker from './components/ProjectTracker';
 const DAXLibrary = lazy(() => import('./components/DAXLibrary'));
 const StyleGuide = lazy(() => import('./components/StyleGuide'));
@@ -93,7 +96,7 @@ const CommandPalette = ({ isOpen, onClose }) => {
 
 // Data export/import utility
 const DataManager = ({ isOpen, onClose }) => {
-  const { addToast } = useContext(ToastContext);
+  const { addToast } = useToast();
 
   const exportData = () => {
     try {
@@ -200,9 +203,6 @@ const DataManager = ({ isOpen, onClose }) => {
     </div>
   );
 };
-import { ToastProvider, ToastContext } from './context/ToastContext';
-import { ThemeProvider, useTheme } from './context/ThemeContext';
-
 // Page Transition Wrapper
 const PageTransition = ({ children }) => {
   return (
@@ -247,6 +247,7 @@ const SidebarItem = ({ icon: Icon, label, path, shortcut }) => {
 
 const Sidebar = ({ onDataManagerOpen }) => {
   const { isDarkMode, toggleTheme } = useTheme();
+  const { isSidebarCollapsed } = useSidebar();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Close mobile menu on route change
@@ -284,9 +285,9 @@ const Sidebar = ({ onDataManagerOpen }) => {
       )}
 
       {/* Sidebar */}
-      <div className={`mobile-sidebar w-72 glass-sidebar flex-shrink-0 fixed h-full z-50 flex flex-col shadow-2xl shadow-brand-900/20 transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+      <div className={`mobile-sidebar w-72 glass-sidebar flex-shrink-0 fixed h-full z-50 flex flex-col shadow-2xl shadow-brand-900/20 transition-transform duration-300 ease-in-out ${
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}>
+      } ${isSidebarCollapsed ? 'lg:-translate-x-full' : 'lg:translate-x-0'}`}>
       <div className="p-8 border-b border-white/10 dark:border-slate-700/10">
         <div className="flex items-center gap-4 text-white">
           <div className="h-12 w-12 bg-gradient-to-br from-white to-brand-100 rounded-xl flex items-center justify-center text-brand-700 font-bold text-2xl shadow-lg">
@@ -524,21 +525,19 @@ const AnimatedRoutes = ({ onCommandPaletteOpen }) => {
   );
 };
 
-const App = () => {
+const AppContent = () => {
   const [isDataManagerOpen, setIsDataManagerOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const { isSidebarCollapsed } = useSidebar();
 
   return (
-    <ThemeProvider>
-      <ToastProvider>
-        <Router>
-          <div className="flex min-h-screen bg-gradient-subtle dark:bg-gradient-subtle-dark text-slate-900 dark:text-slate-100 font-sans">
-            <Sidebar onDataManagerOpen={() => setIsDataManagerOpen(true)} />
-            <DataManager isOpen={isDataManagerOpen} onClose={() => setIsDataManagerOpen(false)} />
-            <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} />
+    <div className="flex min-h-screen bg-gradient-subtle dark:bg-gradient-subtle-dark text-slate-900 dark:text-slate-100 font-sans">
+      <Sidebar onDataManagerOpen={() => setIsDataManagerOpen(true)} />
+      <DataManager isOpen={isDataManagerOpen} onClose={() => setIsDataManagerOpen(false)} />
+      <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} />
 
-            {/* Main Content */}
-            <div className="flex-1 lg:ml-72 relative z-0">
+      {/* Main Content */}
+      <div className={`flex-1 relative z-0 transition-all duration-300 ${isSidebarCollapsed ? 'lg:ml-0' : 'lg:ml-72'}`}>
               {/* Trust Bar */}
               <div className="bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border-b border-slate-200/60 dark:border-slate-700/60 px-4 lg:px-8 py-2 sticky top-0 z-10">
                 <div className="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-400 max-w-5xl mx-auto">
@@ -554,7 +553,18 @@ const App = () => {
               </main>
             </div>
           </div>
-        </Router>
+  );
+};
+
+const App = () => {
+  return (
+    <ThemeProvider>
+      <ToastProvider>
+        <SidebarProvider>
+          <Router>
+            <AppContent />
+          </Router>
+        </SidebarProvider>
       </ToastProvider>
     </ThemeProvider>
   );
