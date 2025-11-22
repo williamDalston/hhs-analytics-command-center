@@ -416,22 +416,22 @@ NEXT STEPS:
                                                         )}
                                                     </button>
                                                 )}
-                                                <div className="space-y-1 flex-1">
-                                                    <div className="flex items-center gap-3">
-                                                        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 dark:text-slate-100">{project.name}</h3>
-                                                        <span className={`text-xs px-2 py-0.5 rounded-full border ${project.status === 'Done' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                                                <div className="space-y-1 flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 break-words line-clamp-2">{project.name}</h3>
+                                                        <span className={`text-xs px-2 py-0.5 rounded-full border whitespace-nowrap flex-shrink-0 ${project.status === 'Done' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
                                                             project.status === 'Review' ? 'bg-amber-100 text-amber-700 border-amber-200' :
                                                                 'bg-brand-100 text-brand-700 border-brand-200'
                                                             }`}>
                                                             {project.status}
                                                         </span>
-                                                        <span className={`text-xs px-2 py-0.5 rounded-full border ${getPriorityColor(project.priority)}`}>
+                                                        <span className={`text-xs px-2 py-0.5 rounded-full border whitespace-nowrap flex-shrink-0 ${getPriorityColor(project.priority)}`}>
                                                             {project.priority}
                                                         </span>
                                                     </div>
-                                                    <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
-                                                        <span className="flex items-center gap-1"><User className="h-3 w-3" /> {project.stakeholder}</span>
-                                                        <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {project.deadline}</span>
+                                                    <div className="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm text-slate-500 dark:text-slate-400 flex-wrap">
+                                                        <span className="flex items-center gap-1 truncate"><User className="h-3 w-3 flex-shrink-0" /> <span className="truncate">{project.stakeholder}</span></span>
+                                                        <span className="flex items-center gap-1 whitespace-nowrap"><Calendar className="h-3 w-3 flex-shrink-0" /> {project.deadline}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -446,10 +446,10 @@ NEXT STEPS:
                                             )}
                                         </div>
                                     {project.requirements && (
-                                        <div className="mt-4 pt-4 border-t border-slate-100">
-                                            <div className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
-                                                <FileText className="h-4 w-4 mt-0.5 text-slate-400 dark:text-slate-500" />
-                                                <p>{project.requirements}</p>
+                                        <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
+                                            <div className="flex items-start gap-2 text-xs sm:text-sm text-slate-600 dark:text-slate-300">
+                                                <FileText className="h-4 w-4 mt-0.5 text-slate-400 dark:text-slate-500 flex-shrink-0" />
+                                                <p className="break-words overflow-wrap-anywhere">{project.requirements}</p>
                                             </div>
                                         </div>
                                     )}
@@ -485,12 +485,12 @@ NEXT STEPS:
                                 <div className={`mt-1 p-2 rounded-lg shrink-0 ${item.type === 'Decision' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
                                     {item.type === 'Decision' ? <CheckCircle2 className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
                                 </div>
-                                <div className="flex-1">
-                                    <div className="flex justify-between items-start">
-                                        <h3 className="font-semibold text-slate-900 dark:text-slate-100">{item.title}</h3>
-                                        <span className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">{item.date}</span>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex justify-between items-start gap-3">
+                                        <h3 className="font-semibold text-sm sm:text-base text-slate-900 dark:text-slate-100 break-words flex-1 min-w-0">{item.title}</h3>
+                                        <span className="text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap flex-shrink-0">{item.date}</span>
                                     </div>
-                                    <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">{item.description}</p>
+                                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mt-1 break-words">{item.description}</p>
                                     <div className="mt-3 flex gap-2">
                                         <span className="text-xs font-medium px-2 py-1 bg-slate-100 dark:bg-slate-700 rounded text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600">
                                             {item.status}

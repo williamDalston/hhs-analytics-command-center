@@ -1124,7 +1124,7 @@ const PowerBIGuru = () => {
                                     </div>
                                 )}
                                 <div
-                                    className="border border-slate-200 bg-slate-50 rounded-xl shadow-inner p-4 sm:p-5 flex flex-col w-full lg:w-auto transition-[width] duration-200"
+                                    className="border border-slate-200 bg-slate-50 rounded-xl shadow-inner p-4 sm:p-5 flex flex-col w-full lg:w-auto transition-[width] duration-200 max-h-[300px] lg:max-h-none"
                                     style={notesPanelStyle}
                                 >
                                     {sessionNotesContent}
@@ -1141,16 +1141,16 @@ const PowerBIGuru = () => {
         <div className="flex flex-col gap-4 min-h-[calc(100vh-10rem)] sm:min-h-[calc(100vh-8rem)]">
             <div className="flex flex-wrap items-start justify-between gap-3 mb-2 sm:mb-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                        <Sparkles className="h-6 w-6 text-brand-600" />
+                    <h2 className="text-xl sm:text-2xl font-bold text-slate-900 flex flex-wrap items-center gap-2">
+                        <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-brand-600" />
                         Power BI Guru
                         {connectionBadge && (
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${connectionBadge.className}`}>
+                            <span className={`text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-medium ${connectionBadge.className}`}>
                                 {connectionBadge.text}
                             </span>
                         )}
                     </h2>
-                    <p className="text-slate-600">Your AI assistant for DAX, Design, and Strategy.</p>
+                    <p className="text-sm sm:text-base text-slate-600 mt-1">Your AI assistant for DAX, Design, and Strategy.</p>
                     {apiKey && (
                         <p className="mt-1 text-xs text-slate-500">
                             {isUsingCustomKey
@@ -1172,7 +1172,7 @@ const PowerBIGuru = () => {
                         onClick={toggleSidebar}
                         aria-pressed={isSidebarCollapsed}
                         aria-label={isSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
-                        className={`hidden lg:flex p-2 rounded-lg text-sm font-medium items-center gap-2 border transition-colors ${isSidebarCollapsed
+                        className={`hidden lg:flex p-2.5 sm:p-2 rounded-lg text-sm font-medium items-center gap-2 border transition-colors ${isSidebarCollapsed
                             ? 'border-slate-200 text-slate-600 hover:bg-slate-100'
                             : 'bg-emerald-50 text-emerald-700 border-emerald-100'
                             }`}
@@ -1185,7 +1185,7 @@ const PowerBIGuru = () => {
                         onClick={toggleNotesPanel}
                         aria-pressed={!isNotesPanelCollapsed}
                         aria-label={isNotesPanelCollapsed ? 'Show notes panel' : 'Hide notes panel'}
-                        className={`p-2 rounded-lg text-sm font-medium flex items-center gap-2 border transition-colors ${isNotesPanelCollapsed
+                        className={`p-2.5 sm:p-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 border transition-colors ${isNotesPanelCollapsed
                             ? 'border-slate-200 text-slate-600 hover:bg-slate-100'
                             : 'bg-brand-50 text-brand-700 border-brand-100'
                             }`}
@@ -1195,20 +1195,22 @@ const PowerBIGuru = () => {
                     </button>
                     <button
                         onClick={toggleMaximize}
-                        className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+                        className="p-2.5 sm:p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
                         title="Maximize (Fullscreen Mode)"
+                        aria-label="Maximize (Fullscreen Mode)"
                     >
                         <Maximize2 className="h-5 w-5" />
                     </button>
                     <button
                         onClick={() => setShowSettings(!showSettings)}
-                        className={`p-2 rounded-lg transition-colors ${showSettings
+                        className={`p-2.5 sm:p-2 rounded-lg transition-colors ${showSettings
                             ? 'bg-brand-50 text-brand-700'
                             : isUsingCustomKey
                                 ? 'bg-emerald-100 text-emerald-700'
                                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                             }`}
                         title="Manage AI Access Code"
+                        aria-label="Manage AI Access Code"
                     >
                         <Settings className="h-5 w-5" />
                     </button>
@@ -1292,33 +1294,35 @@ const PowerBIGuru = () => {
                     </div>
 
                     <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-slate-100 bg-white flex flex-wrap items-center gap-2">
-                        <div className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500">
+                        <div className="flex items-center gap-2 text-[10px] sm:text-xs font-semibold uppercase text-slate-500">
                             <Wand2 className="h-3 w-3 text-brand-500" />
-                            Quick prompts
+                            <span className="hidden xs:inline">Quick prompts</span>
                         </div>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-1.5 sm:gap-2">
                             {QUICK_PROMPTS.map(prompt => (
                                 <button
                                     key={prompt.label}
                                     onClick={() => handleQuickPrompt(prompt.value)}
-                                    className="px-3 py-1 text-xs bg-slate-100 text-slate-700 rounded-full hover:bg-brand-50 hover:text-brand-700 transition-colors whitespace-nowrap flex-shrink-0"
+                                    className="px-2.5 sm:px-3 py-1.5 sm:py-1 text-[11px] sm:text-xs bg-slate-100 text-slate-700 rounded-full hover:bg-brand-50 hover:text-brand-700 transition-colors whitespace-nowrap flex-shrink-0"
                                 >
                                     {prompt.label}
                                 </button>
                             ))}
                         </div>
-                        <div className="ml-auto flex items-center gap-2">
+                        <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
                             <button
                                 onClick={() => setShowStyleSettings(!showStyleSettings)}
-                                className={`text-xs px-3 py-1 rounded-full border flex items-center gap-1.5 ${showStyleSettings ? 'bg-brand-600 text-white border-brand-600' : 'border-slate-200 text-slate-600 hover:bg-slate-100'}`}
+                                className={`text-[11px] sm:text-xs px-2.5 sm:px-3 py-1.5 sm:py-1 rounded-full border flex items-center gap-1 sm:gap-1.5 ${showStyleSettings ? 'bg-brand-600 text-white border-brand-600' : 'border-slate-200 text-slate-600 hover:bg-slate-100'}`}
                                 title="Text & Style Settings"
+                                aria-label="Text & Style Settings"
                             >
                                 <Type className="h-3 w-3" />
                                 <span className="hidden sm:inline">Style</span>
                             </button>
                             <button
                                 onClick={toggleCompactMode}
-                                className={`text-xs px-3 py-1 rounded-full border ${isCompactMode ? 'bg-brand-600 text-white border-brand-600' : 'border-slate-200 text-slate-600'}`}
+                                className={`text-[11px] sm:text-xs px-2.5 sm:px-3 py-1.5 sm:py-1 rounded-full border whitespace-nowrap ${isCompactMode ? 'bg-brand-600 text-white border-brand-600' : 'border-slate-200 text-slate-600'}`}
+                                aria-label={isCompactMode ? 'Switch to normal mode' : 'Switch to compact mode'}
                             >
                                 {isCompactMode ? 'Compact' : 'Normal'}
                             </button>
@@ -1514,23 +1518,24 @@ const PowerBIGuru = () => {
                                         handleSend();
                                     }
                                 }}
-                                placeholder="Ask anything about Power BI... (Shift+Enter for new line)"
-                                className="input-field flex-1 shadow-sm resize-none min-h-[48px] max-h-[200px]"
+                                placeholder="Ask anything about Power BI..."
+                                className="input-field flex-1 shadow-sm resize-none min-h-[48px] sm:min-h-[44px] max-h-[200px] text-base sm:text-sm"
                                 rows={1}
                             />
                                     <button
                                         onClick={handleSend}
                                         disabled={!input.trim() || isTyping}
-                                        className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed min-w-[48px] sm:min-w-[44px]"
                                         aria-label="Send message"
                                     >
-                                <Send className="h-4 w-4" />
+                                <Send className="h-5 w-5 sm:h-4 sm:w-4" />
                             </button>
                         </div>
-                        <p className="text-xs text-slate-400 mt-2 text-center flex flex-wrap items-center justify-center gap-2">
-                            <span>Enter = Send</span>
-                            <span>Shift+Enter = New line</span>
-                            <span>Copy buttons appear when you hover a message</span>
+                        <p className="text-[10px] sm:text-xs text-slate-400 mt-2 text-center flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+                            <span className="hidden sm:inline">Enter = Send</span>
+                            <span className="hidden sm:inline">Shift+Enter = New line</span>
+                            <span className="sm:hidden">Tap Send or press Enter</span>
+                            <span className="hidden md:inline">Copy buttons appear when you hover a message</span>
                         </p>
                         {!apiKey && (
                             <p className="text-xs text-slate-400 mt-2 text-center">
@@ -1559,7 +1564,7 @@ const PowerBIGuru = () => {
                             </div>
                         )}
                         <aside
-                            className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 sm:p-5 flex flex-col w-full lg:w-auto min-h-[260px] transition-[width] duration-200"
+                            className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 sm:p-5 flex flex-col w-full lg:w-auto min-h-[260px] max-h-[300px] lg:max-h-none transition-[width] duration-200"
                             style={notesPanelStyle}
                         >
                             {sessionNotesContent}
