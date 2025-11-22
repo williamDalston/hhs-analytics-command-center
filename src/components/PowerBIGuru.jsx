@@ -83,7 +83,7 @@ const LINE_HEIGHTS = {
 
 // Use Gemini models - try latest first, fallback to older versions
 // Updated model configuration to use stable versions
-const GEMINI_MODELS = ["gemini-pro", "gemini-1.5-flash", "gemini-1.5-pro"];
+const GEMINI_MODELS = ["gemini-1.5-flash", "gemini-pro", "gemini-1.5-pro"];
 const GEMINI_API_VERSIONS = ["v1beta", "v1"];
 const GEMINI_MODEL = GEMINI_MODELS[0]; // Default to latest
 const PROJECT_GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY?.trim() || '';
