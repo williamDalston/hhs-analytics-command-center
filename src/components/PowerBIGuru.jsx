@@ -1138,7 +1138,7 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                                                 } ${msg.id === lastAnswerId ? 'ring-2 ring-brand-200 shadow-brand-200/60' : ''}`}>
                                                 <button
                                                     onClick={() => handleCopyMessage(msg.text)}
-                                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600 bg-white/20 p-1 rounded"
+                                                    className={`absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded ${msg.sender === 'user' ? 'text-brand-100 hover:text-white hover:bg-brand-500' : 'text-slate-400 hover:text-brand-600 hover:bg-slate-200'}`}
                                                     title="Copy message"
                                                     aria-label="Copy message"
                                                 >
@@ -1147,7 +1147,7 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                                                 {msg.sender === 'guru' && !msg.isSystem && (
                                                 <button
                                                     onClick={() => handleAddMessageToNotes(msg.text)}
-                                                    className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600 bg-white/20 p-1 rounded"
+                                                    className={`absolute top-2 right-10 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded ${msg.sender === 'user' ? 'text-brand-100 hover:text-white hover:bg-brand-500' : 'text-slate-400 hover:text-brand-600 hover:bg-slate-200'}`}
                                                     title="Save to notes"
                                                     aria-label="Save to notes"
                                                 >
@@ -1169,8 +1169,8 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                                                     isUser={msg.sender === 'user'}
                                                 />
                                                 {msg.link && (
-                                                    <div className="mt-3 pt-3 border-t border-black/10">
-                                                        <a href={`#${msg.link}`} className="text-xs font-bold flex items-center gap-1 hover:underline">
+                                                    <div className={`mt-3 pt-3 border-t ${msg.sender === 'user' ? 'border-white/20' : 'border-black/10'}`}>
+                                                        <a href={`#${msg.link}`} className={`text-xs font-bold flex items-center gap-1 hover:underline ${msg.sender === 'user' ? 'text-white' : 'text-brand-600'}`}>
                                                             View Resource <Database className="h-3 w-3" />
                                                         </a>
                                                     </div>
@@ -1573,7 +1573,7 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                                     } ${msg.id === lastAnswerId ? 'ring-2 ring-brand-200 shadow-lg shadow-brand-200/60' : ''}`}>
                                     <button
                                         onClick={() => handleCopyMessage(msg.text)}
-                                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600"
+                                        className={`absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded ${msg.sender === 'user' ? 'text-brand-100 hover:text-white hover:bg-brand-500' : 'text-slate-400 hover:text-brand-600 hover:bg-slate-200'}`}
                                         title="Copy message"
                                         aria-label="Copy message"
                                     >
@@ -1582,7 +1582,7 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                                     {msg.sender === 'guru' && !msg.isSystem && (
                                         <button
                                             onClick={() => handleAddMessageToNotes(msg.text)}
-                                            className="absolute top-2 right-10 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-brand-600"
+                                            className={`absolute top-2 right-10 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded ${msg.sender === 'user' ? 'text-brand-100 hover:text-white hover:bg-brand-500' : 'text-slate-400 hover:text-brand-600 hover:bg-slate-200'}`}
                                             title="Save to notes"
                                             aria-label="Save to notes"
                                         >
@@ -1595,7 +1595,7 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                                             <span className="uppercase font-bold tracking-wider">{msg.sender}</span>
                                         </div>
                                         {formatMessageTime(msg) && (
-                                            <span className="text-slate-400">{formatMessageTime(msg)}</span>
+                                            <span className={`text-xs ${msg.sender === 'user' ? 'text-brand-100' : 'text-slate-400'}`}>{formatMessageTime(msg)}</span>
                                         )}
                                     </div>
                                     <MessageContent
@@ -1603,8 +1603,8 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                                         shouldAnimate={msg.id === lastAnswerId && msg.sender === 'guru' && !msg.isSystem}
                                     />
                                     {msg.link && (
-                                        <div className="mt-3 pt-3 border-t border-black/10">
-                                            <a href={`#${msg.link}`} className="text-xs font-bold flex items-center gap-1 hover:underline">
+                                        <div className={`mt-3 pt-3 border-t ${msg.sender === 'user' ? 'border-white/20' : 'border-black/10'}`}>
+                                            <a href={`#${msg.link}`} className={`text-xs font-bold flex items-center gap-1 hover:underline ${msg.sender === 'user' ? 'text-white' : 'text-brand-600'}`}>
                                                 View Resource <Database className="h-3 w-3" />
                                             </a>
                                         </div>

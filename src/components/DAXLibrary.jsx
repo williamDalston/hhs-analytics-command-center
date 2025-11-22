@@ -232,14 +232,14 @@ const DAXLibrary = () => {
                                 </div>
                                 <button
                                     onClick={() => copyToClipboard(pattern.code, pattern.id)}
-                                    className="p-2 rounded-lg bg-slate-100 hover:bg-brand-600 text-slate-500 hover:text-white transition-colors duration-200"
+                                    className="p-2 rounded-lg bg-slate-100 hover:bg-brand-600 text-slate-500 hover:text-white transition-colors duration-200 flex items-center justify-center h-9 w-9"
                                     title="Copy DAX"
                                 >
                                     {copiedId === pattern.id ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
                                 </button>
                             </div>
-                            <div className="relative">
-                                <pre className="bg-slate-50 p-4 rounded-lg overflow-x-auto text-sm font-mono text-slate-700 border border-slate-200">
+                            <div className="relative group">
+                                <pre className="bg-slate-50 p-4 rounded-lg overflow-x-auto text-sm font-mono text-slate-700 border border-slate-200 group-hover:border-slate-300 transition-colors">
                                     <code>{pattern.code}</code>
                                 </pre>
                             </div>

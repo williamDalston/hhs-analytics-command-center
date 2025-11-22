@@ -500,15 +500,16 @@ NEXT STEPS:
                                                     </button>
                                                 )}
                                                 <div className="space-y-1 flex-1 min-w-0">
-                                                    <div className="flex items-center gap-2 flex-wrap">
+                                    <div className="flex items-center gap-2 flex-wrap">
                                                         <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 break-words line-clamp-2">{project.name}</h3>
-                                                        <span className={`text-xs px-2 py-0.5 rounded-full border whitespace-nowrap flex-shrink-0 ${project.status === 'Done' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                                                        <span className={`text-[10px] sm:text-xs px-2 py-0.5 rounded-full border whitespace-nowrap flex-shrink-0 font-medium flex items-center gap-1 ${project.status === 'Done' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
                                                             project.status === 'Review' ? 'bg-amber-100 text-amber-700 border-amber-200' :
                                                                 'bg-brand-100 text-brand-700 border-brand-200'
                                                             }`}>
+                                                            {project.status === 'Done' && <CheckCircle2 className="h-3 w-3" />}
                                                             {project.status}
                                                         </span>
-                                                        <span className={`text-xs px-2 py-0.5 rounded-full border whitespace-nowrap flex-shrink-0 ${getPriorityColor(project.priority)}`}>
+                                                        <span className={`text-[10px] sm:text-xs px-2 py-0.5 rounded-full border whitespace-nowrap flex-shrink-0 font-medium ${getPriorityColor(project.priority)}`}>
                                                             {project.priority}
                                                         </span>
                                                     </div>
@@ -607,9 +608,9 @@ NEXT STEPS:
                                 <div className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Active Projects</div>
                                 {projects.length > 0 ? (
                                     projects.map(p => (
-                                        <div key={p.id} className="flex items-center justify-between text-sm p-2 bg-slate-50 rounded border border-slate-100">
-                                            <span className="truncate max-w-[180px]">{p.name}</span>
-                                            <span className={`text-[10px] px-1.5 py-0.5 rounded border ${p.status === 'Done' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-brand-50 border-brand-200 text-brand-700'}`}>
+                                        <div className="flex items-center justify-between text-sm p-2 bg-slate-50 rounded border border-slate-100 hover:border-slate-300 transition-colors">
+                                            <span className="truncate max-w-[180px] font-medium text-slate-700">{p.name}</span>
+                                            <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${p.status === 'Done' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-brand-50 border-brand-200 text-brand-700'}`}>
                                                 {p.status}
                                             </span>
                                         </div>

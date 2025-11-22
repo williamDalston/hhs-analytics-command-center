@@ -740,10 +740,10 @@ const SecureFilePortal = () => {
               )}
               <button 
                 onClick={() => loadData()} 
-                className="p-2 hover:bg-slate-200 rounded-full transition-colors"
+                className="p-2 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-full transition-colors"
                 title="Refresh"
               >
-                <RefreshCw className="h-4 w-4 text-slate-500" />
+                <RefreshCw className="h-4 w-4" />
               </button>
             </div>
           </div>
@@ -775,13 +775,13 @@ const SecureFilePortal = () => {
                 >
                   <div className="max-w-[80%] bg-white border border-slate-200 p-3 rounded-2xl rounded-tr-sm shadow-sm hover:shadow-md transition-shadow relative">
                      <p className="text-slate-800 whitespace-pre-wrap">{msg.text}</p>
-                     <div className="flex items-center justify-between gap-4 mt-2">
+                        <div className="flex items-center justify-between gap-4 mt-2">
                         <span className="text-[10px] text-slate-400">
                           {new Date(msg.timestamp).toLocaleTimeString()}
                         </span>
                         <button 
                           onClick={() => handleDeleteMessage(msg.id)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 rounded text-red-500"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 rounded text-red-400 hover:text-red-600"
                           title="Delete message"
                         >
                           <Trash2 className="h-3 w-3" />
