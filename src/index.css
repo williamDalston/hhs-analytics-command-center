@@ -6,33 +6,162 @@
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 font-sans antialiased;
-  }
-
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    @apply font-bold text-slate-900;
+    @apply bg-slate-50 text-slate-900 antialiased;
+    font-family: 'Source Sans Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
 }
 
 @layer components {
+
+  /* Card System with Refined Shadows */
   .card {
-    @apply bg-white border border-slate-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300;
+    @apply bg-white rounded-xl p-6 border border-slate-200 transition-all duration-300;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
   }
 
+  .card:hover {
+    @apply border-brand-300;
+    box-shadow: 0 4px 6px -1px rgba(0, 94, 162, 0.08), 0 2px 4px -2px rgba(0, 94, 162, 0.06);
+    transform: translateY(-1px);
+  }
+
+  /* Button System with Smooth Interactions */
   .btn-primary {
-    @apply bg-brand-700 hover:bg-brand-800 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2 shadow-sm;
+    @apply px-4 py-2 bg-brand-600 text-white rounded-lg font-medium transition-all duration-300 flex items-center gap-2;
+    box-shadow: 0 1px 3px 0 rgba(0, 94, 162, 0.2), 0 1px 2px -1px rgba(0, 94, 162, 0.1);
+  }
+
+  .btn-primary:hover {
+    @apply bg-brand-700;
+    box-shadow: 0 4px 6px -1px rgba(0, 94, 162, 0.25), 0 2px 4px -2px rgba(0, 94, 162, 0.15);
+    transform: translateY(-1px);
+  }
+
+  .btn-primary:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px 0 rgba(0, 94, 162, 0.15);
   }
 
   .btn-secondary {
-    @apply bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2;
+    @apply px-4 py-2 bg-white text-slate-700 rounded-lg font-medium border border-slate-300 transition-all duration-300 flex items-center gap-2;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   }
 
+  .btn-secondary:hover {
+    @apply bg-slate-50 border-slate-400;
+    box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary:active {
+    transform: translateY(0);
+  }
+
+  /* Input Fields with Smooth Focus */
   .input-field {
-    @apply bg-white border border-slate-300 rounded-lg px-4 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent w-full placeholder-slate-400;
+    @apply w-full px-4 py-2 border border-slate-300 rounded-lg transition-all duration-300;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  }
+
+  .input-field:focus {
+    @apply outline-none ring-2 ring-brand-500 border-transparent;
+    box-shadow: 0 0 0 3px rgba(0, 94, 162, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  }
+}
+
+@layer utilities {
+
+  /* Subtle Animations */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -1000px 0;
+    }
+
+    100% {
+      background-position: 1000px 0;
+    }
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.6s ease-out;
+  }
+
+  /* Refined Shadow System */
+  .shadow-refined-sm {
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+  }
+
+  .shadow-refined-md {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+  }
+
+  .shadow-refined-lg {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.06);
+  }
+
+  .shadow-refined-xl {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.06);
+  }
+
+  /* Brand-colored shadows for emphasis */
+  .shadow-brand {
+    box-shadow: 0 4px 6px -1px rgba(0, 94, 162, 0.12), 0 2px 4px -2px rgba(0, 94, 162, 0.08);
+  }
+
+  .shadow-brand-lg {
+    box-shadow: 0 10px 15px -3px rgba(0, 94, 162, 0.15), 0 4px 6px -4px rgba(0, 94, 162, 0.1);
+  }
+
+  /* Smooth Transitions */
+  .transition-smooth {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .transition-bounce {
+    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+
+  /* Hover Lift Effect */
+  .hover-lift {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-2px);
+  }
+
+  /* Subtle Gradient Backgrounds */
+  .bg-gradient-subtle {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  }
+
+  .bg-gradient-brand-subtle {
+    background: linear-gradient(135deg, #f0f7ff 0%, #e0f0ff 100%);
   }
 }

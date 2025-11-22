@@ -46,11 +46,13 @@ const QuickActions = () => {
               initial={{ opacity: 0, y: 20, scale: 0.8 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 20, scale: 0.8 }}
+              whileHover={{ scale: 1.02, y: -2 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => handleAction('/guru')}
-              className="flex items-center gap-3 px-4 py-2 bg-white text-slate-900 rounded-full shadow-lg border border-slate-200 hover:bg-slate-50 transition-colors"
+              className="flex items-center gap-3 px-4 py-2 bg-white text-slate-900 rounded-full shadow-refined-md border border-slate-200 hover:shadow-refined-lg hover:border-brand-300 transition-all duration-300"
             >
               <span className="font-medium text-sm">Ask AI Guru</span>
-              <div className="h-10 w-10 rounded-full bg-brand-600 text-white flex items-center justify-center shadow-sm">
+              <div className="h-10 w-10 rounded-full bg-brand-600 text-white flex items-center justify-center shadow-brand">
                 <Sparkles className="h-5 w-5" />
               </div>
             </motion.button>
@@ -60,8 +62,10 @@ const QuickActions = () => {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 20, scale: 0.8 }}
               transition={{ delay: 0.05 }}
+              whileHover={{ scale: 1.02, y: -2 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => handleAction('/portal')}
-              className="flex items-center gap-3 px-4 py-2 bg-white text-slate-900 rounded-full shadow-lg border border-slate-200 hover:bg-slate-50 transition-colors"
+              className="flex items-center gap-3 px-4 py-2 bg-white text-slate-900 rounded-full shadow-refined-md border border-slate-200 hover:shadow-refined-lg hover:border-emerald-300 transition-all duration-300"
             >
               <span className="font-medium text-sm">Share File</span>
               <div className="h-10 w-10 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-sm">
@@ -74,8 +78,10 @@ const QuickActions = () => {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 20, scale: 0.8 }}
               transition={{ delay: 0.1 }}
+              whileHover={{ scale: 1.02, y: -2 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => handleAction('/portal?tab=encrypt')}
-              className="flex items-center gap-3 px-4 py-2 bg-white text-slate-900 rounded-full shadow-lg border border-slate-200 hover:bg-slate-50 transition-colors"
+              className="flex items-center gap-3 px-4 py-2 bg-white text-slate-900 rounded-full shadow-refined-md border border-slate-200 hover:shadow-refined-lg hover:border-amber-300 transition-all duration-300"
             >
               <span className="font-medium text-sm">Share Text</span>
               <div className="h-10 w-10 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-sm">
@@ -88,7 +94,7 @@ const QuickActions = () => {
 
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`h-14 w-14 rounded-full shadow-xl flex items-center justify-center transition-all duration-300 ${isOpen ? 'bg-slate-800 rotate-45' : 'bg-brand-600 hover:bg-brand-700'
+        className={`h-14 w-14 rounded-full flex items-center justify-center transition-all duration-300 ${isOpen ? 'bg-slate-800 rotate-45 shadow-refined-lg' : 'bg-brand-600 hover:bg-brand-700 shadow-brand-lg hover:shadow-refined-xl hover:scale-105'
           }`}
       >
         {isOpen ? <X className="h-6 w-6 text-white" /> : <Share2 className="h-6 w-6 text-white" />}
