@@ -1,11 +1,12 @@
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Code, Palette, Flag, Layers, Shield } from 'lucide-react';
+import { LayoutDashboard, Code, Palette, Flag, Layers, Shield, Sparkles } from 'lucide-react';
 import DAXLibrary from './components/DAXLibrary';
 import StyleGuide from './components/StyleGuide';
 import ProjectTracker from './components/ProjectTracker';
 import PrototypeBuilder from './components/PrototypeBuilder';
 import SecureFilePortal from './components/SecureFilePortal';
+import PowerBIGuru from './components/PowerBIGuru';
 import { ToastProvider } from './context/ToastContext';
 
 const SidebarItem = ({ icon: Icon, label, path }) => {
@@ -51,6 +52,7 @@ const App = () => {
               <SidebarItem icon={Code} label="DAX Library" path="/dax" />
               <SidebarItem icon={Palette} label="Style Guide" path="/style-guide" />
               <SidebarItem icon={Shield} label="Secure Portal" path="/portal" />
+              <SidebarItem icon={Sparkles} label="Power BI Guru" path="/guru" />
             </nav>
 
             <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-brand-800">
@@ -83,6 +85,7 @@ const App = () => {
                 <Route path="/dax" element={<DAXLibrary />} />
                 <Route path="/style-guide" element={<StyleGuide />} />
                 <Route path="/portal" element={<SecureFilePortal />} />
+                <Route path="/guru" element={<PowerBIGuru />} />
               </Routes>
             </main>
           </div>

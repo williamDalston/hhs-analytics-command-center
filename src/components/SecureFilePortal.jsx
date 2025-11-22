@@ -513,6 +513,42 @@ const SecureFilePortal = () => {
         </button>
       </div>
 
+      {/* Supabase Cloud Storage Status Banner */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={`rounded-lg p-4 border-2 flex items-center gap-3 ${
+          useCloudStorage
+            ? 'bg-green-50 border-green-300'
+            : 'bg-amber-50 border-amber-300'
+        }`}
+      >
+        {useCloudStorage ? (
+          <>
+            <Cloud className="h-6 w-6 text-green-600" />
+            <div className="flex-1">
+              <p className="font-semibold text-green-900">Cloud Storage Active</p>
+              <p className="text-sm text-green-700">
+                Files sync across all devices. Real-time updates every 5 seconds.
+              </p>
+            </div>
+            <div className="px-3 py-1 bg-green-200 rounded-full">
+              <span className="text-xs font-bold text-green-800">SUPABASE</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <HardDrive className="h-6 w-6 text-amber-600" />
+            <div className="flex-1">
+              <p className="font-semibold text-amber-900">Local Storage Only</p>
+              <p className="text-sm text-amber-700">
+                Files stored in browser only. Configure Supabase for cross-device sharing.
+              </p>
+            </div>
+          </>
+        )}
+      </motion.div>
+
       {error && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
