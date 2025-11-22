@@ -981,6 +981,13 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <button
+                            onClick={handleRefreshApp}
+                            className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"
+                            title="Clear Cache & Refresh"
+                        >
+                            <RotateCw className="h-5 w-5" />
+                        </button>
+                        <button
                             onClick={toggleSidebar}
                             aria-pressed={isSidebarCollapsed}
                             aria-label={isSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
@@ -1316,19 +1323,28 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                     )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                    {/* Clear Cache / Refresh App - Moved to top for mobile visibility */}
                     <button
-                        onClick={toggleSidebar}
-                        aria-pressed={isSidebarCollapsed}
-                        aria-label={isSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
-                        className={`hidden lg:flex p-2.5 sm:p-2 rounded-lg text-sm font-medium items-center gap-2 border transition-colors ${isSidebarCollapsed
-                            ? 'border-slate-200 text-slate-600 hover:bg-slate-100'
-                            : 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                            }`}
-                        title={isSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+                        onClick={handleRefreshApp}
+                        className="p-2.5 sm:p-2 rounded-lg text-slate-500 hover:text-brand-600 hover:bg-slate-100 transition-colors"
+                        title="Clear Cache & Refresh App"
+                        aria-label="Clear Cache & Refresh App"
                     >
-                        {isSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-                        <span className="hidden xl:inline">{isSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}</span>
+                        <RotateCw className="h-5 w-5 sm:h-4 sm:w-4" />
                     </button>
+
+                    {isDesktopLayout && (
+                        <button
+                            onClick={toggleSidebar}
+                            aria-pressed={isSidebarCollapsed}
+                            aria-label={isSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+                            className="p-2.5 sm:p-2 rounded-lg text-sm font-medium flex items-center gap-2 border transition-colors border-slate-200 text-slate-600 hover:bg-slate-100"
+                            title={isSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+                        >
+                            {isSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+                            <span className="hidden xl:inline">{isSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}</span>
+                        </button>
+                    )}
                     <button
                         onClick={toggleNotesPanel}
                         aria-pressed={!isNotesPanelCollapsed}
@@ -1338,7 +1354,11 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                             : 'bg-brand-50 text-brand-700 border-brand-100'
                             }`}
                     >
-                        {isNotesPanelCollapsed ? <PanelRightOpen className="h-4 w-4" /> : <PanelRightClose className="h-4 w-4" />}
+                        {isNotesPanelCollapsed ? (
+                            isDesktopLayout ? <PanelRightOpen className="h-4 w-4" /> : <NotebookPen className="h-4 w-4" />
+                        ) : (
+                            isDesktopLayout ? <PanelRightClose className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                        )}
                         <span className="hidden sm:inline">{isNotesPanelCollapsed ? 'Show notes' : 'Hide notes'}</span>
                     </button>
                     <button
@@ -1424,13 +1444,6 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                             </span>
                         </div>
                         <div className="flex gap-1.5 sm:gap-2 ml-auto">
-                            <button
-                                onClick={handleRefreshApp}
-                                className="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded transition-colors"
-                                title="Clear Cache & Refresh"
-                            >
-                                <RotateCw className="h-4 w-4" />
-                            </button>
                             <button
                                 onClick={handleExportChat}
                                 className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded transition-colors"
