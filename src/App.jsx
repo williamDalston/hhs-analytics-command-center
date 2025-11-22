@@ -565,7 +565,7 @@ const AppContent = () => {
       {/* Main Content */}
       <div className={`flex-1 relative z-0 transition-all duration-300 ${isSidebarCollapsed ? 'lg:ml-0' : 'lg:ml-72'}`}>
               {/* Trust Bar */}
-              <div className="bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border-b border-slate-200/60 dark:border-slate-700/60 px-4 lg:px-8 py-2 sticky top-0 z-10">
+              <div className="bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border-b border-slate-200/60 dark:border-slate-700/60 pl-16 pr-4 lg:px-8 py-2 sticky top-0 z-10 transition-all">
                 <div className="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-400 max-w-5xl mx-auto">
                   <Flag className="h-3 w-3 text-brand-600" />
                   <span className="hidden sm:inline">An official website of the United States government</span>

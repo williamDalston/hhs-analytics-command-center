@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Send, User, Sparkles, Settings, Key, Database, AlertCircle, Copy, Trash2, Download, MessageSquare, ChevronDown, NotebookPen, Eraser, Wand2, Maximize2, Minimize2, BookmarkPlus, ArrowDownToLine, GripVertical, PanelRightOpen, PanelRightClose, PanelLeftOpen, PanelLeftClose, Type } from 'lucide-react';
+import { Send, User, Sparkles, Settings, Key, Database, AlertCircle, Copy, Trash2, Download, MessageSquare, ChevronDown, ChevronUp, NotebookPen, Eraser, Wand2, Maximize2, Minimize2, BookmarkPlus, ArrowDownToLine, GripVertical, PanelRightOpen, PanelRightClose, PanelLeftOpen, PanelLeftClose, Type, RotateCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { useToast } from '../context/ToastContext';
@@ -306,6 +306,17 @@ const PowerBIGuru = () => {
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    const scrollToTop = () => {
+        messagesContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleRefreshApp = () => {
+        if (confirm('This will clear the cache and refresh the application. Continue?')) {
+            window.localStorage.clear();
+            window.location.reload();
+        }
     };
 
     useEffect(() => {
@@ -1414,6 +1425,13 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                         </div>
                         <div className="flex gap-1.5 sm:gap-2 ml-auto">
                             <button
+                                onClick={handleRefreshApp}
+                                className="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded transition-colors"
+                                title="Clear Cache & Refresh"
+                            >
+                                <RotateCw className="h-4 w-4" />
+                            </button>
+                            <button
                                 onClick={handleExportChat}
                                 className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded transition-colors"
                                 title="Export chat"
@@ -1645,6 +1663,17 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                             </motion.button>
                         )}
                     </AnimatePresence>
+                    
+                    <motion.button
+                         initial={{ opacity: 0, scale: 0.8 }}
+                         animate={{ opacity: 0.5, scale: 1 }}
+                         whileHover={{ opacity: 1, scale: 1.1 }}
+                         onClick={scrollToTop}
+                         className="absolute bottom-36 right-4 bg-slate-100 text-slate-600 border border-slate-200 p-2 rounded-full shadow-md hover:bg-white hover:text-brand-600 transition-all z-10"
+                         title="Scroll to top"
+                    >
+                        <ChevronUp className="h-4 w-4" />
+                    </motion.button>
 
                     <div className="p-3 sm:p-4 bg-white border-t border-slate-200 shadow-up z-10">
                         <div className="flex gap-2">

@@ -108,6 +108,8 @@ const ProjectTracker = () => {
     };
 
     const handleDelete = async (id) => {
+        if (!window.confirm('Are you sure you want to delete this project?')) return;
+
         if (useCloud && supabase) {
             try {
                 const { error } = await supabase.from('projects').delete().eq('id', id);
@@ -223,29 +225,29 @@ NEXT STEPS:
         <div className="space-y-8">
             {/* Morning Brief Header */}
             <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-                <div className="flex justify-between items-start mb-4">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-3">
+                        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-3 flex-wrap">
                             Welcome back, Power BI Developer.
                             {useCloud ? (
-                                <span className="text-xs px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full flex items-center gap-1 font-normal">
+                                <span className="text-xs px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full flex items-center gap-1 font-normal whitespace-nowrap">
                                     <Cloud className="h-3 w-3" /> Cloud Synced
                                 </span>
                             ) : (
-                                <span className="text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded-full flex items-center gap-1 font-normal">
+                                <span className="text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded-full flex items-center gap-1 font-normal whitespace-nowrap">
                                     <HardDrive className="h-3 w-3" /> Local Mode
                                 </span>
                             )}
                         </h1>
-                        <p className="text-slate-500 dark:text-slate-400">Here is your morning brief for WebFirst Analytics.</p>
+                        <p className="text-slate-500 dark:text-slate-400 mt-1">Here is your morning brief for WebFirst Analytics.</p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                         <button
                             onClick={generateReport}
-                            className="btn-secondary text-sm"
+                            className="btn-secondary text-sm flex-1 sm:flex-none justify-center"
                         >
                             <FileText className="h-4 w-4" />
-                            <span className="hidden sm:inline ml-2">Generate Report</span>
+                            <span className="ml-2">Generate Report</span>
                         </button>
                         {activeTab === 'projects' && (
                             <>
@@ -258,7 +260,7 @@ NEXT STEPS:
                                             >
                                                 <Trash2 className="h-4 w-4" />
                                                 <span className="hidden sm:inline ml-2">Delete ({selectedProjects.length})</span>
-                                                <span className="sm:hidden ml-1">({selectedProjects.length})</span>
+                                                <span className="sm:hidden ml-1">Del ({selectedProjects.length})</span>
                                             </button>
                                         )}
                                         <button
@@ -267,6 +269,7 @@ NEXT STEPS:
                                         >
                                             <X className="h-4 w-4" />
                                             <span className="hidden sm:inline ml-2">Cancel</span>
+                                            <span className="sm:hidden ml-1">Cancel</span>
                                         </button>
                                     </div>
                                 ) : (
@@ -278,6 +281,7 @@ NEXT STEPS:
                                         >
                                             <CheckSquare className="h-4 w-4" />
                                             <span className="hidden sm:inline ml-2">Select</span>
+                                            <span className="sm:hidden ml-1">Select</span>
                                         </button>
                                         <button
                                             onClick={() => setIsAdding(!isAdding)}
@@ -285,6 +289,7 @@ NEXT STEPS:
                                         >
                                             <Plus className="h-4 w-4" />
                                             <span className="hidden sm:inline ml-2">New Project</span>
+                                            <span className="sm:hidden ml-1">New</span>
                                         </button>
                                     </div>
                                 )}
@@ -293,9 +298,9 @@ NEXT STEPS:
                     </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
-                        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0">
                             <Activity className="h-5 w-5" />
                         </div>
                         <div>
@@ -523,7 +528,8 @@ NEXT STEPS:
                                                 <button
                                                     onClick={() => handleDelete(project.id)}
                                                     aria-label={`Delete project ${project.name}`}
-                                                    className="p-2 text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                                                    className="p-2 text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-all"
+                                                    title="Delete Project"
                                                 >
                                                     <Trash2 className="h-4 w-4" />
                                                 </button>
