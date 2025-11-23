@@ -95,6 +95,12 @@ const GEMINI_MODELS = [
 // Important: API v1 is preferred for production, but keep v1beta for compatibility
 const GEMINI_API_VERSIONS = ["v1", "v1beta"]; 
 const GEMINI_MODEL = GEMINI_MODELS[0]; // Default to latest flash
+const PALM_API_VERSION = 'v1beta2';
+const PALM_SUPPORTED_METHODS = ['generateMessage', 'generateText'];
+const PALM_MODELS = [
+    { name: 'chat-bison-001', method: 'generateMessage' },
+    { name: 'text-bison-001', method: 'generateText' }
+];
 
 // Check for placeholder key and treat as empty
 const rawKey = import.meta.env.VITE_GEMINI_API_KEY?.trim() || '';
@@ -395,9 +401,13 @@ const PowerBIGuru = () => {
 
             const data = await response.json();
             const discoveredModels = (data.models || [])
-                .filter(model => (model.supportedGenerationMethods || []).includes('generateContent'))
-                .map(model => normalizeModelName(model.name))
-                .filter(Boolean);
+                .map(model => ({
+                    name: normalizeModelName(model.name),
+                    supportedGenerationMethods: Array.isArray(model.supportedGenerationMethods)
+                        ? model.supportedGenerationMethods
+                        : []
+                }))
+                .filter(model => Boolean(model.name));
 
             const payload = { success: true, models: discoveredModels };
             modelListCacheRef.current[cacheKey] = payload;
@@ -812,6 +822,122 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                     }
                 ];
 
+                const palmHistoryMessages = messages
+                    .filter(msg => !msg.isSystem)
+                    .map(msg => ({
+                        author: msg.sender === 'user' ? 'user' : 'bot',
+                        content: msg.text
+                    }));
+                const palmMessagesPayload = [...palmHistoryMessages, { author: 'user', content: userMsg.text }];
+                const palmPromptLines = [
+                    systemPrompt,
+                    ...palmHistoryMessages.map(entry => `${entry.author === 'user' ? 'User' : 'Assistant'}: ${entry.content}`),
+                    `User: ${userMsg.text}`,
+                    'Assistant:'
+                ].filter(Boolean);
+                const palmPromptText = palmPromptLines.join('\n\n');
+
+                const attemptPalmFallback = async () => {
+                    if (typeof fetch === 'undefined') {
+                        return null;
+                    }
+                    const palmDiscovery = await fetchModelsForApiVersion(PALM_API_VERSION, trimmedKey);
+                    const discoveredPalm = palmDiscovery.success
+                        ? palmDiscovery.models.filter(model =>
+                            model.supportedGenerationMethods.some(method => PALM_SUPPORTED_METHODS.includes(method))
+                        )
+                        : [];
+
+                    const candidateRecords = discoveredPalm
+                        .map(model => {
+                            const hasGenerateMessage = model.supportedGenerationMethods.includes('generateMessage');
+                            const hasGenerateText = model.supportedGenerationMethods.includes('generateText');
+                            if (hasGenerateMessage) {
+                                return { name: model.name, method: 'generateMessage' };
+                            }
+                            if (hasGenerateText) {
+                                return { name: model.name, method: 'generateText' };
+                            }
+                            return null;
+                        })
+                        .filter(Boolean);
+
+                    PALM_MODELS.forEach(defaultModel => {
+                        if (!candidateRecords.some(record => record.name === defaultModel.name)) {
+                            candidateRecords.push(defaultModel);
+                        }
+                    });
+
+                    if (candidateRecords.length === 0) {
+                        return null;
+                    }
+
+                    for (const record of candidateRecords) {
+                        try {
+                            if (record.method === 'generateMessage') {
+                                const url = `https://generativelanguage.googleapis.com/${PALM_API_VERSION}/models/${record.name}:generateMessage?key=${trimmedKey}`;
+                                const response = await fetch(url, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        prompt: {
+                                            context: systemPrompt,
+                                            messages: palmMessagesPayload
+                                        },
+                                        temperature: 0.7,
+                                        candidateCount: 1,
+                                        topP: 0.95,
+                                        topK: 40,
+                                        maxOutputTokens: 1024
+                                    })
+                                });
+                                const payload = await response.json().catch(() => ({}));
+                                if (!response.ok) {
+                                    throw new Error(payload.error?.message || `PaLM model ${record.name} failed (${response.status})`);
+                                }
+                                const candidate = payload.candidates?.[0];
+                                const generatedText = typeof candidate?.content === 'string' ? candidate.content.trim() : '';
+                                if (generatedText) {
+                                    return { text: generatedText, providerLabel: `${PALM_API_VERSION} / ${record.name}` };
+                                }
+                                throw new Error(`PaLM model ${record.name} returned no content`);
+                            }
+
+                            if (record.method === 'generateText') {
+                                const url = `https://generativelanguage.googleapis.com/${PALM_API_VERSION}/models/${record.name}:generateText?key=${trimmedKey}`;
+                                const response = await fetch(url, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        prompt: palmPromptText,
+                                        temperature: 0.7,
+                                        candidateCount: 1,
+                                        topP: 0.95,
+                                        topK: 40,
+                                        maxOutputTokens: 1024
+                                    })
+                                });
+                                const payload = await response.json().catch(() => ({}));
+                                if (!response.ok) {
+                                    throw new Error(payload.error?.message || `PaLM model ${record.name} failed (${response.status})`);
+                                }
+                                const generatedText = payload.candidates?.[0]?.output?.trim() || payload.output?.trim();
+                                if (generatedText) {
+                                    return { text: generatedText, providerLabel: `${PALM_API_VERSION} / ${record.name}` };
+                                }
+                                throw new Error(`PaLM model ${record.name} returned no content`);
+                            }
+                        } catch (palmError) {
+                            if (import.meta.env.DEV) {
+                                console.warn(`PaLM model ${record.name} failed:`, palmError.message);
+                            }
+                            lastModelError = palmError;
+                        }
+                    }
+
+                    return null;
+                };
+
                 // Only log in development
                 if (import.meta.env.DEV) {
                     console.log('Full conversation for AI:', contents);
@@ -825,7 +951,7 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                 for (const apiVersion of GEMINI_API_VERSIONS) {
                     let genAI;
                     try {
-                        genAI = new GoogleGenerativeAI(trimmedKey, { apiVersion });
+                        genAI = new GoogleGenerativeAI(trimmedKey);
                     } catch (initError) {
                         if (import.meta.env.DEV) {
                             console.warn(`Failed to initialize Gemini client for API ${apiVersion}:`, initError.message);
@@ -837,20 +963,22 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                     let candidateModels = GEMINI_MODELS;
                     const discovery = await fetchModelsForApiVersion(apiVersion, trimmedKey);
                     if (discovery.success && discovery.models.length) {
-                        const discoveredNormalized = discovery.models
-                            .map(normalizeModelName)
-                            .filter(Boolean);
+                        const contentModels = discovery.models
+                            .filter(model => model.supportedGenerationMethods.includes('generateContent'))
+                            .map(model => model.name);
 
-                        const curatedMatches = GEMINI_MODELS.filter(modelName =>
-                            discoveredNormalized.includes(normalizeModelName(modelName))
-                        );
+                        if (contentModels.length > 0) {
+                            const curatedMatches = GEMINI_MODELS.filter(modelName =>
+                                contentModels.includes(normalizeModelName(modelName))
+                            );
 
-                        const curatedSet = new Set(curatedMatches.map(normalizeModelName));
-                        const fallbackDiscovered = discoveredNormalized.filter(modelName => !curatedSet.has(modelName));
+                            const curatedSet = new Set(curatedMatches.map(normalizeModelName));
+                            const fallbackDiscovered = contentModels.filter(modelName => !curatedSet.has(normalizeModelName(modelName)));
 
-                        const merged = Array.from(new Set([...curatedMatches, ...fallbackDiscovered]));
-                        if (merged.length > 0) {
-                            candidateModels = merged;
+                            const merged = Array.from(new Set([...curatedMatches, ...fallbackDiscovered]));
+                            if (merged.length > 0) {
+                                candidateModels = merged;
+                            }
                         }
 
                         if (import.meta.env.DEV) {
@@ -942,17 +1070,34 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                     }
                 }
 
-                if (!successfulResponse) {
-                    setConnectionStatus('error');
-                    setConnectionError('No compatible Gemini model found for this access code.');
-                    throw lastModelError || new Error('No compatible Gemini model found');
+                let finalText = null;
+                let providerLabel = null;
+
+                if (successfulResponse) {
+                    if (import.meta.env.DEV) {
+                        console.log(`Gemini response obtained from model ${successfulModelName} (API ${successfulApiVersion || 'unknown'})`);
+                    }
+                    finalText = successfulResponse.text();
+                    providerLabel = `${successfulApiVersion || 'unknown'} / ${successfulModelName}`;
+                    setVerifiedApiVersion(providerLabel);
+                } else {
+                    const palmResult = await attemptPalmFallback();
+                    if (palmResult) {
+                        finalText = palmResult.text;
+                        providerLabel = palmResult.providerLabel;
+                        setConnectionStatus('connected');
+                        setConnectionError('');
+                        setVerifiedApiVersion(providerLabel);
+                    }
                 }
 
-                if (import.meta.env.DEV) {
-                    console.log(`Gemini response obtained from model ${successfulModelName} (API ${successfulApiVersion || 'unknown'})`);
+                if (!finalText) {
+                    setConnectionStatus('error');
+                    setConnectionError('No compatible AI model found for this access code.');
+                    throw lastModelError || new Error('No compatible AI model found');
                 }
-                setVerifiedApiVersion(`${successfulApiVersion || 'unknown'} / ${successfulModelName}`);
-                const text = successfulResponse.text();
+
+                const text = finalText;
 
                 const guruMsg = { id: Date.now() + 1, text, sender: 'guru', createdAt: new Date().toISOString() };
                 setMessages(prev => [...prev, guruMsg]);
