@@ -270,20 +270,20 @@ const PowerBIGuru = () => {
     }, [getMaxNotesWidth]);
 
     useEffect(() => {
-        // Debug: Log API key availability in development
+        // Debug: Log API key availability (always log for production debugging)
+        console.log("🔑 Power BI Guru - API Key Status:");
+        console.log("  - OpenAI Key (env):", PROJECT_OPENAI_KEY ? `${PROJECT_OPENAI_KEY.substring(0, 10)}...` : "Not set");
+        console.log("  - OpenAI Key (custom):", getStoredOpenAIKey() ? `${getStoredOpenAIKey().substring(0, 10)}...` : "Not set");
+        console.log("  - OpenAI Key (active):", openAIKey ? `${openAIKey.substring(0, 10)}...` : "Not set");
+        console.log("  - Gemini Key (env):", PROJECT_GEMINI_KEY ? `${PROJECT_GEMINI_KEY.substring(0, 10)}...` : "Not set");
+        console.log("  - Gemini Key (custom):", getStoredCustomKey() ? `${getStoredCustomKey().substring(0, 10)}...` : "Not set");
+        console.log("  - Gemini Key (active):", apiKey ? `${apiKey.substring(0, 10)}...` : "Not set");
+        console.log("  - Current host:", typeof window !== 'undefined' ? window.location.hostname : 'server');
+        console.log("  - Host allowed for project key:", isHostAllowedForProjectKey());
         if (import.meta.env.DEV) {
-            console.log("Raw VITE_GEMINI_API_KEY:", import.meta.env.VITE_GEMINI_API_KEY);
-            console.log("Processed PROJECT_GEMINI_KEY:", PROJECT_GEMINI_KEY);
-            if (!PROJECT_GEMINI_KEY) {
-                console.log("PowerBI Guru: Project Access Code Not Configured");
-            } else {
-                console.log(
-                    "PowerBI Guru: Project Access Code",
-                    isHostAllowedForProjectKey()
-                        ? "Available for this host"
-                        : `Configured but blocked for host ${(typeof window !== 'undefined' && window.location.hostname) || 'unknown'}`
-                );
-            }
+            console.log("  - Mode: Development");
+        } else {
+            console.log("  - Mode: Production");
         }
     }, []);
 
@@ -818,6 +818,14 @@ const PowerBIGuru = () => {
         const trimmedOpenAIKey = openAIKey.trim();
         const trimmedKey = apiKey.trim();
 
+        // Debug: Log key availability when sending
+        console.log("📤 Sending message - Key status:");
+        console.log("  - OpenAI Key available:", trimmedOpenAIKey ? "Yes" : "No");
+        console.log("  - Gemini Key available:", trimmedKey ? "Yes" : "No");
+        if (!trimmedOpenAIKey && !trimmedKey) {
+            console.warn("⚠️ No API keys found! Check GitHub Secrets or add keys in Settings.");
+        }
+
         // 2. Try OpenAI first (more reliable)
         if (trimmedOpenAIKey) {
             try {
@@ -912,20 +920,56 @@ Guidelines for General Questions:
             } catch (openAIError) {
                 if (import.meta.env.DEV) {
                     console.warn('OpenAI request failed:', openAIError.message);
+                    console.warn('OpenAI error details:', {
+                        message: openAIError.message,
+                        status: openAIError.status,
+                        code: openAIError.code,
+                        type: openAIError.type
+                    });
                 }
+                
+                // Extract more specific error information
+                const errorMessage = openAIError.message || '';
+                const errorStatus = openAIError.status || openAIError.code || '';
+                const is401 = errorMessage.includes('401') || errorStatus === 401 || errorStatus === '401';
+                const is403 = errorMessage.includes('403') || errorStatus === 403 || errorStatus === '403';
+                const is429 = errorMessage.includes('429') || errorStatus === 429 || errorStatus === '429';
+                const isInvalidKey = errorMessage.includes('Invalid API key') || 
+                                    errorMessage.includes('Incorrect API key') ||
+                                    errorMessage.includes('invalid_api_key') ||
+                                    is401;
+                const isQuotaExceeded = errorMessage.includes('quota') || 
+                                       errorMessage.includes('rate limit') ||
+                                       is429;
+                const isPermissionDenied = errorMessage.includes('permission') || 
+                                          errorMessage.includes('Permission') ||
+                                          is403;
+                
                 // Check if it's a critical error that should be shown immediately
-                const isCriticalError = openAIError.message?.includes('401') ||
-                                      openAIError.message?.includes('Invalid API key') ||
-                                      openAIError.message?.includes('Incorrect API key') ||
-                                      openAIError.message?.includes('You exceeded your current quota');
+                const isCriticalError = isInvalidKey || isQuotaExceeded || isPermissionDenied;
                 
                 if (isCriticalError && !trimmedKey) {
                     // If OpenAI fails critically and no Gemini key, show error immediately
                     setConnectionStatus('error');
-                    setConnectionError('OpenAI API key appears to be invalid. Please check your key in settings.');
+                    let errorDetail = 'OpenAI API key appears to be invalid. Please check your key in settings.';
+                    if (isQuotaExceeded) {
+                        errorDetail = 'OpenAI API quota exceeded. Please check your account billing or wait before trying again.';
+                    } else if (isPermissionDenied) {
+                        errorDetail = 'OpenAI API key lacks required permissions. Please check your key settings.';
+                    }
+                    setConnectionError(errorDetail);
+                    
+                    let errorText = "I couldn't connect to OpenAI. Your API key might be invalid, expired, or missing required permissions. Please check your OpenAI key in settings (it should start with 'sk-'). If the problem persists, you can get a new key at https://platform.openai.com/api-keys. I can still help with local knowledge about DAX and Power BI!";
+                    
+                    if (isQuotaExceeded) {
+                        errorText = "I've hit the rate limit or quota on your OpenAI account. This usually means you've made too many requests or need to add credits. Please check your OpenAI billing at https://platform.openai.com/account/billing or wait a moment and try again. I can still help with local knowledge about DAX and Power BI!";
+                    } else if (isPermissionDenied) {
+                        errorText = "Your OpenAI API key doesn't have the required permissions. Please check your key settings at https://platform.openai.com/api-keys and ensure it has access to the models (gpt-4o, gpt-4o-mini). I can still help with local knowledge about DAX and Power BI!";
+                    }
+                    
                     const errorMsg = {
                         id: Date.now() + 1,
-                        text: "I couldn't connect to OpenAI. Your API key might be invalid, expired, or missing required permissions. Please check your OpenAI key in settings (it should start with 'sk-'). If the problem persists, you can get a new key at https://platform.openai.com/api-keys. I can still help with local knowledge about DAX and Power BI!",
+                        text: errorText,
                         sender: 'guru',
                         isError: true,
                         createdAt: new Date().toISOString()
@@ -1327,51 +1371,93 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                     console.error("Error details:", error.stack);
                 }
 
-                // Check error types with friendly detection
-                const isOpenAIError = error.message?.includes('OpenAI') || 
-                                     error.message?.includes('openai') ||
-                                     error.message?.includes('Invalid API key') ||
-                                     error.message?.includes('Incorrect API key');
-                const isNoAccessError = error.message?.includes('No accessible models') ||
-                                       error.message?.includes('No compatible AI model');
-                const isAuthError = error.message?.includes('API_KEY') ||
-                                   error.message?.includes('PERMISSION_DENIED') ||
-                                   error.message?.includes('INVALID_ARGUMENT') ||
-                                   error.message?.includes('401') ||
-                                   error.message?.includes('Unauthorized');
-                const isNotFoundError = error.message?.includes('not found') ||
-                                       error.message?.includes('NOT_FOUND') ||
-                                       error.message?.includes('404') ||
-                                       error.message?.includes('Requested entity was not found');
-                const isRateLimitError = error.message?.includes('rate limit') ||
-                                        error.message?.includes('429') ||
-                                        error.message?.includes('quota');
-                const isTimeoutError = error.message?.includes('timeout') || error.message?.includes('Timeout');
-                const isNetworkError = error.message?.includes('network') || error.message?.includes('fetch') || error.message?.includes('Failed to fetch');
+                // Enhanced error detection with more specific checks
+                const errorMessage = error.message || '';
+                const errorStatus = error.status || error.code || '';
+                
+                const isOpenAIError = errorMessage.includes('OpenAI') || 
+                                     errorMessage.includes('openai') ||
+                                     errorMessage.includes('Invalid API key') ||
+                                     errorMessage.includes('Incorrect API key');
+                const isNoAccessError = errorMessage.includes('No accessible models') ||
+                                       errorMessage.includes('No compatible AI model') ||
+                                       errorMessage.includes('does not have access');
+                const isAuthError = errorMessage.includes('API_KEY') ||
+                                   errorMessage.includes('PERMISSION_DENIED') ||
+                                   errorMessage.includes('INVALID_ARGUMENT') ||
+                                   errorMessage.includes('401') ||
+                                   errorMessage.includes('Unauthorized') ||
+                                   errorStatus === 401 ||
+                                   errorStatus === '401';
+                const isNotFoundError = errorMessage.includes('not found') ||
+                                       errorMessage.includes('NOT_FOUND') ||
+                                       errorMessage.includes('404') ||
+                                       errorMessage.includes('Requested entity was not found') ||
+                                       errorStatus === 404 ||
+                                       errorStatus === '404';
+                const isForbiddenError = errorMessage.includes('403') ||
+                                       errorMessage.includes('Forbidden') ||
+                                       errorMessage.includes('PERMISSION_DENIED') ||
+                                       errorStatus === 403 ||
+                                       errorStatus === '403';
+                const isRateLimitError = errorMessage.includes('rate limit') ||
+                                        errorMessage.includes('429') ||
+                                        errorMessage.includes('quota') ||
+                                        errorMessage.includes('Quota exceeded') ||
+                                        errorStatus === 429 ||
+                                        errorStatus === '429';
+                const isTimeoutError = errorMessage.includes('timeout') || 
+                                     errorMessage.includes('Timeout') ||
+                                     errorMessage.includes('aborted');
+                const isNetworkError = errorMessage.includes('network') || 
+                                     errorMessage.includes('fetch') || 
+                                     errorMessage.includes('Failed to fetch') ||
+                                     errorMessage.includes('NetworkError') ||
+                                     errorMessage.includes('CORS');
+                
+                // Log detailed error info in development
+                if (import.meta.env.DEV) {
+                    console.error('Detailed error analysis:', {
+                        message: errorMessage,
+                        status: errorStatus,
+                        isOpenAIError,
+                        isNoAccessError,
+                        isAuthError,
+                        isNotFoundError,
+                        isForbiddenError,
+                        isRateLimitError,
+                        isTimeoutError,
+                        isNetworkError
+                    });
+                }
 
-                if (isNoAccessError || isAuthError || isNotFoundError || isOpenAIError) {
+                if (isNoAccessError || isAuthError || isNotFoundError || isForbiddenError || isOpenAIError) {
                     setConnectionStatus('error');
                     let errorMsg = 'Unable to connect to AI service';
                     if (isOpenAIError) {
                         errorMsg = 'OpenAI API key may be invalid or expired. Please check your key in settings.';
+                    } else if (isForbiddenError) {
+                        errorMsg = 'API key lacks required permissions. Please check your key settings and ensure it has access to AI models.';
                     } else if (isNoAccessError || isNotFoundError) {
-                        errorMsg = 'API key doesn\'t have access to AI models. Please check your key permissions.';
+                        errorMsg = 'API key doesn\'t have access to AI models. Please check your key permissions or try a different key.';
                     } else if (isAuthError) {
-                        errorMsg = 'Invalid API key or insufficient permissions.';
+                        errorMsg = 'Invalid API key or insufficient permissions. Please verify your key is correct.';
                     }
                     setConnectionError(errorMsg);
                 }
 
-                // Show friendly, conversational error messages
+                // Show friendly, conversational error messages with specific guidance
                 let errorText;
                 if (isOpenAIError) {
                     errorText = "I couldn't connect to OpenAI. Your API key might be invalid, expired, or missing required permissions. Please check your OpenAI key in settings (it should start with 'sk-'). You can get a new key at https://platform.openai.com/api-keys. In the meantime, I can still help with local knowledge about DAX and Power BI!";
                 } else if (isRateLimitError) {
                     errorText = "I've hit a rate limit or quota on the AI service. This usually means you've made too many requests recently, or your API account needs more credits. Please wait a moment and try again, or check your API account billing. I can still help with local knowledge about DAX and Power BI while we wait!";
+                } else if (isForbiddenError) {
+                    errorText = "Your API key doesn't have permission to access AI models. This could mean: (1) The key is restricted to certain APIs, (2) Your account needs to enable the AI API, or (3) The key has expired. For Gemini, check https://makersuite.google.com/app/apikey. For OpenAI, check https://platform.openai.com/api-keys. I can still help with what I know about DAX and Power BI!";
                 } else if (isNoAccessError || isNotFoundError) {
-                    errorText = "I couldn't find any AI models that work with your API key. This might mean your key doesn't have the right permissions, or the model isn't available in your region. Please check your API key settings - for OpenAI, visit https://platform.openai.com/api-keys, or for Gemini, visit https://makersuite.google.com/app/apikey. I can still help with what I know about DAX and Power BI!";
+                    errorText = "I couldn't find any AI models that work with your API key. This might mean: (1) Your key doesn't have the right permissions, (2) The model isn't available in your region, or (3) Your account needs to enable access. Please check your API key settings - for OpenAI, visit https://platform.openai.com/api-keys, or for Gemini, visit https://makersuite.google.com/app/apikey. I can still help with what I know about DAX and Power BI!";
                 } else if (isAuthError) {
-                    errorText = "I couldn't authenticate with the AI service. Your API key might be incorrect or expired. Please double-check your API key in settings and make sure it's entered correctly. You can always add a different API key if needed. I can still help with local knowledge about DAX and Power BI!";
+                    errorText = "I couldn't authenticate with the AI service. Your API key might be incorrect or expired. Please double-check your API key in settings and make sure it's entered correctly (no extra spaces). You can always add a different API key if needed. I can still help with local knowledge about DAX and Power BI!";
                 } else if (isTimeoutError) {
                     errorText = "The AI service is taking too long to respond - this can happen on slower internet connections or when the service is busy. Please try again in a moment. In the meantime, I can still help with local knowledge about DAX and Power BI!";
                 } else if (isNetworkError) {
