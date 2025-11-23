@@ -876,7 +876,29 @@ Guidelines for General Questions:
                 if (import.meta.env.DEV) {
                     console.warn('OpenAI request failed:', openAIError.message);
                 }
-                // Continue to try Gemini/PaLM fallback
+                // Check if it's a critical error that should be shown immediately
+                const isCriticalError = openAIError.message?.includes('401') ||
+                                      openAIError.message?.includes('Invalid API key') ||
+                                      openAIError.message?.includes('Incorrect API key') ||
+                                      openAIError.message?.includes('You exceeded your current quota');
+                
+                if (isCriticalError && !trimmedKey) {
+                    // If OpenAI fails critically and no Gemini key, show error immediately
+                    setConnectionStatus('error');
+                    setConnectionError('OpenAI API key appears to be invalid. Please check your key in settings.');
+                    const errorMsg = {
+                        id: Date.now() + 1,
+                        text: "I couldn't connect to OpenAI. Your API key might be invalid, expired, or missing required permissions. Please check your OpenAI key in settings (it should start with 'sk-'). If the problem persists, you can get a new key at https://platform.openai.com/api-keys. I can still help with local knowledge about DAX and Power BI!",
+                        sender: 'guru',
+                        isError: true,
+                        createdAt: new Date().toISOString()
+                    };
+                    setMessages(prev => [...prev, errorMsg]);
+                    setLastAnswerId(errorMsg.id);
+                    setIsTyping(false);
+                    return;
+                }
+                // Otherwise, continue to try Gemini/PaLM fallback
             }
         }
 
@@ -1268,39 +1290,57 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                     console.error("Error details:", error.stack);
                 }
 
-                // Check error types
+                // Check error types with friendly detection
+                const isOpenAIError = error.message?.includes('OpenAI') || 
+                                     error.message?.includes('openai') ||
+                                     error.message?.includes('Invalid API key') ||
+                                     error.message?.includes('Incorrect API key');
                 const isNoAccessError = error.message?.includes('No accessible models') ||
                                        error.message?.includes('No compatible AI model');
                 const isAuthError = error.message?.includes('API_KEY') ||
                                    error.message?.includes('PERMISSION_DENIED') ||
-                                   error.message?.includes('INVALID_ARGUMENT');
+                                   error.message?.includes('INVALID_ARGUMENT') ||
+                                   error.message?.includes('401') ||
+                                   error.message?.includes('Unauthorized');
                 const isNotFoundError = error.message?.includes('not found') ||
                                        error.message?.includes('NOT_FOUND') ||
                                        error.message?.includes('404') ||
                                        error.message?.includes('Requested entity was not found');
+                const isRateLimitError = error.message?.includes('rate limit') ||
+                                        error.message?.includes('429') ||
+                                        error.message?.includes('quota');
                 const isTimeoutError = error.message?.includes('timeout') || error.message?.includes('Timeout');
-                const isNetworkError = error.message?.includes('network') || error.message?.includes('fetch');
+                const isNetworkError = error.message?.includes('network') || error.message?.includes('fetch') || error.message?.includes('Failed to fetch');
 
-                if (isNoAccessError || isAuthError || isNotFoundError) {
+                if (isNoAccessError || isAuthError || isNotFoundError || isOpenAIError) {
                     setConnectionStatus('error');
-                    const errorMsg = isNoAccessError || isNotFoundError
-                        ? 'API key does not have access to any AI models. Please check your API key permissions or create a new one at https://makersuite.google.com/app/apikey'
-                        : 'Invalid API key or insufficient permissions';
+                    let errorMsg = 'Unable to connect to AI service';
+                    if (isOpenAIError) {
+                        errorMsg = 'OpenAI API key may be invalid or expired. Please check your key in settings.';
+                    } else if (isNoAccessError || isNotFoundError) {
+                        errorMsg = 'API key doesn\'t have access to AI models. Please check your key permissions.';
+                    } else if (isAuthError) {
+                        errorMsg = 'Invalid API key or insufficient permissions.';
+                    }
                     setConnectionError(errorMsg);
                 }
 
-                // Show user-friendly error with specific guidance
+                // Show friendly, conversational error messages
                 let errorText;
-                if (isNoAccessError || isNotFoundError) {
-                    errorText = "The API key doesn't have access to any AI models. Please check that your Google AI Studio API key has the correct permissions, or create a new key at https://makersuite.google.com/app/apikey. I can still help with local knowledge about DAX and Power BI.";
+                if (isOpenAIError) {
+                    errorText = "I couldn't connect to OpenAI. Your API key might be invalid, expired, or missing required permissions. Please check your OpenAI key in settings (it should start with 'sk-'). You can get a new key at https://platform.openai.com/api-keys. In the meantime, I can still help with local knowledge about DAX and Power BI!";
+                } else if (isRateLimitError) {
+                    errorText = "I've hit a rate limit or quota on the AI service. This usually means you've made too many requests recently, or your API account needs more credits. Please wait a moment and try again, or check your API account billing. I can still help with local knowledge about DAX and Power BI while we wait!";
+                } else if (isNoAccessError || isNotFoundError) {
+                    errorText = "I couldn't find any AI models that work with your API key. This might mean your key doesn't have the right permissions, or the model isn't available in your region. Please check your API key settings - for OpenAI, visit https://platform.openai.com/api-keys, or for Gemini, visit https://makersuite.google.com/app/apikey. I can still help with what I know about DAX and Power BI!";
                 } else if (isAuthError) {
-                    errorText = "I couldn't connect to the AI service with the current access code. Please update your API key in settings, or I can help with local knowledge about DAX and Power BI.";
+                    errorText = "I couldn't authenticate with the AI service. Your API key might be incorrect or expired. Please double-check your API key in settings and make sure it's entered correctly. You can always add a different API key if needed. I can still help with local knowledge about DAX and Power BI!";
                 } else if (isTimeoutError) {
-                    errorText = "The AI service is taking too long to respond. This can happen on slower connections. Please try again, or I can help with local knowledge about DAX and Power BI.";
+                    errorText = "The AI service is taking too long to respond - this can happen on slower internet connections or when the service is busy. Please try again in a moment. In the meantime, I can still help with local knowledge about DAX and Power BI!";
                 } else if (isNetworkError) {
-                    errorText = "I'm having trouble reaching the AI service. Please check your internet connection and try again, or I can help with local knowledge about DAX and Power BI.";
+                    errorText = "I'm having trouble reaching the AI service. This might be a temporary network issue or the service could be down. Please check your internet connection and try again. I can still help with local knowledge about DAX and Power BI!";
                 } else {
-                    errorText = "I'm having trouble connecting to the AI service right now. Let me help with what I know about DAX and Power BI instead.";
+                    errorText = "Something went wrong connecting to the AI service. This might be temporary - please try again in a moment. I'm still here to help with what I know about DAX and Power BI!";
                 }
 
                 const errorMsg = {
