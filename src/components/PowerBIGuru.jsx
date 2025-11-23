@@ -1146,6 +1146,7 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                 setLastAnswerId(guruMsg.id);
             } catch (error) {
                 // Keep error logging for production debugging
+                // Note: A user-friendly message is also displayed in the chat UI
                 console.error("AI Connection Error:", error.message);
                 if (import.meta.env.DEV) {
                     console.error("Error details:", error.stack);
