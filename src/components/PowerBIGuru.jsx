@@ -84,13 +84,13 @@ const LINE_HEIGHTS = {
 
 // Use Gemini models - prioritising stable and cost-effective versions
 const GEMINI_MODELS = [
-    "gemini-2.0-flash-exp", 
+    "gemini-2.0-flash-exp",
     "gemini-1.5-flash", 
-    "gemini-1.5-pro", 
-    "gemini-1.5-flash-8b",
+    "gemini-1.5-pro",
     "gemini-pro"
 ];
-const GEMINI_API_VERSIONS = ["v1beta", "v1"];
+// Important: v1beta is often less stable for newer models, v1 is preferred for production
+const GEMINI_API_VERSIONS = ["v1", "v1beta"]; 
 const GEMINI_MODEL = GEMINI_MODELS[1]; // Default to stable flash
 
 // Check for placeholder key and treat as empty
