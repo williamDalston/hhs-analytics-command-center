@@ -127,11 +127,29 @@
     transition-property: border-color, box-shadow, background-color !important;
     /* Explicitly exclude height from transitions */
     will-change: border-color, box-shadow, background-color;
+    /* Prevent layout shifts on mobile */
+    contain: layout style;
   }
   
   /* Ensure height property is never transitioned on textareas */
   textarea {
     transition-property: border-color, box-shadow, background-color, color !important;
+    /* Prevent mobile viewport shifts */
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  
+  /* Mobile-specific fixes to prevent keyboard-related shaking */
+  @media (max-width: 640px) {
+    textarea.input-field {
+      /* Disable all transitions on mobile for maximum stability */
+      transition: none !important;
+      /* Prevent iOS zoom on focus */
+      font-size: 16px !important;
+      /* Prevent layout shifts */
+      transform: translateZ(0);
+      -webkit-transform: translateZ(0);
+    }
   }
 }
 

@@ -378,42 +378,56 @@ const PowerBIGuru = () => {
         window.localStorage.setItem(LINE_HEIGHT_STORAGE_KEY, lineHeight);
     }, [lineHeight]);
 
-    // Optimize textarea resizing to prevent shaking/flashing
+    // Optimize textarea resizing to prevent shaking/flashing (especially on mobile)
     const adjustTextareaHeight = useCallback(() => {
         const textarea = inputRef.current;
         if (!textarea) return;
 
-        // Use requestAnimationFrame to batch the height update and prevent layout thrashing
+        // Use double RAF for smoother updates and to prevent layout thrashing
         requestAnimationFrame(() => {
-            if (!textarea) return;
-            
-            // Store scroll position to prevent jumping
-            const scrollTop = textarea.scrollTop;
-            
-            // Get current computed height (not style height, which might be empty)
-            const currentHeight = textarea.offsetHeight;
-            
-            // Temporarily set height to auto to measure content
-            // Use a more efficient approach: set height to 0 first, then measure
-            textarea.style.height = '0px';
-            const scrollHeight = textarea.scrollHeight;
-            
-            const maxHeight = 200;
-            const newHeight = Math.min(scrollHeight, maxHeight);
-            
-            // Only update if height actually changed significantly to prevent unnecessary reflows
-            if (Math.abs(currentHeight - newHeight) > 2) {
-                textarea.style.height = `${newHeight}px`;
-                // Restore scroll position after a brief delay to ensure height is applied
-                requestAnimationFrame(() => {
-                    if (textarea) {
-                        textarea.scrollTop = scrollTop;
-                    }
-                });
-            } else {
-                // Restore original height if no significant change needed
-                textarea.style.height = '';
-            }
+            requestAnimationFrame(() => {
+                if (!textarea) return;
+                
+                // Store scroll position to prevent jumping
+                const scrollTop = textarea.scrollTop;
+                
+                // Get current computed height
+                const currentHeight = textarea.offsetHeight;
+                
+                // Better approach: temporarily remove height constraint, measure, then restore
+                // This avoids the visible flash from setting to 0px
+                const originalHeight = textarea.style.height;
+                const originalOverflow = textarea.style.overflow;
+                
+                // Temporarily allow natural height to measure
+                textarea.style.overflow = 'hidden';
+                textarea.style.height = 'auto';
+                
+                // Measure the natural height
+                const scrollHeight = textarea.scrollHeight;
+                
+                const maxHeight = 200;
+                const newHeight = Math.min(scrollHeight, maxHeight);
+                
+                // Only update if height actually changed significantly (threshold of 3px for mobile stability)
+                const heightDiff = Math.abs(currentHeight - newHeight);
+                if (heightDiff > 3) {
+                    // Set the new height directly without intermediate states
+                    textarea.style.height = `${newHeight}px`;
+                    textarea.style.overflow = scrollHeight > maxHeight ? 'auto' : 'hidden';
+                    
+                    // Restore scroll position after height is applied
+                    requestAnimationFrame(() => {
+                        if (textarea) {
+                            textarea.scrollTop = scrollTop;
+                        }
+                    });
+                } else {
+                    // Restore original styles if no significant change
+                    textarea.style.height = originalHeight;
+                    textarea.style.overflow = originalOverflow;
+                }
+            });
         });
     }, []);
 
@@ -468,8 +482,14 @@ const PowerBIGuru = () => {
         }
     }, []);
 
+    // Debounce height adjustment to prevent excessive updates on mobile
     useEffect(() => {
-        adjustTextareaHeight();
+        // Use a small timeout to batch rapid changes (especially on mobile typing)
+        const timeoutId = setTimeout(() => {
+            adjustTextareaHeight();
+        }, 0); // Use 0ms timeout to batch in the same frame
+        
+        return () => clearTimeout(timeoutId);
     }, [input, adjustTextareaHeight]);
 
     useEffect(() => {
@@ -913,16 +933,30 @@ Current Date and Time: ${currentDateTime}
 
 You can answer ANY question the user asks, regardless of the topic (including general knowledge, coding in other languages, creative writing, etc.).
 
+WRITING STYLE & ELOCUTION:
+- Write with clarity, elegance, and professional eloquence. Your responses should be well-crafted and articulate.
+- Use varied sentence structure—mix short, impactful sentences with longer, more descriptive ones for rhythm and engagement.
+- Employ precise, sophisticated vocabulary when appropriate, but remain accessible and never sacrifice clarity for complexity.
+- Structure your responses logically: introduce concepts clearly, develop ideas coherently, and conclude with actionable insights or summaries.
+- Use transitions and connective phrases to create smooth flow between ideas ("Furthermore," "In addition," "It's worth noting," "To illustrate," etc.).
+- Write in an engaging, conversational yet professional tone that demonstrates expertise without being condescending.
+- When explaining complex topics, use analogies, examples, and step-by-step breakdowns to enhance understanding.
+- Format your responses with proper paragraph breaks, bullet points, and visual hierarchy for readability.
+
 Guidelines for Power BI & Data Questions:
-- Provide expert, production-ready advice.
-- Always format DAX code clearly with line breaks and indentation.
-- Explain complex logic step-by-step.
+- Provide expert, production-ready advice with thorough explanations.
+- Always format DAX code clearly with line breaks, indentation, and meaningful comments.
+- Explain complex logic step-by-step, building understanding progressively.
 - Reference HHS style guidelines (blue #005EA2, Source Sans Pro) if relevant to visuals.
+- When presenting solutions, explain both the "what" and the "why" to deepen understanding.
+- Use clear headings, code blocks, and structured explanations for technical content.
 
 Guidelines for General Questions:
-- Answer helpfully and accurately.
+- Answer helpfully and accurately with well-structured, eloquent responses.
 - Do not force a connection to data if the topic is unrelated.
-- Be concise and direct.`;
+- Be comprehensive yet concise—provide thorough answers without unnecessary verbosity.
+- Use examples, analogies, and clear explanations to make complex topics accessible.
+- Maintain a warm, professional tone that invites further questions.`;
 
                 // Format conversation for OpenAI
                 const conversationHistory = messages
@@ -947,8 +981,11 @@ Guidelines for General Questions:
                         const completion = await openai.chat.completions.create({
                             model: model,
                             messages: messagesPayload,
-                            temperature: 0.7,
-                            max_tokens: 4096
+                            temperature: 0.8,
+                            max_tokens: 4096,
+                            top_p: 0.95,
+                            frequency_penalty: 0.1,
+                            presence_penalty: 0.1
                         });
 
                         const text = completion.choices[0]?.message?.content;
@@ -1163,7 +1200,7 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                                             context: systemPrompt,
                                             messages: palmMessagesPayload
                                         },
-                                        temperature: 0.7
+                                        temperature: 0.8
                                     })
                                 });
                                 const payload = await response.json().catch(() => ({}));
@@ -1187,7 +1224,7 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                                         prompt: {
                                             text: palmPromptText
                                         },
-                                        temperature: 0.7
+                                        temperature: 0.8
                                     })
                                 });
                                 const payload = await response.json().catch(() => ({}));
@@ -1338,7 +1375,7 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                             contents,
                             generationConfig: {
                                 maxOutputTokens: 8192,
-                                temperature: 0.7,
+                                temperature: 0.8,
                                 topP: 0.95,
                                 topK: 40,
                             },
@@ -1630,11 +1667,11 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
         <>
             <div className="flex items-center justify-between mb-3 gap-2">
                 <div>
-                    <p className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                        <NotebookPen className="h-4 w-4 text-brand-500" />
+                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                        <NotebookPen className="h-4 w-4 text-brand-500 dark:text-brand-400" />
                         Session Notes
                     </p>
-                    <p className="text-xs text-slate-500">Capture insights or follow-ups</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Capture insights or follow-ups</p>
                 </div>
                 <div className="flex gap-1">
                     <button
@@ -1661,8 +1698,8 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                 placeholder="Capture project context, action items, or next steps..."
                 className="input-field flex-1 min-h-[200px] resize-none"
             />
-            <p className="text-[11px] text-slate-400 text-right mt-2">
-                Autosaved locally • {sessionNotes.trim().length} chars
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 text-right mt-2 font-medium">
+                Autosaved locally • {sessionNotes.trim().length} {sessionNotes.trim().length === 1 ? 'char' : 'chars'}
             </p>
         </>
     );
@@ -1672,8 +1709,8 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
             <div className="bg-brand-50 p-6 rounded-full mb-6 ring-8 ring-brand-50/50">
                 <Sparkles className="h-12 w-12 text-brand-600" />
             </div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-2">How can I help you today?</h3>
-            <p className="text-slate-600 max-w-md mb-8">
+            <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">How can I help you today?</h3>
+            <p className="text-slate-600 dark:text-slate-300 max-w-md mb-8">
                 I'm your dedicated analytics assistant. Ask me about DAX patterns, report design, or HHS data standards.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl w-full">
@@ -1809,14 +1846,14 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                                         exit={{ height: 0, opacity: 0 }}
                                         className="overflow-hidden border-b border-slate-200"
                                     >
-                                        <div className="px-4 py-3 bg-gradient-to-br from-brand-50 to-slate-50">
+                                        <div className="px-4 py-3 bg-gradient-to-br from-brand-50 dark:from-brand-900/20 to-slate-50 dark:to-slate-800/50">
                                             <div className="flex items-center gap-2 mb-3">
-                                                <Type className="h-4 w-4 text-brand-600" />
-                                                <h3 className="font-semibold text-slate-900 text-sm">Text & Style Settings</h3>
+                                                <Type className="h-4 w-4 text-brand-600 dark:text-brand-400" />
+                                                <h3 className="font-semibold text-slate-900 dark:text-slate-100 text-sm">Text & Style Settings</h3>
                                             </div>
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl">
                                                 <div>
-                                                    <label className="block text-xs font-medium text-slate-700 mb-2">Font Size</label>
+                                                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">Font Size</label>
                                                     <div className="grid grid-cols-2 gap-2">
                                                         {Object.entries(FONT_SIZES).map(([key, config]) => (
                                                             <button
@@ -1835,7 +1872,7 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                                                     </div>
                                                 </div>
                                                 <div>
-                                                    <label className="block text-xs font-medium text-slate-700 mb-2">Line Spacing</label>
+                                                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">Line Spacing</label>
                                                     <div className="grid grid-cols-1 gap-2">
                                                         {Object.entries(LINE_HEIGHTS).map(([key, config]) => (
                                                             <button
@@ -1853,9 +1890,9 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                                                     </div>
                                                 </div>
                                             </div>
-                                            <p className="text-xs text-slate-500 mt-3 flex items-center gap-1">
-                                                <Sparkles className="h-3 w-3" />
-                                                Settings are saved automatically and persist across sessions
+                                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-3 flex items-center gap-1.5">
+                                                <Sparkles className="h-3 w-3 text-brand-500 dark:text-brand-400" />
+                                                <span>Settings are saved automatically and persist across sessions</span>
                                             </p>
                                         </div>
                                     </motion.div>
@@ -1945,8 +1982,8 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                                 <div ref={messagesEndRef} />
                             </div>
 
-                            <div className="p-4 bg-white border-t border-slate-200 shrink-0 shadow-up z-10">
-                                <div className="max-w-4xl mx-auto w-full flex gap-2">
+                            <div className="p-4 bg-white border-t border-slate-200 shrink-0 shadow-up z-10" style={{ willChange: 'auto' }}>
+                                <div className="max-w-4xl mx-auto w-full flex gap-2" style={{ minHeight: '48px', alignItems: 'flex-end' }}>
                                     <textarea
                                         ref={inputRef}
                                         value={input}
@@ -2019,8 +2056,8 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
         <div className="flex flex-col gap-4 min-h-[calc(100vh-10rem)] sm:min-h-[calc(100vh-8rem)]">
             <div className="flex flex-wrap items-start justify-between gap-3 mb-2 sm:mb-4">
                 <div>
-                    <h2 className="text-xl sm:text-2xl font-bold text-slate-900 flex flex-wrap items-center gap-2">
-                        <Sparkles className={`h-5 w-5 sm:h-6 sm:w-6 text-brand-600 ${isTyping ? 'animate-pulse' : ''}`} />
+                    <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100 flex flex-wrap items-center gap-2">
+                        <Sparkles className={`h-5 w-5 sm:h-6 sm:w-6 text-brand-600 dark:text-brand-400 ${isTyping ? 'animate-pulse' : ''}`} />
                         Power BI Guru
                         {connectionBadge && (
                             <span className={`text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-medium ${connectionBadge.className}`}>
@@ -2028,9 +2065,9 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                             </span>
                         )}
                     </h2>
-                    <p className="text-sm sm:text-base text-slate-600 mt-1">Your AI assistant for DAX, Design, and Strategy.</p>
+                    <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 mt-1">Your AI assistant for DAX, Design, and Strategy.</p>
                     {apiKey && (
-                        <p className="mt-1 text-xs text-slate-500">
+                        <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
                             {isUsingCustomKey
                                 ? 'Using your personal Gemini access code.'
                                 : isEnvKey
@@ -2039,14 +2076,14 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                         </p>
                     )}
                     {!apiKey && isProjectKeyBlocked && (
-                        <p className="mt-1 text-xs text-amber-600 flex items-center gap-1">
-                            <AlertCircle className="h-3 w-3" />
-                            Built-in cloud access is limited to approved internal domains. Add your own access code in settings to chat from this site.
+                        <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-500 flex items-center gap-1.5">
+                            <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                            <span>Built-in cloud access is limited to approved internal domains. Add your own access code in settings to chat from this site.</span>
                         </p>
                     )}
                     {connectionStatus === 'error' && apiKey && (
-                        <p className="mt-1 text-sm text-rose-600 flex items-center gap-1">
-                            <AlertCircle className="h-4 w-4" />
+                        <p className="mt-1.5 text-sm text-rose-600 dark:text-rose-500 flex items-center gap-1.5">
+                            <AlertCircle className="h-4 w-4 flex-shrink-0" />
                             <span>{connectionError || 'Unable to connect to the AI. Update the access code in settings.'}</span>
                         </p>
                     )}
@@ -2055,7 +2092,7 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                     {/* Clear Cache / Refresh App - Moved to top for mobile visibility */}
                     <button
                         onClick={handleRefreshApp}
-                        className="p-2.5 sm:p-2 rounded-lg text-slate-500 hover:text-brand-600 hover:bg-slate-100 transition-colors"
+                        className="p-2.5 sm:p-2 rounded-lg text-slate-700 dark:text-slate-300 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                         title="Clear Cache & Refresh App"
                         aria-label="Clear Cache & Refresh App"
                     >
@@ -2067,7 +2104,7 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                             onClick={toggleSidebar}
                             aria-pressed={isSidebarCollapsed}
                             aria-label={isSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
-                            className="p-2.5 sm:p-2 rounded-lg text-sm font-medium flex items-center gap-2 border transition-colors border-slate-200 text-slate-600 hover:bg-slate-100"
+                            className="p-2.5 sm:p-2 rounded-lg text-sm font-medium flex items-center gap-2 border transition-colors border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                             title={isSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
                         >
                             {isSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
@@ -2079,8 +2116,8 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                         aria-pressed={!isNotesPanelCollapsed}
                         aria-label={isNotesPanelCollapsed ? 'Show notes panel' : 'Hide notes panel'}
                         className={`p-2.5 sm:p-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 border transition-colors ${isNotesPanelCollapsed
-                            ? 'border-slate-200 text-slate-600 hover:bg-slate-100'
-                            : 'bg-brand-50 text-brand-700 border-brand-100'
+                            ? 'border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                            : 'bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 border-brand-100 dark:border-brand-700'
                             }`}
                     >
                         {isNotesPanelCollapsed ? (
@@ -2092,7 +2129,7 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                     </button>
                     <button
                         onClick={toggleMaximize}
-                        className="p-2.5 sm:p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+                        className="p-2.5 sm:p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                         title="Maximize (Fullscreen Mode)"
                         aria-label="Maximize (Fullscreen Mode)"
                     >
@@ -2101,10 +2138,10 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                     <button
                         onClick={() => setShowSettings(!showSettings)}
                         className={`p-2.5 sm:p-2 rounded-lg transition-colors ${showSettings
-                            ? 'bg-brand-50 text-brand-700'
+                            ? 'bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300'
                             : isUsingCustomKey
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                             }`}
                         title="Manage AI Access Code"
                         aria-label="Manage AI Access Code"
@@ -2123,20 +2160,20 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                         exit={{ height: 0, opacity: 0 }}
                         className="overflow-hidden mb-4"
                     >
-                        <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-                            <h3 className="font-semibold text-slate-900 mb-2 flex items-center gap-2">
-                                <Key className="h-4 w-4" /> AI Settings
+                        <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4 sm:p-5">
+                            <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-2">
+                                <Key className="h-4 w-4 text-brand-600 dark:text-brand-400" /> AI Settings
                             </h3>
-                            <p className="text-sm text-slate-600 mb-4">
+                            <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
                                 Enter an API key to enable full AI chat capabilities. OpenAI is recommended for better reliability.
                             </p>
                             
                             {/* OpenAI Key Section */}
                             <div className="mb-4">
-                                <label className="block text-xs font-medium text-slate-700 mb-2">
+                                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">
                                     OpenAI API Key (Recommended)
                                 </label>
-                                <div className="flex gap-2">
+                                <div className="flex flex-col sm:flex-row gap-2">
                                     <input
                                         type="password"
                                         value={openAIKeyInput}
@@ -2144,22 +2181,24 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                                         placeholder="sk-..."
                                         className="input-field flex-1"
                                     />
-                                    <button onClick={handleSaveOpenAIKey} className="btn-primary">Save</button>
-                                    {openAIKey && (
-                                        <button onClick={handleClearOpenAIKey} className="btn-secondary text-red-600 hover:bg-red-50">Clear</button>
-                                    )}
+                                    <div className="flex gap-2">
+                                        <button onClick={handleSaveOpenAIKey} className="btn-primary whitespace-nowrap">Save</button>
+                                        {openAIKey && (
+                                            <button onClick={handleClearOpenAIKey} className="btn-secondary text-red-600 dark:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 whitespace-nowrap">Clear</button>
+                                        )}
+                                    </div>
                                 </div>
-                                <p className="text-xs text-slate-500 mt-1">
-                                    Get your key at <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:underline">platform.openai.com/api-keys</a>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                                    Get your key at <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-brand-600 dark:text-brand-400 hover:underline font-medium">platform.openai.com/api-keys</a>
                                 </p>
                             </div>
 
                             {/* Gemini Key Section */}
-                            <div className="mb-3">
-                                <label className="block text-xs font-medium text-slate-700 mb-2">
+                            <div className="mb-4">
+                                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">
                                     Google Gemini API Key (Alternative)
                                 </label>
-                                <div className="flex gap-2">
+                                <div className="flex flex-col sm:flex-row gap-2">
                                     <input
                                         type="password"
                                         value={keyInput}
@@ -2167,17 +2206,19 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                                         placeholder="Enter Gemini Access Code..."
                                         className="input-field flex-1"
                                     />
-                                    <button onClick={handleSaveKey} className="btn-primary">Save</button>
-                                    {isUsingCustomKey && (
-                                        <button onClick={handleClearKey} className="btn-secondary text-red-600 hover:bg-red-50">Clear</button>
-                                    )}
+                                    <div className="flex gap-2">
+                                        <button onClick={handleSaveKey} className="btn-primary whitespace-nowrap">Save</button>
+                                        {isUsingCustomKey && (
+                                            <button onClick={handleClearKey} className="btn-secondary text-red-600 dark:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 whitespace-nowrap">Clear</button>
+                                        )}
+                                    </div>
                                 </div>
-                                <p className="text-xs text-slate-500 mt-1">
-                                    Get your key at <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:underline">makersuite.google.com/app/apikey</a>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                                    Get your key at <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-brand-600 dark:text-brand-400 hover:underline font-medium">makersuite.google.com/app/apikey</a>
                                 </p>
                             </div>
                             
-                            <div className="text-xs text-slate-500 mt-3 space-y-1 border-t border-slate-200 pt-3">
+                            <div className="text-xs text-slate-500 dark:text-slate-400 mt-4 space-y-1.5 border-t border-slate-200 dark:border-slate-700 pt-3">
                                 <p>
                                     {openAIKey
                                         ? 'Using OpenAI API. It will be tried first, then Gemini if available.'
@@ -2187,7 +2228,7 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                                                 ? 'Using the built-in HHS Gemini key by default. Add your own key if you need to run chats under a personal quota.'
                                                 : 'No API key is configured yet. Add one to enable cloud AI responses.'}
                                 </p>
-                                <p className="text-slate-400">Any personal key you add stays in your browser only.</p>
+                                <p className="text-slate-500 dark:text-slate-400 italic">Any personal key you add stays in your browser only.</p>
                             </div>
                         </div>
                     </motion.div>
@@ -2199,13 +2240,13 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                 ref={workspaceRef}
                 className="flex-1 flex flex-col gap-4 lg:flex-row lg:items-stretch overflow-hidden"
             >
-                <div className="flex-1 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col relative min-w-0 min-h-[420px]">
-                    <div className="bg-slate-50 border-b border-slate-200 px-3 sm:px-4 py-2 sm:py-3 flex flex-wrap items-center gap-3">
+                <div className="flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden flex flex-col relative min-w-0 min-h-[420px]">
+                    <div className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 px-3 sm:px-4 py-2.5 sm:py-3 flex flex-wrap items-center gap-3">
                         <div className="flex items-center gap-2">
-                            <MessageSquare className="h-4 w-4 text-slate-500" />
-                            <span className="text-sm font-medium text-slate-700">Conversation</span>
-                            <span className="text-xs text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full">
-                                {messages.filter(msg => !msg.isSystem).length} messages
+                            <MessageSquare className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Conversation</span>
+                            <span className="text-xs text-slate-600 dark:text-slate-300 bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded-full font-medium">
+                                {messages.filter(msg => !msg.isSystem).length} {messages.filter(msg => !msg.isSystem).length === 1 ? 'message' : 'messages'}
                             </span>
                         </div>
                         <div className="flex gap-1.5 sm:gap-2 ml-auto">
@@ -2228,9 +2269,9 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
 
                     {/* Quick Prompts Bar - Only show if not empty state */}
                     {messages.length > 1 && (
-                        <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-slate-100 bg-white flex flex-wrap items-center gap-2">
-                            <div className="flex items-center gap-2 text-[10px] sm:text-xs font-semibold uppercase text-slate-500">
-                                <Wand2 className="h-3 w-3 text-brand-500" />
+                        <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-wrap items-center gap-2">
+                            <div className="flex items-center gap-2 text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                <Wand2 className="h-3.5 w-3.5 text-brand-500 dark:text-brand-400" />
                                 <span className="hidden xs:inline">Quick prompts</span>
                             </div>
                             <div className="flex flex-wrap gap-1.5 sm:gap-2">
@@ -2326,11 +2367,11 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                         )}
                     </AnimatePresence>
 
-                    {currentQuestion && (
-                        <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-slate-100 bg-slate-50 flex flex-wrap items-center gap-3">
+                                    {currentQuestion && (
+                        <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex flex-wrap items-center gap-3">
                             <div className="flex-1 min-w-[240px]">
-                                <p className="text-xs uppercase font-semibold text-slate-500 tracking-wide">Current question</p>
-                                <p className="font-medium text-slate-900">{truncateText(currentQuestion.text, 160)}</p>
+                                <p className="text-xs uppercase font-semibold text-slate-500 dark:text-slate-400 tracking-wide mb-1">Current question</p>
+                                <p className="font-medium text-slate-900 dark:text-slate-100">{truncateText(currentQuestion.text, 160)}</p>
                             </div>
                             <div className="flex items-center gap-2">
                                 <button
@@ -2453,8 +2494,8 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                         <ChevronUp className="h-4 w-4" />
                     </motion.button>
 
-                    <div className="p-3 sm:p-4 bg-white border-t border-slate-200 shadow-up z-10">
-                        <div className="flex gap-2">
+                    <div className="p-3 sm:p-4 bg-white border-t border-slate-200 shadow-up z-10" style={{ willChange: 'auto' }}>
+                        <div className="flex gap-2" style={{ minHeight: '48px', alignItems: 'flex-end' }}>
                             <textarea
                                 ref={inputRef}
                                 value={input}

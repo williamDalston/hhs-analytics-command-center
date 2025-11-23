@@ -23,3 +23,4 @@ FOR DELETE USING ( bucket_id = 'portal-uploads' );
 -- No table changes required for the prototype refactor.
 
 
+
