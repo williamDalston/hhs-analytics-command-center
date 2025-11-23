@@ -968,6 +968,7 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                 }
 
                 let candidateModels = GEMINI_MODELS;
+                let hasModelAccess = false;
                 try {
                     const { models } = await genAI.listModels();
                     const contentModels = (models || [])
@@ -975,6 +976,7 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                         .map(model => normalizeModelName(model.name));
 
                     if (contentModels.length > 0) {
+                        hasModelAccess = true;
                         const curatedMatches = GEMINI_MODELS.filter(modelName =>
                             contentModels.includes(normalizeModelName(modelName))
                         );
@@ -984,21 +986,38 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                         } else {
                             // No approved Gemini models available for generateContent
                             candidateModels = [];
+                            hasModelAccess = false;
                         }
+                    } else {
+                        hasModelAccess = false;
+                        candidateModels = [];
                     }
 
                     if (import.meta.env.DEV) {
                         console.log(`Discovered models:`, contentModels);
                         console.log(`Candidate order:`, candidateModels);
+                        console.log(`Has model access:`, hasModelAccess);
                     }
                 } catch (discoveryError) {
                     if (import.meta.env.DEV) {
                         console.warn(`Model discovery unavailable:`, discoveryError.message);
                     }
-                    // Fall back to default curated list
+                    // If listModels fails, likely no access - skip trying models
+                    hasModelAccess = false;
+                    candidateModels = [];
                 }
 
-                for (const modelName of candidateModels) {
+                let allModels404 = candidateModels.length > 0; // Start as true only if we have models to try
+                
+                // Only try models if we have candidates
+                if (candidateModels.length === 0) {
+                    if (import.meta.env.DEV) {
+                        console.warn('No candidate models to try - likely no API access');
+                    }
+                    allModels404 = false; // Not a 404 issue - no models to try
+                    lastModelError = new Error('No accessible models found for this API key');
+                } else {
+                    for (const modelName of candidateModels) {
                     let timeoutId;
                     try {
                         if (import.meta.env.DEV) {
@@ -1052,6 +1071,7 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                         successfulApiVersion = 'current'; // or remove this
                         setConnectionStatus('connected');
                         setConnectionError('');
+                        allModels404 = false; // At least one worked
                         break;
                     } catch (modelError) {
                         if (timeoutId) {
@@ -1062,13 +1082,22 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                             console.warn(`Model ${modelName} failed during generateContent:`, modelError.message);
                         }
 
-                        // If model doesn't exist (404), skip it quickly - don't waste time
-                        if (modelError.message?.includes('404') || modelError.message?.includes('not found') || modelError.message?.includes('NOT_FOUND')) {
+                        // Check if it's a 404
+                        const is404 = modelError.message?.includes('404') || 
+                                     modelError.message?.includes('not found') || 
+                                     modelError.message?.includes('NOT_FOUND') ||
+                                     modelError.message?.includes('Requested entity was not found');
+
+                        if (is404) {
                             if (import.meta.env.DEV) {
-                                console.log(`Model ${modelName} not available, skipping...`);
+                                console.log(`Model ${modelName} not available (404), skipping...`);
                             }
                             lastModelError = modelError;
-                            continue; // Try next model
+                            // Continue to next model, but keep allModels404 = true
+                            continue;
+                        } else {
+                            // If we get a non-404 error, at least the API is responding
+                            allModels404 = false;
                         }
 
                         if (modelError.message?.includes('API_KEY') || modelError.message?.includes('PERMISSION_DENIED')) {
@@ -1078,6 +1107,7 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
 
                         lastModelError = modelError;
                     }
+                }
                 }
 
                 let finalText = null;
@@ -1091,13 +1121,23 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                     providerLabel = successfulModelName;
                     setVerifiedApiVersion(providerLabel);
                 } else {
-                    const palmResult = await attemptPalmFallback();
-                    if (palmResult) {
-                        finalText = palmResult.text;
-                        providerLabel = palmResult.providerLabel;
-                        setConnectionStatus('connected');
-                        setConnectionError('');
-                        setVerifiedApiVersion(providerLabel);
+                    // Only try PaLM if not all models returned 404 (which suggests the API key doesn't work at all)
+                    if (!allModels404 && candidateModels.length > 0) {
+                        const palmResult = await attemptPalmFallback();
+                        if (palmResult) {
+                            finalText = palmResult.text;
+                            providerLabel = palmResult.providerLabel;
+                            setConnectionStatus('connected');
+                            setConnectionError('');
+                            setVerifiedApiVersion(providerLabel);
+                        }
+                    } else if (allModels404 && candidateModels.length > 0) {
+                        // All models returned 404 - API key likely doesn't have access
+                        if (import.meta.env.DEV) {
+                            console.warn('All Gemini models returned 404 - skipping PaLM fallback');
+                        }
+                        setConnectionStatus('error');
+                        setConnectionError('API key does not have access to any AI models. Please check your API key permissions.');
                     }
                 }
 
