@@ -89,6 +89,7 @@ const GEMINI_MODELS = [
     "gemini-1.0-pro"
 ];
 // Important: API v1 is preferred for production, but keep v1beta for compatibility
+// Note: v1beta may have different model availability than v1
 const GEMINI_API_VERSIONS = ["v1", "v1beta"]; 
 const GEMINI_MODEL = GEMINI_MODELS[0]; // Default to latest flash
 const PALM_API_VERSION = 'v1beta2';
@@ -929,6 +930,14 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                             if (import.meta.env.DEV) {
                                 console.warn(`PaLM model ${record.name} failed:`, palmError.message);
                             }
+                            // Skip 404/not found errors quickly - model not available
+                            if (palmError.message?.includes('404') || palmError.message?.includes('not found') || palmError.message?.includes('NOT_FOUND')) {
+                                continue; // Try next PaLM model
+                            }
+                            // Skip 400 errors if they're about model not being available
+                            if (palmError.message?.includes('400') && palmError.message?.includes('not available')) {
+                                continue;
+                            }
                             lastModelError = palmError;
                         }
                     }
@@ -995,17 +1004,10 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                         if (import.meta.env.DEV) {
                             console.log(`Attempting Gemini model ${modelName}...`);
                         }
+                        // Try without tools first (they may require special permissions)
                         const model = genAI.getGenerativeModel({
                             model: modelName,
                             systemInstruction: systemPrompt,
-                            tools: [{
-                                googleSearchRetrieval: {
-                                    dynamicRetrievalConfig: {
-                                        mode: 'MODE_DYNAMIC',
-                                        dynamicThreshold: 0.6,
-                                    },
-                                },
-                            }],
                             safetySettings: [
                                 {
                                     category: "HARM_CATEGORY_HARASSMENT",
@@ -1060,9 +1062,18 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                             console.warn(`Model ${modelName} failed during generateContent:`, modelError.message);
                         }
 
+                        // If model doesn't exist (404), skip it quickly - don't waste time
+                        if (modelError.message?.includes('404') || modelError.message?.includes('not found') || modelError.message?.includes('NOT_FOUND')) {
+                            if (import.meta.env.DEV) {
+                                console.log(`Model ${modelName} not available, skipping...`);
+                            }
+                            lastModelError = modelError;
+                            continue; // Try next model
+                        }
+
                         if (modelError.message?.includes('API_KEY') || modelError.message?.includes('PERMISSION_DENIED')) {
                             lastModelError = modelError;
-                            break;
+                            break; // Auth error - stop trying
                         }
 
                         lastModelError = modelError;
@@ -1112,17 +1123,25 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                 const isAuthError = error.message?.includes('API_KEY') ||
                                    error.message?.includes('PERMISSION_DENIED') ||
                                    error.message?.includes('INVALID_ARGUMENT');
+                const isNotFoundError = error.message?.includes('not found') ||
+                                       error.message?.includes('NOT_FOUND') ||
+                                       error.message?.includes('404') ||
+                                       error.message?.includes('Requested entity was not found');
                 const isTimeoutError = error.message?.includes('timeout') || error.message?.includes('Timeout');
                 const isNetworkError = error.message?.includes('network') || error.message?.includes('fetch');
 
-                if (isAuthError) {
+                if (isAuthError || isNotFoundError) {
                     setConnectionStatus('error');
-                    setConnectionError('Invalid API key or insufficient permissions');
+                    setConnectionError(isNotFoundError 
+                        ? 'API key does not have access to any AI models. Please check your API key permissions or create a new one at https://makersuite.google.com/app/apikey'
+                        : 'Invalid API key or insufficient permissions');
                 }
 
                 // Show user-friendly error with specific guidance
                 let errorText;
-                if (isAuthError) {
+                if (isNotFoundError) {
+                    errorText = "The API key doesn't have access to any AI models. Please check that your Google AI Studio API key has the correct permissions, or create a new key at https://makersuite.google.com/app/apikey. I can still help with local knowledge about DAX and Power BI.";
+                } else if (isAuthError) {
                     errorText = "I couldn't connect to the AI service with the current access code. Please update your API key in settings, or I can help with local knowledge about DAX and Power BI.";
                 } else if (isTimeoutError) {
                     errorText = "The AI service is taking too long to respond. This can happen on slower connections. Please try again, or I can help with local knowledge about DAX and Power BI.";
