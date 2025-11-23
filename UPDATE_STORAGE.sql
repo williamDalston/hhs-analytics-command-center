@@ -22,3 +22,4 @@ FOR DELETE USING ( bucket_id = 'portal-uploads' );
 -- but we will repurpose 'encrypted_data' to store the File Path.
 -- No table changes required for the prototype refactor.
 
+

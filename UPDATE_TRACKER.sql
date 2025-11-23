@@ -47,3 +47,4 @@ VALUES
 ('Decision', 'Use HashRouter', '2023-11-22', 'Resolved', 'Switched to HashRouter for GitHub Pages compatibility.'),
 ('Pain Point', 'Jira API Access', '2023-11-20', 'Active', 'Waiting on IT approval for PAT token.');
 
+
