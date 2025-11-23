@@ -158,6 +158,21 @@ const getStoredOpenAIKey = () => {
     return storedKey ? storedKey.trim() : '';
 };
 
+// Check for OpenAI key from environment variables (for GitHub deployment)
+const rawOpenAIKey = import.meta.env.VITE_OPENAI_API_KEY?.trim() || '';
+const PROJECT_OPENAI_KEY = rawOpenAIKey === 'YOUR_OPENAI_API_KEY' ? '' : rawOpenAIKey;
+
+const resolveInitialOpenAIKey = () => {
+    const customKey = getStoredOpenAIKey();
+    if (customKey) {
+        return { key: customKey, source: 'custom' };
+    }
+    if (PROJECT_OPENAI_KEY) {
+        return { key: PROJECT_OPENAI_KEY, source: 'project' };
+    }
+    return { key: '', source: 'none' };
+};
+
 const resolveInitialApiKey = () => {
     const customKey = getStoredCustomKey();
     if (customKey) {
@@ -179,6 +194,7 @@ const PowerBIGuru = () => {
     const { addToast } = useToast();
     const { isSidebarCollapsed, toggleSidebar } = useSidebar();
     const initialKeyInfoRef = useRef(resolveInitialApiKey());
+    const initialOpenAIKeyInfoRef = useRef(resolveInitialOpenAIKey());
     const [messages, setMessages] = useState(() => {
         if (typeof window === 'undefined') return [createInitialMessage()];
         try {
@@ -195,9 +211,9 @@ const PowerBIGuru = () => {
     });
     const [input, setInput] = useState('');
     const [apiKey, setApiKey] = useState(initialKeyInfoRef.current.key);
-    const [openAIKey, setOpenAIKey] = useState(() => getStoredOpenAIKey());
+    const [openAIKey, setOpenAIKey] = useState(initialOpenAIKeyInfoRef.current.key);
     const [keyInput, setKeyInput] = useState(initialKeyInfoRef.current.source === 'custom' ? initialKeyInfoRef.current.key : '');
-    const [openAIKeyInput, setOpenAIKeyInput] = useState(() => getStoredOpenAIKey());
+    const [openAIKeyInput, setOpenAIKeyInput] = useState(initialOpenAIKeyInfoRef.current.source === 'custom' ? initialOpenAIKeyInfoRef.current.key : '');
     const [isUsingCustomKey, setIsUsingCustomKey] = useState(initialKeyInfoRef.current.source === 'custom');
     const [showSettings, setShowSettings] = useState(false);
     const [isTyping, setIsTyping] = useState(false);

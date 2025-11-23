@@ -14,7 +14,18 @@
 - Name: `VITE_SUPABASE_ANON_KEY`  
 - Value: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxa2t3eG5peGhvbnB2d2xrbmNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3OTkxMTAsImV4cCI6MjA3OTM3NTExMH0.8SUT_2anhTps9XVM7AEFTO55QvNbZVMOnzghWo5CmNI`
 
-**Secret 3: Google Gemini API Key (For Power BI Guru)**
+**Secret 3: OpenAI API Key (Recommended - For Power BI Guru)**
+- Name: `VITE_OPENAI_API_KEY`
+- Value: Your OpenAI API key (starts with `sk-`)
+- Where to get it:
+  1. Go to https://platform.openai.com/api-keys
+  2. Sign in or create an account
+  3. Click "Create new secret key"
+  4. Copy the key (starts with `sk-`)
+  5. Paste the key value into the GitHub secret
+- **Why this is recommended**: OpenAI is more reliable and works when Google/Gemini doesn't. The app will try OpenAI first, then fall back to Gemini if OpenAI fails.
+
+**Secret 4: Google Gemini API Key (Alternative - For Power BI Guru)**
 - Name: `VITE_GEMINI_API_KEY`
 - Value: `YOUR_GOOGLE_GEMINI_API_KEY`
 - Where to get it:
@@ -22,6 +33,7 @@
   2. Create or select a project
   3. Generate a new API key (rotate if one was previously exposed)
   4. Paste the key value into the GitHub secret (and your local `.env` if needed)
+- **Note**: This is optional if you have OpenAI key. The app will use Gemini as a fallback if OpenAI fails.
 
 **⚠️ IMPORTANT: Configure HTTP Referrer Restrictions**
 
