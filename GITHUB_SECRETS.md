@@ -10,9 +10,17 @@
 - Name: `VITE_SUPABASE_URL`
 - Value: `https://fqkkwxnixhonpvwlknco.supabase.co`
 
-**Secret 2: Supabase Key**
+**Secret 2: Supabase Anon/Publishable Key (PUBLIC KEY - Safe for frontend)**
 - Name: `VITE_SUPABASE_ANON_KEY`  
-- Value: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxa2t3eG5peGhvbnB2d2xrbmNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3OTkxMTAsImV4cCI6MjA3OTM3NTExMH0.8SUT_2anhTps9XVM7AEFTO55QvNbZVMOnzghWo5CmNI`
+- Value: `sb_publishable_4JBTsK1u4peivyU9So1K7g_qgW4u-Ez`
+- **Where to find it**: 
+  1. Go to: **https://supabase.com/dashboard/project/fqkkwxnixhonpvwlknco/settings/api**
+  2. Look for **"anon public"** or **"publishable"** key
+  3. This is the PUBLIC key - safe to use in frontend code
+- **⚠️ IMPORTANT**: 
+  - ✅ Use the **"anon public"** or **"publishable"** key (safe for frontend)
+  - ❌ DO NOT use the **"service_role secret"** key (starts with `sb_secret_...`) - this is for backend/admin only!
+  - The secret key has admin privileges and should NEVER be exposed in frontend code
 
 **Secret 3: OpenAI API Key (Recommended - For Power BI Guru)**
 - Name: `VITE_OPENAI_API_KEY`
