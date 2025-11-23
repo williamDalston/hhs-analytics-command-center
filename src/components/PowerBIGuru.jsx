@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Send, User, Sparkles, Settings, Key, Database, AlertCircle, Copy, Trash2, Download, MessageSquare, ChevronDown, ChevronUp, NotebookPen, Eraser, Wand2, Maximize2, Minimize2, BookmarkPlus, ArrowDownToLine, GripVertical, PanelRightOpen, PanelRightClose, PanelLeftOpen, PanelLeftClose, Type, RotateCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleGenerativeAI, DynamicRetrievalMode } from '@google/generative-ai';
+import OpenAI from 'openai';
 import { useToast } from '../context/ToastContext';
 import { useSidebar } from '../context/SidebarContext';
 
@@ -151,6 +152,12 @@ const getStoredCustomKey = () => {
     return storedKey ? storedKey.trim() : '';
 };
 
+const getStoredOpenAIKey = () => {
+    if (typeof window === 'undefined') return '';
+    const storedKey = window.localStorage.getItem('openai_api_key');
+    return storedKey ? storedKey.trim() : '';
+};
+
 const resolveInitialApiKey = () => {
     const customKey = getStoredCustomKey();
     if (customKey) {
@@ -188,7 +195,9 @@ const PowerBIGuru = () => {
     });
     const [input, setInput] = useState('');
     const [apiKey, setApiKey] = useState(initialKeyInfoRef.current.key);
+    const [openAIKey, setOpenAIKey] = useState(() => getStoredOpenAIKey());
     const [keyInput, setKeyInput] = useState(initialKeyInfoRef.current.source === 'custom' ? initialKeyInfoRef.current.key : '');
+    const [openAIKeyInput, setOpenAIKeyInput] = useState(() => getStoredOpenAIKey());
     const [isUsingCustomKey, setIsUsingCustomKey] = useState(initialKeyInfoRef.current.source === 'custom');
     const [showSettings, setShowSettings] = useState(false);
     const [isTyping, setIsTyping] = useState(false);
@@ -457,6 +466,23 @@ const PowerBIGuru = () => {
         addToast('Personal access code saved. Connecting now...', 'success');
     };
 
+    const handleSaveOpenAIKey = () => {
+        const trimmedKey = openAIKeyInput.trim();
+        if (!trimmedKey) {
+            addToast('Please enter a valid OpenAI API key', 'error');
+            return;
+        }
+        if (typeof window !== 'undefined') {
+            window.localStorage.setItem('openai_api_key', trimmedKey);
+        }
+        setOpenAIKey(trimmedKey);
+        setOpenAIKeyInput('');
+        setConnectionStatus('connecting');
+        setConnectionError('');
+        setShowSettings(false);
+        addToast('OpenAI API key saved. Connecting now...', 'success');
+    };
+
     const handleClearKey = () => {
         if (typeof window !== 'undefined') {
             window.localStorage.removeItem('gemini_api_key');
@@ -476,6 +502,17 @@ const PowerBIGuru = () => {
                     : 'Access code removed. Running in local knowledge mode.',
             'info'
         );
+    };
+
+    const handleClearOpenAIKey = () => {
+        if (typeof window !== 'undefined') {
+            window.localStorage.removeItem('openai_api_key');
+        }
+        setOpenAIKey('');
+        setOpenAIKeyInput('');
+        setConnectionStatus('idle');
+        setConnectionError('');
+        addToast('OpenAI API key removed.', 'info');
     };
 
     const processLocalQuery = (query) => {
@@ -762,9 +799,88 @@ const PowerBIGuru = () => {
             return;
         }
 
+        const trimmedOpenAIKey = openAIKey.trim();
         const trimmedKey = apiKey.trim();
 
-        // 2. Try Cloud AI if Key exists (don't block on verification status)
+        // 2. Try OpenAI first (more reliable)
+        if (trimmedOpenAIKey) {
+            try {
+                const openai = new OpenAI({
+                    apiKey: trimmedOpenAIKey,
+                    dangerouslyAllowBrowser: true // Required for browser usage
+                });
+
+                const currentDateTime = new Date().toLocaleString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric', 
+                    hour: 'numeric', 
+                    minute: 'numeric',
+                    timeZoneName: 'short' 
+                });
+
+                const systemPrompt = `You are an expert Power BI Developer and Data Analyst for the US Department of Health and Human Services (HHS), but you are also a helpful general-purpose AI assistant.
+                
+Current Date and Time: ${currentDateTime}
+
+You can answer ANY question the user asks, regardless of the topic (including general knowledge, coding in other languages, creative writing, etc.).
+
+Guidelines for Power BI & Data Questions:
+- Provide expert, production-ready advice.
+- Always format DAX code clearly with line breaks and indentation.
+- Explain complex logic step-by-step.
+- Reference HHS style guidelines (blue #005EA2, Source Sans Pro) if relevant to visuals.
+
+Guidelines for General Questions:
+- Answer helpfully and accurately.
+- Do not force a connection to data if the topic is unrelated.
+- Be concise and direct.`;
+
+                // Format conversation for OpenAI
+                const conversationHistory = messages
+                    .filter(msg => !msg.isError && !msg.isSystem)
+                    .map(msg => ({
+                        role: msg.sender === 'user' ? 'user' : 'assistant',
+                        content: msg.text
+                    }));
+
+                const completion = await openai.chat.completions.create({
+                    model: 'gpt-4o-mini', // Using cost-effective model, can fallback to gpt-4o if needed
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        ...conversationHistory,
+                        { role: 'user', content: userMsg.text }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 4096
+                });
+
+                const text = completion.choices[0]?.message?.content;
+                if (text) {
+                    const guruMsg = { 
+                        id: Date.now() + 1, 
+                        text, 
+                        sender: 'guru', 
+                        createdAt: new Date().toISOString() 
+                    };
+                    setMessages(prev => [...prev, guruMsg]);
+                    setLastAnswerId(guruMsg.id);
+                    setConnectionStatus('connected');
+                    setConnectionError('');
+                    setVerifiedApiVersion('OpenAI / gpt-4o-mini');
+                    setIsTyping(false);
+                    return; // Success - exit early
+                }
+            } catch (openAIError) {
+                if (import.meta.env.DEV) {
+                    console.warn('OpenAI request failed:', openAIError.message);
+                }
+                // Continue to try Gemini/PaLM fallback
+            }
+        }
+
+        // 3. Try Gemini/PaLM if OpenAI not available or failed
         if (trimmedKey) {
 
             try {
@@ -772,7 +888,7 @@ const PowerBIGuru = () => {
                 let successfulResponse = null;
                 let successfulModelName = '';
                 let successfulApiVersion = '';
-
+                
                 const currentDateTime = new Date().toLocaleString('en-US', { 
                     weekday: 'long', 
                     year: 'numeric', 
@@ -1083,8 +1199,8 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                         if (is404) {
                             if (import.meta.env.DEV) {
                                 console.log(`Model ${modelName} not available (404), skipping...`);
-                            }
-                            lastModelError = modelError;
+                        }
+                        lastModelError = modelError;
                             // Continue to next model, but keep allModels404 = true
                             continue;
                         } else {
@@ -1125,7 +1241,7 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                         }
                     } else if (allModels404 && candidateModels.length > 0) {
                         // All models returned 404 - API key likely doesn't have access
-                        if (import.meta.env.DEV) {
+                if (import.meta.env.DEV) {
                             console.warn('All Gemini models returned 404 - skipping PaLM fallback');
                         }
                         setConnectionStatus('error');
@@ -1743,29 +1859,65 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                             <h3 className="font-semibold text-slate-900 mb-2 flex items-center gap-2">
                                 <Key className="h-4 w-4" /> AI Settings
                             </h3>
-                            <p className="text-sm text-slate-600 mb-3">
-                                Enter your access code to enable full AI chat capabilities.
+                            <p className="text-sm text-slate-600 mb-4">
+                                Enter an API key to enable full AI chat capabilities. OpenAI is recommended for better reliability.
                             </p>
-                            <div className="flex gap-2">
-                                <input
-                                    type="password"
-                                    value={keyInput}
-                                    onChange={(e) => setKeyInput(e.target.value)}
-                                    placeholder="Enter Access Code..."
-                                    className="input-field flex-1"
-                                />
-                                <button onClick={handleSaveKey} className="btn-primary">Save & Connect</button>
-                                {isUsingCustomKey && (
-                                    <button onClick={handleClearKey} className="btn-secondary text-red-600 hover:bg-red-50">Clear</button>
-                                )}
+                            
+                            {/* OpenAI Key Section */}
+                            <div className="mb-4">
+                                <label className="block text-xs font-medium text-slate-700 mb-2">
+                                    OpenAI API Key (Recommended)
+                                </label>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="password"
+                                        value={openAIKeyInput}
+                                        onChange={(e) => setOpenAIKeyInput(e.target.value)}
+                                        placeholder="sk-..."
+                                        className="input-field flex-1"
+                                    />
+                                    <button onClick={handleSaveOpenAIKey} className="btn-primary">Save</button>
+                                    {openAIKey && (
+                                        <button onClick={handleClearOpenAIKey} className="btn-secondary text-red-600 hover:bg-red-50">Clear</button>
+                                    )}
+                                </div>
+                                <p className="text-xs text-slate-500 mt-1">
+                                    Get your key at <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:underline">platform.openai.com/api-keys</a>
+                                </p>
                             </div>
-                            <div className="text-xs text-slate-500 mt-3 space-y-1">
+
+                            {/* Gemini Key Section */}
+                            <div className="mb-3">
+                                <label className="block text-xs font-medium text-slate-700 mb-2">
+                                    Google Gemini API Key (Alternative)
+                                </label>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="password"
+                                        value={keyInput}
+                                        onChange={(e) => setKeyInput(e.target.value)}
+                                        placeholder="Enter Gemini Access Code..."
+                                        className="input-field flex-1"
+                                    />
+                                    <button onClick={handleSaveKey} className="btn-primary">Save</button>
+                                    {isUsingCustomKey && (
+                                        <button onClick={handleClearKey} className="btn-secondary text-red-600 hover:bg-red-50">Clear</button>
+                                    )}
+                                </div>
+                                <p className="text-xs text-slate-500 mt-1">
+                                    Get your key at <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:underline">makersuite.google.com/app/apikey</a>
+                                </p>
+                            </div>
+                            
+                            <div className="text-xs text-slate-500 mt-3 space-y-1 border-t border-slate-200 pt-3">
                                 <p>
-                                    {isUsingCustomKey
-                                        ? 'Currently using your personal Gemini key. Clear to switch back to the built-in HHS access code.'
-                                        : isEnvKey
-                                            ? 'Using the built-in HHS Gemini key by default. Add your own key if you need to run chats under a personal quota.'
-                                            : 'No access code is configured yet. Add one to enable cloud AI responses.'}
+                                    {openAIKey
+                                        ? 'Using OpenAI API. It will be tried first, then Gemini if available.'
+                                        : isUsingCustomKey
+                                            ? 'Currently using your personal Gemini key. Clear to switch back to the built-in HHS access code.'
+                                            : isEnvKey
+                                                ? 'Using the built-in HHS Gemini key by default. Add your own key if you need to run chats under a personal quota.'
+                                                : 'No API key is configured yet. Add one to enable cloud AI responses.'}
                                 </p>
                                 <p className="text-slate-400">Any personal key you add stays in your browser only.</p>
                             </div>
