@@ -82,10 +82,16 @@ const LINE_HEIGHTS = {
     loose: { label: 'Loose', class: 'leading-loose' }
 };
 
-// Use Gemini models - try stable versions first
-const GEMINI_MODELS = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
+// Use Gemini models - prioritising stable and cost-effective versions
+const GEMINI_MODELS = [
+    "gemini-2.0-flash-exp", 
+    "gemini-1.5-flash", 
+    "gemini-1.5-pro", 
+    "gemini-1.5-flash-8b",
+    "gemini-pro"
+];
 const GEMINI_API_VERSIONS = ["v1beta", "v1"];
-const GEMINI_MODEL = GEMINI_MODELS[0]; // Default to latest
+const GEMINI_MODEL = GEMINI_MODELS[1]; // Default to stable flash
 
 // Check for placeholder key and treat as empty
 const rawKey = import.meta.env.VITE_GEMINI_API_KEY?.trim() || '';
@@ -703,9 +709,10 @@ const PowerBIGuru = () => {
 
             try {
                 const genAI = new GoogleGenerativeAI(trimmedKey);
-                let model;
                 let lastModelError;
-                
+                let successfulResponse = null;
+                let successfulModelName = '';
+
                 const currentDateTime = new Date().toLocaleString('en-US', { 
                     weekday: 'long', 
                     year: 'numeric', 
@@ -735,10 +742,39 @@ Guidelines for General Questions:
 
 You have access to Google Search tools. Use them proactively to verify facts, find current information, or answer questions about recent events.`;
 
-                // Try different models in order of preference
+                // Format conversation for Gemini API
+                const conversationHistory = messages
+                    .filter(msg => !msg.isError && !msg.isSystem) // Exclude errors and system prompts
+                    .map(msg => ({
+                        role: msg.sender === 'user' ? 'user' : 'model',
+                        parts: [{ text: msg.text }]
+                    }));
+
+                // Add current user message
+                const contents = [
+                    ...conversationHistory,
+                    {
+                        role: 'user',
+                        parts: [{ text: userMsg.text }]
+                    }
+                ];
+
+                // Only log in development
+                if (import.meta.env.DEV) {
+                    console.log('Full conversation for AI:', contents);
+                }
+
+                // Add timeout for mobile devices
+                const timeoutMs = 30000; // 30 seconds
+
+                // Try different models in order of preference, advancing on failure
                 for (const modelName of GEMINI_MODELS) {
+                    let timeoutId;
                     try {
-                        model = genAI.getGenerativeModel({
+                        if (import.meta.env.DEV) {
+                            console.log(`Attempting Gemini model ${modelName}...`);
+                        }
+                        const model = genAI.getGenerativeModel({
                             model: modelName,
                             systemInstruction: systemPrompt,
                             tools: [{
@@ -768,67 +804,63 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                                 }
                             ]
                         });
-                        // Only log in development
-                        if (import.meta.env.DEV) {
-                            console.log(`Initialized model ${modelName}, attempting to use it...`);
+
+                        const timeoutPromise = new Promise((_, reject) => {
+                            timeoutId = setTimeout(() => reject(new Error('Request timeout')), timeoutMs);
+                        });
+
+                        const generatePromise = model.generateContent({
+                            contents,
+                            generationConfig: {
+                                maxOutputTokens: 8192,
+                                temperature: 0.7,
+                                topP: 0.95,
+                                topK: 40,
+                            },
+                        });
+
+                        const result = await Promise.race([generatePromise, timeoutPromise]);
+                        if (timeoutId) {
+                            clearTimeout(timeoutId);
                         }
-                        // Don't test with generateContent - just try to use it directly
-                        break; // Use this model
+                        const response = await result.response;
+                        successfulResponse = response;
+                        successfulModelName = modelName;
+                        setConnectionStatus('connected');
+                        setConnectionError('');
+                        break;
                     } catch (modelError) {
-                        // Only log in development
-                        if (import.meta.env.DEV) {
-                            console.warn(`Model ${modelName} failed to initialize:`, modelError.message);
+                        if (timeoutId) {
+                            clearTimeout(timeoutId);
                         }
+                        
+                        const is404 = modelError.message?.includes('404') || modelError.message?.includes('not found');
+                        const isOverloaded = modelError.message?.includes('503') || modelError.message?.includes('overloaded');
+                        
+                        if (import.meta.env.DEV) {
+                            console.warn(`Model ${modelName} failed (${is404 ? 'Not Found' : 'Error'}):`, modelError.message);
+                        }
+
+                        // If it's a critical auth error, don't just keep trying models - the key is likely wrong for all
+                        if (modelError.message?.includes('API_KEY') || modelError.message?.includes('PERMISSION_DENIED')) {
+                             lastModelError = modelError;
+                             break; // Exit loop to show auth error immediately
+                        }
+
                         lastModelError = modelError;
-                        continue; // Try next model
+                        // Continue to next model in loop
                     }
                 }
 
-                if (!model) {
+                if (!successfulResponse) {
                     throw lastModelError || new Error('No compatible Gemini model found');
                 }
 
-                // Format conversation for Gemini API
-                const conversationHistory = messages
-                    .filter(msg => !msg.isError && !msg.isSystem) // Exclude errors and system prompts
-                    .map(msg => ({
-                        role: msg.sender === 'user' ? 'user' : 'model',
-                        parts: [{ text: msg.text }]
-                    }));
-
-                // Add current user message
-                const contents = [
-                    ...conversationHistory,
-                    {
-                        role: 'user',
-                        parts: [{ text: userMsg.text }]
-                    }
-                ];
-
-                // Only log in development
                 if (import.meta.env.DEV) {
-                    console.log('Full conversation for AI:', contents);
+                    console.log(`Gemini response obtained from model ${successfulModelName}`);
                 }
-
-                // Add timeout for mobile devices
-                const timeoutMs = 30000; // 30 seconds
-                const timeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
-                );
-
-                const generatePromise = model.generateContent({
-                    contents: contents,
-                    generationConfig: {
-                        maxOutputTokens: 8192,
-                        temperature: 0.7,
-                        topP: 0.95,
-                        topK: 40,
-                    },
-                });
-
-                const result = await Promise.race([generatePromise, timeoutPromise]);
-                const response = await result.response;
-                const text = response.text();
+                setVerifiedApiVersion(`v1beta / ${successfulModelName}`);
+                const text = successfulResponse.text();
 
                 const guruMsg = { id: Date.now() + 1, text, sender: 'guru', createdAt: new Date().toISOString() };
                 setMessages(prev => [...prev, guruMsg]);
