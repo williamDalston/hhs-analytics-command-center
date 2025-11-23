@@ -1152,6 +1152,8 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                 }
 
                 // Check error types
+                const isNoAccessError = error.message?.includes('No accessible models') ||
+                                       error.message?.includes('No compatible AI model');
                 const isAuthError = error.message?.includes('API_KEY') ||
                                    error.message?.includes('PERMISSION_DENIED') ||
                                    error.message?.includes('INVALID_ARGUMENT');
@@ -1162,16 +1164,17 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                 const isTimeoutError = error.message?.includes('timeout') || error.message?.includes('Timeout');
                 const isNetworkError = error.message?.includes('network') || error.message?.includes('fetch');
 
-                if (isAuthError || isNotFoundError) {
+                if (isNoAccessError || isAuthError || isNotFoundError) {
                     setConnectionStatus('error');
-                    setConnectionError(isNotFoundError 
+                    const errorMsg = isNoAccessError || isNotFoundError
                         ? 'API key does not have access to any AI models. Please check your API key permissions or create a new one at https://makersuite.google.com/app/apikey'
-                        : 'Invalid API key or insufficient permissions');
+                        : 'Invalid API key or insufficient permissions';
+                    setConnectionError(errorMsg);
                 }
 
                 // Show user-friendly error with specific guidance
                 let errorText;
-                if (isNotFoundError) {
+                if (isNoAccessError || isNotFoundError) {
                     errorText = "The API key doesn't have access to any AI models. Please check that your Google AI Studio API key has the correct permissions, or create a new key at https://makersuite.google.com/app/apikey. I can still help with local knowledge about DAX and Power BI.";
                 } else if (isAuthError) {
                     errorText = "I couldn't connect to the AI service with the current access code. Please update your API key in settings, or I can help with local knowledge about DAX and Power BI.";
