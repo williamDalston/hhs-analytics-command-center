@@ -836,20 +836,29 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
 
                     let candidateModels = GEMINI_MODELS;
                     const discovery = await fetchModelsForApiVersion(apiVersion, trimmedKey);
-                    if (discovery.success) {
-                        const discoveredSet = new Set(discovery.models.map(normalizeModelName));
-                        const filteredModels = GEMINI_MODELS.filter(modelName =>
-                            discoveredSet.has(normalizeModelName(modelName))
+                    if (discovery.success && discovery.models.length) {
+                        const discoveredNormalized = discovery.models
+                            .map(normalizeModelName)
+                            .filter(Boolean);
+
+                        const curatedMatches = GEMINI_MODELS.filter(modelName =>
+                            discoveredNormalized.includes(normalizeModelName(modelName))
                         );
 
-                        if (filteredModels.length === 0) {
-                            if (import.meta.env.DEV) {
-                                console.warn(`No overlapping models found for API ${apiVersion}. Available: ${discovery.models.join(', ')}`);
-                            }
-                            continue;
+                        const curatedSet = new Set(curatedMatches.map(normalizeModelName));
+                        const fallbackDiscovered = discoveredNormalized.filter(modelName => !curatedSet.has(modelName));
+
+                        const merged = Array.from(new Set([...curatedMatches, ...fallbackDiscovered]));
+                        if (merged.length > 0) {
+                            candidateModels = merged;
                         }
 
-                        candidateModels = filteredModels;
+                        if (import.meta.env.DEV) {
+                            console.log(`Discovered models for API ${apiVersion}:`, discovery.models);
+                            console.log(`Candidate order for API ${apiVersion}:`, candidateModels);
+                        }
+                    } else if (import.meta.env.DEV) {
+                        console.warn(`Model discovery unavailable for API ${apiVersion}, falling back to default list.`);
                     }
 
                     for (const modelName of candidateModels) {
