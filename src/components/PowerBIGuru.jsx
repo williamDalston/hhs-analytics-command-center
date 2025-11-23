@@ -378,18 +378,43 @@ const PowerBIGuru = () => {
         window.localStorage.setItem(LINE_HEIGHT_STORAGE_KEY, lineHeight);
     }, [lineHeight]);
 
-    // Optimize textarea resizing to prevent flashing
+    // Optimize textarea resizing to prevent shaking/flashing
     const adjustTextareaHeight = useCallback(() => {
         const textarea = inputRef.current;
         if (!textarea) return;
 
-        // Store current scroll position of the window/container to restore if needed
-        // (though usually not needed for fixed input)
-        
-        textarea.style.height = 'auto';
-        const maxHeight = 200;
-        const newHeight = Math.min(textarea.scrollHeight, maxHeight);
-        textarea.style.height = `${newHeight}px`;
+        // Use requestAnimationFrame to batch the height update and prevent layout thrashing
+        requestAnimationFrame(() => {
+            if (!textarea) return;
+            
+            // Store scroll position to prevent jumping
+            const scrollTop = textarea.scrollTop;
+            
+            // Get current computed height (not style height, which might be empty)
+            const currentHeight = textarea.offsetHeight;
+            
+            // Temporarily set height to auto to measure content
+            // Use a more efficient approach: set height to 0 first, then measure
+            textarea.style.height = '0px';
+            const scrollHeight = textarea.scrollHeight;
+            
+            const maxHeight = 200;
+            const newHeight = Math.min(scrollHeight, maxHeight);
+            
+            // Only update if height actually changed significantly to prevent unnecessary reflows
+            if (Math.abs(currentHeight - newHeight) > 2) {
+                textarea.style.height = `${newHeight}px`;
+                // Restore scroll position after a brief delay to ensure height is applied
+                requestAnimationFrame(() => {
+                    if (textarea) {
+                        textarea.scrollTop = scrollTop;
+                    }
+                });
+            } else {
+                // Restore original height if no significant change needed
+                textarea.style.height = '';
+            }
+        });
     }, []);
 
     const fetchModelsForApiVersion = useCallback(async (apiVersion, key) => {
@@ -464,10 +489,28 @@ const PowerBIGuru = () => {
 
     }, [apiKey]);
 
+    const validateGeminiKey = (key) => {
+        if (!key || key.trim().length === 0) {
+            return { valid: false, message: 'Please enter a Gemini API key' };
+        }
+        const trimmed = key.trim();
+        // Gemini API keys are typically alphanumeric and can be quite long
+        // They don't have a fixed prefix like OpenAI, so we just check for reasonable length
+        if (trimmed.length < 20) {
+            return { valid: false, message: 'API key seems too short. Please check that you copied the full key.' };
+        }
+        // Check for common mistakes
+        if (trimmed.includes(' ')) {
+            return { valid: false, message: 'API key contains spaces. Please remove any spaces.' };
+        }
+        return { valid: true };
+    };
+
     const handleSaveKey = () => {
         const trimmedKey = keyInput.trim();
-        if (!trimmedKey) {
-            addToast('Please enter a valid access code', 'error');
+        const validation = validateGeminiKey(trimmedKey);
+        if (!validation.valid) {
+            addToast(validation.message, 'error');
             return;
         }
         if (typeof window !== 'undefined') {
@@ -482,10 +525,30 @@ const PowerBIGuru = () => {
         addToast('Personal access code saved. Connecting now...', 'success');
     };
 
+    const validateOpenAIKey = (key) => {
+        if (!key || key.trim().length === 0) {
+            return { valid: false, message: 'Please enter an OpenAI API key' };
+        }
+        const trimmed = key.trim();
+        // OpenAI API keys start with 'sk-' or 'sk-proj-'
+        if (!trimmed.startsWith('sk-')) {
+            return { valid: false, message: 'OpenAI API keys should start with "sk-". Please check your key.' };
+        }
+        if (trimmed.length < 20) {
+            return { valid: false, message: 'API key seems too short. Please check that you copied the full key.' };
+        }
+        // Check for common mistakes
+        if (trimmed.includes(' ')) {
+            return { valid: false, message: 'API key contains spaces. Please remove any spaces.' };
+        }
+        return { valid: true };
+    };
+
     const handleSaveOpenAIKey = () => {
         const trimmedKey = openAIKeyInput.trim();
-        if (!trimmedKey) {
-            addToast('Please enter a valid OpenAI API key', 'error');
+        const validation = validateOpenAIKey(trimmedKey);
+        if (!validation.valid) {
+            addToast(validation.message, 'error');
             return;
         }
         if (typeof window !== 'undefined') {
@@ -1212,10 +1275,19 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                 } catch (discoveryError) {
                     if (import.meta.env.DEV) {
                         console.warn(`Model discovery unavailable:`, discoveryError.message);
+                        console.warn(`Discovery error details:`, {
+                            message: discoveryError.message,
+                            status: discoveryError.status,
+                            code: discoveryError.code
+                        });
                     }
                     // If listModels fails, likely no access - skip trying models
                     hasModelAccess = false;
                     candidateModels = [];
+                    // Store discovery error for better error messages later
+                    if (!lastModelError) {
+                        lastModelError = discoveryError;
+                    }
                 }
 
                 let allModels404 = candidateModels.length > 0; // Start as true only if we have models to try
@@ -1293,17 +1365,49 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                             console.warn(`Model ${modelName} failed during generateContent:`, modelError.message);
                         }
 
-                        // Check if it's a 404
-                        const is404 = modelError.message?.includes('404') || 
-                                     modelError.message?.includes('not found') || 
-                                     modelError.message?.includes('NOT_FOUND') ||
-                                     modelError.message?.includes('Requested entity was not found');
+                        // Enhanced error detection for Gemini models
+                        const errorMsg = modelError.message || '';
+                        const errorStatus = modelError.status || modelError.code || '';
+                        
+                        const is404 = errorMsg.includes('404') || 
+                                     errorMsg.includes('not found') || 
+                                     errorMsg.includes('NOT_FOUND') ||
+                                     errorMsg.includes('Requested entity was not found') ||
+                                     errorStatus === 404 ||
+                                     errorStatus === '404';
+                        const is401 = errorMsg.includes('401') || 
+                                     errorMsg.includes('Unauthorized') ||
+                                     errorStatus === 401 ||
+                                     errorStatus === '401';
+                        const is403 = errorMsg.includes('403') || 
+                                     errorMsg.includes('Forbidden') ||
+                                     errorMsg.includes('PERMISSION_DENIED') ||
+                                     errorStatus === 403 ||
+                                     errorStatus === '403';
+                        const isApiKeyError = errorMsg.includes('API_KEY') || 
+                                             errorMsg.includes('Invalid API key') ||
+                                             errorMsg.includes('API key not valid');
+                        const isPermissionError = errorMsg.includes('PERMISSION_DENIED') || 
+                                                 errorMsg.includes('permission') ||
+                                                 is403;
+
+                        if (import.meta.env.DEV) {
+                            console.warn(`Model ${modelName} error:`, {
+                                message: errorMsg,
+                                status: errorStatus,
+                                is404,
+                                is401,
+                                is403,
+                                isApiKeyError,
+                                isPermissionError
+                            });
+                        }
 
                         if (is404) {
                             if (import.meta.env.DEV) {
                                 console.log(`Model ${modelName} not available (404), skipping...`);
-                        }
-                        lastModelError = modelError;
+                            }
+                            lastModelError = modelError;
                             // Continue to next model, but keep allModels404 = true
                             continue;
                         } else {
@@ -1311,8 +1415,9 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                             allModels404 = false;
                         }
 
-                        if (modelError.message?.includes('API_KEY') || modelError.message?.includes('PERMISSION_DENIED')) {
+                        if (isApiKeyError || isPermissionError || is401 || is403) {
                             lastModelError = modelError;
+                            allModels404 = false; // Not a 404 - it's an auth/permission issue
                             break; // Auth error - stop trying
                         }
 

@@ -109,13 +109,29 @@
 
   /* Input Fields with Smooth Focus */
   .input-field {
-    @apply w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg transition-all duration-300 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm text-slate-900 dark:text-slate-100;
+    @apply w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm text-slate-900 dark:text-slate-100;
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    /* Transition only specific properties, not height to prevent shaking */
+    transition: border-color 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
   }
 
   .input-field:focus {
     @apply outline-none ring-2 ring-brand-500/20 border-brand-500 bg-white dark:bg-slate-800;
     box-shadow: 0 0 0 4px rgba(0, 94, 162, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  }
+  
+  /* Textarea specific: no height transition to prevent shaking */
+  textarea.input-field {
+    transition: border-color 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease !important;
+    /* Height changes should be instant, not animated */
+    transition-property: border-color, box-shadow, background-color !important;
+    /* Explicitly exclude height from transitions */
+    will-change: border-color, box-shadow, background-color;
+  }
+  
+  /* Ensure height property is never transitioned on textareas */
+  textarea {
+    transition-property: border-color, box-shadow, background-color, color !important;
   }
 }
 
