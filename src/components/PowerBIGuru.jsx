@@ -845,32 +845,53 @@ Guidelines for General Questions:
                         content: msg.text
                     }));
 
-                const completion = await openai.chat.completions.create({
-                    model: 'gpt-4o-mini', // Using cost-effective model, can fallback to gpt-4o if needed
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        ...conversationHistory,
-                        { role: 'user', content: userMsg.text }
-                    ],
-                    temperature: 0.7,
-                    max_tokens: 4096
-                });
+                const messagesPayload = [
+                    { role: 'system', content: systemPrompt },
+                    ...conversationHistory,
+                    { role: 'user', content: userMsg.text }
+                ];
 
-                const text = completion.choices[0]?.message?.content;
-                if (text) {
-                    const guruMsg = { 
-                        id: Date.now() + 1, 
-                        text, 
-                        sender: 'guru', 
-                        createdAt: new Date().toISOString() 
-                    };
-                    setMessages(prev => [...prev, guruMsg]);
-                    setLastAnswerId(guruMsg.id);
-                    setConnectionStatus('connected');
-                    setConnectionError('');
-                    setVerifiedApiVersion('OpenAI / gpt-4o-mini');
-                    setIsTyping(false);
-                    return; // Success - exit early
+                // Try gpt-4o first (highest quality), then fallback to gpt-4o-mini (cost-effective)
+                const openAIModels = ['gpt-4o', 'gpt-4o-mini'];
+                let openAISuccess = false;
+                
+                for (const model of openAIModels) {
+                    try {
+                        const completion = await openai.chat.completions.create({
+                            model: model,
+                            messages: messagesPayload,
+                            temperature: 0.7,
+                            max_tokens: 4096
+                        });
+
+                        const text = completion.choices[0]?.message?.content;
+                        if (text) {
+                            const guruMsg = { 
+                                id: Date.now() + 1, 
+                                text, 
+                                sender: 'guru', 
+                                createdAt: new Date().toISOString() 
+                            };
+                            setMessages(prev => [...prev, guruMsg]);
+                            setLastAnswerId(guruMsg.id);
+                            setConnectionStatus('connected');
+                            setConnectionError('');
+                            setVerifiedApiVersion(`OpenAI / ${model}`);
+                            setIsTyping(false);
+                            openAISuccess = true;
+                            return; // Success - exit early
+                        }
+                    } catch (modelError) {
+                        if (import.meta.env.DEV) {
+                            console.warn(`OpenAI model ${model} failed, trying next...`, modelError.message);
+                        }
+                        // Continue to next model
+                        continue;
+                    }
+                }
+                
+                if (!openAISuccess) {
+                    throw new Error('All OpenAI models failed');
                 }
             } catch (openAIError) {
                 if (import.meta.env.DEV) {
