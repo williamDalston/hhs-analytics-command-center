@@ -82,16 +82,19 @@ const LINE_HEIGHTS = {
     loose: { label: 'Loose', class: 'leading-loose' }
 };
 
-// Use Gemini models - prioritising stable and cost-effective versions
+// Use Gemini models - prioritising stable and widely available versions
 const GEMINI_MODELS = [
-    "gemini-2.0-flash-exp",
-    "gemini-1.5-flash", 
+    "gemini-1.5-flash-latest",
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-001",
+    "gemini-1.5-pro-latest",
     "gemini-1.5-pro",
-    "gemini-pro"
+    "gemini-pro",
+    "gemini-1.0-pro"
 ];
-// Important: v1beta is often less stable for newer models, v1 is preferred for production
+// Important: API v1 is preferred for production, but keep v1beta for compatibility
 const GEMINI_API_VERSIONS = ["v1", "v1beta"]; 
-const GEMINI_MODEL = GEMINI_MODELS[1]; // Default to stable flash
+const GEMINI_MODEL = GEMINI_MODELS[0]; // Default to latest flash
 
 // Check for placeholder key and treat as empty
 const rawKey = import.meta.env.VITE_GEMINI_API_KEY?.trim() || '';
@@ -708,10 +711,10 @@ const PowerBIGuru = () => {
         if (trimmedKey) {
 
             try {
-                const genAI = new GoogleGenerativeAI(trimmedKey);
                 let lastModelError;
                 let successfulResponse = null;
                 let successfulModelName = '';
+                let successfulApiVersion = '';
 
                 const currentDateTime = new Date().toLocaleString('en-US', { 
                     weekday: 'long', 
@@ -767,88 +770,98 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                 // Add timeout for mobile devices
                 const timeoutMs = 30000; // 30 seconds
 
-                // Try different models in order of preference, advancing on failure
-                for (const modelName of GEMINI_MODELS) {
-                    let timeoutId;
+                // Try different API versions and models in order of preference, advancing on failure
+                outerLoop:
+                for (const apiVersion of GEMINI_API_VERSIONS) {
+                    let genAI;
                     try {
+                        genAI = new GoogleGenerativeAI(trimmedKey, { apiVersion });
+                    } catch (initError) {
                         if (import.meta.env.DEV) {
-                            console.log(`Attempting Gemini model ${modelName}...`);
+                            console.warn(`Failed to initialize Gemini client for API ${apiVersion}:`, initError.message);
                         }
-                        const model = genAI.getGenerativeModel({
-                            model: modelName,
-                            systemInstruction: systemPrompt,
-                            tools: [{
-                                googleSearchRetrieval: {
-                                    dynamicRetrievalConfig: {
-                                        mode: DynamicRetrievalMode.MODE_DYNAMIC,
-                                        dynamicThreshold: 0.6,
+                        lastModelError = initError;
+                        continue;
+                    }
+
+                    for (const modelName of GEMINI_MODELS) {
+                        let timeoutId;
+                        try {
+                            if (import.meta.env.DEV) {
+                                console.log(`Attempting Gemini model ${modelName} (API ${apiVersion})...`);
+                            }
+                            const model = genAI.getGenerativeModel({
+                                model: modelName,
+                                systemInstruction: systemPrompt,
+                                tools: [{
+                                    googleSearchRetrieval: {
+                                        dynamicRetrievalConfig: {
+                                            mode: DynamicRetrievalMode.MODE_DYNAMIC,
+                                            dynamicThreshold: 0.6,
+                                        },
                                     },
+                                }],
+                                safetySettings: [
+                                    {
+                                        category: "HARM_CATEGORY_HARASSMENT",
+                                        threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                                    },
+                                    {
+                                        category: "HARM_CATEGORY_HATE_SPEECH",
+                                        threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                                    },
+                                    {
+                                        category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                                        threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                                    },
+                                    {
+                                        category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+                                        threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                                    }
+                                ]
+                            });
+
+                            const timeoutPromise = new Promise((_, reject) => {
+                                timeoutId = setTimeout(() => reject(new Error('Request timeout')), timeoutMs);
+                            });
+
+                            const generatePromise = model.generateContent({
+                                contents,
+                                generationConfig: {
+                                    maxOutputTokens: 8192,
+                                    temperature: 0.7,
+                                    topP: 0.95,
+                                    topK: 40,
                                 },
-                            }],
-                            safetySettings: [
-                                {
-                                    category: "HARM_CATEGORY_HARASSMENT",
-                                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
-                                },
-                                {
-                                    category: "HARM_CATEGORY_HATE_SPEECH",
-                                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
-                                },
-                                {
-                                    category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
-                                },
-                                {
-                                    category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-                                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
-                                }
-                            ]
-                        });
+                            });
 
-                        const timeoutPromise = new Promise((_, reject) => {
-                            timeoutId = setTimeout(() => reject(new Error('Request timeout')), timeoutMs);
-                        });
+                            const result = await Promise.race([generatePromise, timeoutPromise]);
+                            if (timeoutId) {
+                                clearTimeout(timeoutId);
+                            }
+                            const response = await result.response;
+                            successfulResponse = response;
+                            successfulModelName = modelName;
+                            successfulApiVersion = apiVersion;
+                            setConnectionStatus('connected');
+                            setConnectionError('');
+                            break outerLoop;
+                        } catch (modelError) {
+                            if (timeoutId) {
+                                clearTimeout(timeoutId);
+                            }
 
-                        const generatePromise = model.generateContent({
-                            contents,
-                            generationConfig: {
-                                maxOutputTokens: 8192,
-                                temperature: 0.7,
-                                topP: 0.95,
-                                topK: 40,
-                            },
-                        });
+                            if (import.meta.env.DEV) {
+                                console.warn(`Model ${modelName} failed during generateContent (API ${apiVersion}):`, modelError.message);
+                            }
 
-                        const result = await Promise.race([generatePromise, timeoutPromise]);
-                        if (timeoutId) {
-                            clearTimeout(timeoutId);
+                            if (modelError.message?.includes('API_KEY') || modelError.message?.includes('PERMISSION_DENIED')) {
+                                lastModelError = modelError;
+                                break;
+                            }
+
+                            lastModelError = modelError;
                         }
-                        const response = await result.response;
-                        successfulResponse = response;
-                        successfulModelName = modelName;
-                        setConnectionStatus('connected');
-                        setConnectionError('');
-                        break;
-                    } catch (modelError) {
-                        if (timeoutId) {
-                            clearTimeout(timeoutId);
-                        }
-                        
-                        const is404 = modelError.message?.includes('404') || modelError.message?.includes('not found');
-                        const isOverloaded = modelError.message?.includes('503') || modelError.message?.includes('overloaded');
-                        
-                        if (import.meta.env.DEV) {
-                            console.warn(`Model ${modelName} failed (${is404 ? 'Not Found' : 'Error'}):`, modelError.message);
-                        }
-
-                        // If it's a critical auth error, don't just keep trying models - the key is likely wrong for all
-                        if (modelError.message?.includes('API_KEY') || modelError.message?.includes('PERMISSION_DENIED')) {
-                             lastModelError = modelError;
-                             break; // Exit loop to show auth error immediately
-                        }
-
-                        lastModelError = modelError;
-                        // Continue to next model in loop
                     }
                 }
 
@@ -857,9 +870,9 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                 }
 
                 if (import.meta.env.DEV) {
-                    console.log(`Gemini response obtained from model ${successfulModelName}`);
+                    console.log(`Gemini response obtained from model ${successfulModelName} (API ${successfulApiVersion || 'unknown'})`);
                 }
-                setVerifiedApiVersion(`v1beta / ${successfulModelName}`);
+                setVerifiedApiVersion(`${successfulApiVersion || 'unknown'} / ${successfulModelName}`);
                 const text = successfulResponse.text();
 
                 const guruMsg = { id: Date.now() + 1, text, sender: 'guru', createdAt: new Date().toISOString() };
