@@ -84,12 +84,8 @@ const LINE_HEIGHTS = {
 
 // Use Gemini models - prioritising stable and widely available versions
 const GEMINI_MODELS = [
-    "gemini-1.5-flash-latest",
     "gemini-1.5-flash",
-    "gemini-1.5-flash-001",
-    "gemini-1.5-pro-latest",
     "gemini-1.5-pro",
-    "gemini-pro",
     "gemini-1.0-pro"
 ];
 // Important: API v1 is preferred for production, but keep v1beta for compatibility
@@ -909,7 +905,9 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({
-                                        prompt: palmPromptText,
+                                        prompt: {
+                                            text: palmPromptText
+                                        },
                                         temperature: 0.7,
                                         candidateCount: 1,
                                         topP: 0.95,
@@ -946,127 +944,128 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                 // Add timeout for mobile devices
                 const timeoutMs = 30000; // 30 seconds
 
-                // Try different API versions and models in order of preference, advancing on failure
-                outerLoop:
-                for (const apiVersion of GEMINI_API_VERSIONS) {
-                    let genAI;
+                let genAI;
+                try {
+                    genAI = new GoogleGenerativeAI(trimmedKey);
+                } catch (initError) {
+                    if (import.meta.env.DEV) {
+                        console.warn(`Failed to initialize Gemini client:`, initError.message);
+                    }
+                    lastModelError = initError;
+                    // Handle error or fallback
+                    setConnectionStatus('error');
+                    setConnectionError('Failed to initialize AI client.');
+                    throw initError;
+                }
+
+                let candidateModels = GEMINI_MODELS;
+                try {
+                    const { models } = await genAI.listModels();
+                    const contentModels = (models || [])
+                        .filter(model => (model.supportedGenerationMethods || []).includes('generateContent'))
+                        .map(model => normalizeModelName(model.name));
+
+                    if (contentModels.length > 0) {
+                        const curatedMatches = GEMINI_MODELS.filter(modelName =>
+                            contentModels.includes(normalizeModelName(modelName))
+                        );
+
+                        if (curatedMatches.length > 0) {
+                            candidateModels = curatedMatches;
+                        } else {
+                            // No approved Gemini models available for generateContent
+                            candidateModels = [];
+                        }
+                    }
+
+                    if (import.meta.env.DEV) {
+                        console.log(`Discovered models:`, contentModels);
+                        console.log(`Candidate order:`, candidateModels);
+                    }
+                } catch (discoveryError) {
+                    if (import.meta.env.DEV) {
+                        console.warn(`Model discovery unavailable:`, discoveryError.message);
+                    }
+                    // Fall back to default curated list
+                }
+
+                for (const modelName of candidateModels) {
+                    let timeoutId;
                     try {
-                        genAI = new GoogleGenerativeAI(trimmedKey);
-                    } catch (initError) {
                         if (import.meta.env.DEV) {
-                            console.warn(`Failed to initialize Gemini client for API ${apiVersion}:`, initError.message);
+                            console.log(`Attempting Gemini model ${modelName}...`);
                         }
-                        lastModelError = initError;
-                        continue;
-                    }
-
-                    let candidateModels = GEMINI_MODELS;
-                    const discovery = await fetchModelsForApiVersion(apiVersion, trimmedKey);
-                    if (discovery.success && discovery.models.length) {
-                        const contentModels = discovery.models
-                            .filter(model => model.supportedGenerationMethods.includes('generateContent'))
-                            .map(model => model.name);
-
-                        if (contentModels.length > 0) {
-                            const curatedMatches = GEMINI_MODELS.filter(modelName =>
-                                contentModels.includes(normalizeModelName(modelName))
-                            );
-
-                            const curatedSet = new Set(curatedMatches.map(normalizeModelName));
-                            const fallbackDiscovered = contentModels.filter(modelName => !curatedSet.has(normalizeModelName(modelName)));
-
-                            const merged = Array.from(new Set([...curatedMatches, ...fallbackDiscovered]));
-                            if (merged.length > 0) {
-                                candidateModels = merged;
-                            }
-                        }
-
-                        if (import.meta.env.DEV) {
-                            console.log(`Discovered models for API ${apiVersion}:`, discovery.models);
-                            console.log(`Candidate order for API ${apiVersion}:`, candidateModels);
-                        }
-                    } else if (import.meta.env.DEV) {
-                        console.warn(`Model discovery unavailable for API ${apiVersion}, falling back to default list.`);
-                    }
-
-                    for (const modelName of candidateModels) {
-                        let timeoutId;
-                        try {
-                            if (import.meta.env.DEV) {
-                                console.log(`Attempting Gemini model ${modelName} (API ${apiVersion})...`);
-                            }
-                            const model = genAI.getGenerativeModel({
-                                model: modelName,
-                                systemInstruction: systemPrompt,
-                                tools: [{
-                                    googleSearchRetrieval: {
-                                        dynamicRetrievalConfig: {
-                                            mode: DynamicRetrievalMode.MODE_DYNAMIC,
-                                            dynamicThreshold: 0.6,
-                                        },
+                        const model = genAI.getGenerativeModel({
+                            model: modelName,
+                            systemInstruction: systemPrompt,
+                            tools: [{
+                                googleSearchRetrieval: {
+                                    dynamicRetrievalConfig: {
+                                        mode: 'MODE_DYNAMIC',
+                                        dynamicThreshold: 0.6,
                                     },
-                                }],
-                                safetySettings: [
-                                    {
-                                        category: "HARM_CATEGORY_HARASSMENT",
-                                        threshold: "BLOCK_MEDIUM_AND_ABOVE"
-                                    },
-                                    {
-                                        category: "HARM_CATEGORY_HATE_SPEECH",
-                                        threshold: "BLOCK_MEDIUM_AND_ABOVE"
-                                    },
-                                    {
-                                        category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                                        threshold: "BLOCK_MEDIUM_AND_ABOVE"
-                                    },
-                                    {
-                                        category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-                                        threshold: "BLOCK_MEDIUM_AND_ABOVE"
-                                    }
-                                ]
-                            });
-
-                            const timeoutPromise = new Promise((_, reject) => {
-                                timeoutId = setTimeout(() => reject(new Error('Request timeout')), timeoutMs);
-                            });
-
-                            const generatePromise = model.generateContent({
-                                contents,
-                                generationConfig: {
-                                    maxOutputTokens: 8192,
-                                    temperature: 0.7,
-                                    topP: 0.95,
-                                    topK: 40,
                                 },
-                            });
+                            }],
+                            safetySettings: [
+                                {
+                                    category: "HARM_CATEGORY_HARASSMENT",
+                                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                                },
+                                {
+                                    category: "HARM_CATEGORY_HATE_SPEECH",
+                                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                                },
+                                {
+                                    category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                                },
+                                {
+                                    category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+                                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                                }
+                            ]
+                        });
 
-                            const result = await Promise.race([generatePromise, timeoutPromise]);
-                            if (timeoutId) {
-                                clearTimeout(timeoutId);
-                            }
-                            const response = await result.response;
-                            successfulResponse = response;
-                            successfulModelName = modelName;
-                            successfulApiVersion = apiVersion;
-                            setConnectionStatus('connected');
-                            setConnectionError('');
-                            break outerLoop;
-                        } catch (modelError) {
-                            if (timeoutId) {
-                                clearTimeout(timeoutId);
-                            }
+                        const timeoutPromise = new Promise((_, reject) => {
+                            timeoutId = setTimeout(() => reject(new Error('Request timeout')), timeoutMs);
+                        });
 
-                            if (import.meta.env.DEV) {
-                                console.warn(`Model ${modelName} failed during generateContent (API ${apiVersion}):`, modelError.message);
-                            }
+                        const generatePromise = model.generateContent({
+                            contents,
+                            generationConfig: {
+                                maxOutputTokens: 8192,
+                                temperature: 0.7,
+                                topP: 0.95,
+                                topK: 40,
+                            },
+                        });
 
-                            if (modelError.message?.includes('API_KEY') || modelError.message?.includes('PERMISSION_DENIED')) {
-                                lastModelError = modelError;
-                                break;
-                            }
-
-                            lastModelError = modelError;
+                        const result = await Promise.race([generatePromise, timeoutPromise]);
+                        if (timeoutId) {
+                            clearTimeout(timeoutId);
                         }
+                        const response = await result.response;
+                        successfulResponse = response;
+                        successfulModelName = modelName;
+                        successfulApiVersion = 'current'; // or remove this
+                        setConnectionStatus('connected');
+                        setConnectionError('');
+                        break;
+                    } catch (modelError) {
+                        if (timeoutId) {
+                            clearTimeout(timeoutId);
+                        }
+
+                        if (import.meta.env.DEV) {
+                            console.warn(`Model ${modelName} failed during generateContent:`, modelError.message);
+                        }
+
+                        if (modelError.message?.includes('API_KEY') || modelError.message?.includes('PERMISSION_DENIED')) {
+                            lastModelError = modelError;
+                            break;
+                        }
+
+                        lastModelError = modelError;
                     }
                 }
 
@@ -1075,10 +1074,10 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
 
                 if (successfulResponse) {
                     if (import.meta.env.DEV) {
-                        console.log(`Gemini response obtained from model ${successfulModelName} (API ${successfulApiVersion || 'unknown'})`);
+                        console.log(`Gemini response obtained from model ${successfulModelName}`);
                     }
                     finalText = successfulResponse.text();
-                    providerLabel = `${successfulApiVersion || 'unknown'} / ${successfulModelName}`;
+                    providerLabel = successfulModelName;
                     setVerifiedApiVersion(providerLabel);
                 } else {
                     const palmResult = await attemptPalmFallback();
