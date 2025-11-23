@@ -881,11 +881,7 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                                             context: systemPrompt,
                                             messages: palmMessagesPayload
                                         },
-                                        temperature: 0.7,
-                                        candidateCount: 1,
-                                        topP: 0.95,
-                                        topK: 40,
-                                        maxOutputTokens: 1024
+                                        temperature: 0.7
                                     })
                                 });
                                 const payload = await response.json().catch(() => ({}));
@@ -909,11 +905,7 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                                         prompt: {
                                             text: palmPromptText
                                         },
-                                        temperature: 0.7,
-                                        candidateCount: 1,
-                                        topP: 0.95,
-                                        topK: 40,
-                                        maxOutputTokens: 1024
+                                        temperature: 0.7
                                     })
                                 });
                                 const payload = await response.json().catch(() => ({}));
