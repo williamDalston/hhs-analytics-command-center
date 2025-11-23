@@ -101,6 +101,8 @@ const rawKey = import.meta.env.VITE_GEMINI_API_KEY?.trim() || '';
 const PROJECT_GEMINI_KEY = rawKey === 'YOUR_GOOGLE_GEMINI_API_KEY' ? '' : rawKey;
 const GEMINI_KEY_ALLOWED_HOSTS = import.meta.env.VITE_GEMINI_KEY_ALLOWED_HOSTS || 'localhost,127.0.0.1,williamdalston.github.io';
 
+const normalizeModelName = (name) => (name || '').replace(/^models\//i, '').trim();
+
 const parseHostRules = (value) => {
     return value
         .split(',')
@@ -192,6 +194,7 @@ const PowerBIGuru = () => {
     const [verifiedApiVersion, setVerifiedApiVersion] = useState(null);
     const messagesEndRef = useRef(null);
     const messagesContainerRef = useRef(null);
+    const modelListCacheRef = useRef({});
     const [isScrolledToBottom, setIsScrolledToBottom] = useState(true);
     const inputRef = useRef(null);
     const workspaceRef = useRef(null);
@@ -359,6 +362,53 @@ const PowerBIGuru = () => {
         const maxHeight = 200;
         const newHeight = Math.min(textarea.scrollHeight, maxHeight);
         textarea.style.height = `${newHeight}px`;
+    }, []);
+
+    const fetchModelsForApiVersion = useCallback(async (apiVersion, key) => {
+        if (!key || typeof window === 'undefined' || typeof fetch === 'undefined') {
+            return { success: false, models: [] };
+        }
+
+        const cacheKey = `${apiVersion}:${key}`;
+        const cached = modelListCacheRef.current[cacheKey];
+        if (cached) {
+            return cached;
+        }
+
+        const url = new URL(`https://generativelanguage.googleapis.com/${apiVersion}/models`);
+        url.searchParams.set('pageSize', '200');
+        url.searchParams.set('key', key);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+        try {
+            const response = await fetch(url.toString(), { signal: controller.signal });
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                if (import.meta.env.DEV) {
+                    console.warn(`ListModels failed for API ${apiVersion}`, response.status);
+                }
+                return { success: false, models: [] };
+            }
+
+            const data = await response.json();
+            const discoveredModels = (data.models || [])
+                .filter(model => (model.supportedGenerationMethods || []).includes('generateContent'))
+                .map(model => normalizeModelName(model.name))
+                .filter(Boolean);
+
+            const payload = { success: true, models: discoveredModels };
+            modelListCacheRef.current[cacheKey] = payload;
+            return payload;
+        } catch (error) {
+            clearTimeout(timeoutId);
+            if (import.meta.env.DEV) {
+                console.warn(`ListModels error for API ${apiVersion}:`, error.message);
+            }
+            return { success: false, models: [] };
+        }
     }, []);
 
     useEffect(() => {
@@ -784,7 +834,25 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                         continue;
                     }
 
-                    for (const modelName of GEMINI_MODELS) {
+                    let candidateModels = GEMINI_MODELS;
+                    const discovery = await fetchModelsForApiVersion(apiVersion, trimmedKey);
+                    if (discovery.success) {
+                        const discoveredSet = new Set(discovery.models.map(normalizeModelName));
+                        const filteredModels = GEMINI_MODELS.filter(modelName =>
+                            discoveredSet.has(normalizeModelName(modelName))
+                        );
+
+                        if (filteredModels.length === 0) {
+                            if (import.meta.env.DEV) {
+                                console.warn(`No overlapping models found for API ${apiVersion}. Available: ${discovery.models.join(', ')}`);
+                            }
+                            continue;
+                        }
+
+                        candidateModels = filteredModels;
+                    }
+
+                    for (const modelName of candidateModels) {
                         let timeoutId;
                         try {
                             if (import.meta.env.DEV) {
@@ -866,6 +934,8 @@ You have access to Google Search tools. Use them proactively to verify facts, fi
                 }
 
                 if (!successfulResponse) {
+                    setConnectionStatus('error');
+                    setConnectionError('No compatible Gemini model found for this access code.');
                     throw lastModelError || new Error('No compatible Gemini model found');
                 }
 
