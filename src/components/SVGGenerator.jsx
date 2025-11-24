@@ -63,24 +63,37 @@ const SVGGenerator = () => {
         slicerZoneHeight: 60, // Height of slicer zone if shown at top
         showSlicerZoneLabel: true, // Show "Slicer Zone" label text
         slicerZoneOpacity: 0.08, // Background opacity for slicer zone
+        slicerZoneStyle: 'standard', // 'minimal', 'standard', 'full' - controls how much visual indication is shown
+        slicerZoneShowBackground: true, // Show background fill
+        slicerZoneShowBorders: true, // Show borders
+        slicerZoneShowGuides: true, // Show guide lines
         showVisualCountWarning: true, // Warn if too many visuals (>10 recommended)
         gridSpacing: 20, // Grid overlay spacing
         gridOpacity: 0.1, // Grid overlay opacity
         federalRows: 2, // Number of rows for federal layout grid
-        federalColumns: 2, // Number of columns for federal layout grid
+        federalColumns: 2, // Number of columns for federal layout grid (fallback, used if federalRowColumns not set)
+        federalRowColumns: [2, 2], // Array of column counts per row for federal layout
+        useFederalPerRowColumns: false, // Toggle to use per-row column configuration for federal layout
         federalSidebarWidth: 280, // Width of sidebar in federal layout
         showFederalSidebar: true, // Show/hide sidebar in federal layout
         sidebarLayoutWidth: 260, // Width of sidebar in sidebar layout
         sidebarVisualCount: 1, // Number of visual areas in sidebar layout main area
         sidebarColumns: 1, // Columns for sidebar layout main area
         gridRows: 2, // Number of rows for grid layout
-        gridColumns: 2, // Number of columns for grid layout
+        gridColumns: 2, // Number of columns for grid layout (fallback, used if gridRowColumns not set)
+        gridRowColumns: [2, 2], // Array of column counts per row (e.g., [2, 3, 1] means row 1 has 2 cols, row 2 has 3 cols, row 3 has 1 col)
+        usePerRowColumns: false, // Toggle to use per-row column configuration
         kpiVisualCount: 1, // Number of visual areas in KPI layout main area
         kpiColumns: 1, // Columns for KPI layout main area
         kpiMainChartFullWidth: true, // If true, first visual is full-width, rest are in grid below
         threeColVisualCount: 1, // Number of visual areas per column in three-col layout
         asymmetricSideCount: 2, // Number of side cards in asymmetric layout
-        mobileVisualCount: 3 // Number of visual cards in mobile layout
+        mobileVisualCount: 3, // Number of visual cards in mobile layout
+        showVisualTypes: true, // Show visual type indicators on cards
+        showVisualLabels: true, // Show visual labels on cards
+        defaultVisualType: 'card', // Default visual type for new cards
+        visualTypes: {}, // Map of item index to visual type (e.g., {0: 'chart', 1: 'table'})
+        visualLabels: {} // Map of item index to label text (e.g., {0: 'Sales by Region', 1: 'Monthly Trends'})
     });
 
     const [items, setItems] = useState([]);
@@ -117,7 +130,7 @@ const SVGGenerator = () => {
 
     // --- Layout Generator Engine ---
     const generateLayout = useCallback(() => {
-        const { width, height, gap, padding, headerHeight, footerHeight, kpiCount, showFooter, showTrustBar, trustBarHeight, showLogo, logoAreaWidth, logoIsSquare, showTitle, titleHeight, titlePosition, showSlicerZone, slicerZoneHeight, federalRows, federalColumns, federalSidebarWidth, showFederalSidebar, sidebarLayoutWidth, sidebarVisualCount, sidebarColumns, gridRows, gridColumns, kpiVisualCount, kpiColumns, kpiMainChartFullWidth, threeColVisualCount, asymmetricSideCount, mobileVisualCount } = config;
+        const { width, height, gap, padding, headerHeight, footerHeight, kpiCount, showFooter, showTrustBar, trustBarHeight, showLogo, logoAreaWidth, logoIsSquare, showTitle, titleHeight, titlePosition, showSlicerZone, slicerZoneHeight, federalRows, federalColumns, federalRowColumns, useFederalPerRowColumns, federalSidebarWidth, showFederalSidebar, sidebarLayoutWidth, sidebarVisualCount, sidebarColumns, gridRows, gridColumns, gridRowColumns, usePerRowColumns, kpiVisualCount, kpiColumns, kpiMainChartFullWidth, threeColVisualCount, asymmetricSideCount, mobileVisualCount, visualTypes, visualLabels } = config;
         const effW = width - (padding * 2);
         let effH = height - (padding * 2);
         let yOffset = 0;
@@ -134,6 +147,7 @@ const SVGGenerator = () => {
         }
         
         let newItems = [];
+        let cardIndex = 0; // Track index for card-type items
 
         // Trust Bar (if enabled)
         if (showTrustBar) {
@@ -216,19 +230,43 @@ const SVGGenerator = () => {
             // Right side: Grid of visual areas (if rows and columns > 0)
             if (federalRows > 0 && federalColumns > 0 && mainContentW > 0 && contentH > 0) {
                 const rows = Math.max(1, federalRows);
-                const cols = Math.max(1, federalColumns);
-                const cardW = Math.max(50, (mainContentW - (gap * (cols - 1))) / cols); // Min 50px width
                 const cardH = Math.max(50, (contentH - padding - (gap * (rows - 1))) / rows); // Min 50px height
                 
-                for (let row = 0; row < rows; row++) {
-                    for (let col = 0; col < cols; col++) {
-                        newItems.push({
-                            x: mainContentX + (col * (cardW + gap)),
-                            y: contentStartY + (row * (cardH + gap)),
-                            w: cardW,
-                            h: cardH,
-                            type: 'card'
-                        });
+                // Use per-row columns if enabled, otherwise use uniform columns
+                if (useFederalPerRowColumns && federalRowColumns && federalRowColumns.length > 0) {
+                    let currentY = contentStartY;
+                    for (let row = 0; row < rows; row++) {
+                        const cols = Math.max(1, federalRowColumns[row] || federalColumns);
+                        const cardW = Math.max(50, (mainContentW - (gap * (cols - 1))) / cols); // Min 50px width
+                        
+                        for (let col = 0; col < cols; col++) {
+                            newItems.push({
+                                x: mainContentX + (col * (cardW + gap)),
+                                y: currentY,
+                                w: cardW,
+                                h: cardH,
+                                type: 'card',
+                                index: cardIndex++
+                            });
+                        }
+                        currentY += cardH + gap;
+                    }
+                } else {
+                    // Uniform columns for all rows
+                    const cols = Math.max(1, federalColumns);
+                    const cardW = Math.max(50, (mainContentW - (gap * (cols - 1))) / cols); // Min 50px width
+                    
+                    for (let row = 0; row < rows; row++) {
+                        for (let col = 0; col < cols; col++) {
+                            newItems.push({
+                                x: mainContentX + (col * (cardW + gap)),
+                                y: contentStartY + (row * (cardH + gap)),
+                                w: cardW,
+                                h: cardH,
+                                type: 'card',
+                                index: cardIndex++
+                            });
+                        }
                     }
                 }
             }
@@ -288,7 +326,8 @@ const SVGGenerator = () => {
                     y: contentY + kpiH + gap + (row * (cardH + gap)),
                     w: cardW,
                     h: cardH,
-                    type: 'card'
+                    type: 'card',
+                    index: cardIndex++
                 });
             }
 
@@ -323,18 +362,42 @@ const SVGGenerator = () => {
             }
             
             const availableH = effH - (showTitle && titlePosition === 'top' ? titleHeight + gap : 0) - (showSlicerZone && slicerZoneHeight > 0 ? slicerZoneHeight + gap : 0);
-            const colW = (effW - (gap * (gridColumns - 1))) / gridColumns;
             const rowH = (availableH - (gap * (gridRows - 1))) / gridRows;
             
-            for (let row = 0; row < gridRows; row++) {
-                for (let col = 0; col < gridColumns; col++) {
-                    newItems.push({ 
-                        x: padding + (col * (colW + gap)), 
-                        y: contentY + (row * (rowH + gap)), 
-                        w: colW, 
-                        h: rowH, 
-                        type: 'card' 
-                    });
+            // Use per-row columns if enabled, otherwise use uniform columns
+            if (usePerRowColumns && gridRowColumns && gridRowColumns.length > 0) {
+                let currentY = contentY;
+                for (let row = 0; row < gridRows; row++) {
+                    const cols = Math.max(1, gridRowColumns[row] || gridColumns);
+                    const colW = (effW - (gap * (cols - 1))) / cols;
+                    
+                    for (let col = 0; col < cols; col++) {
+                        newItems.push({ 
+                            x: padding + (col * (colW + gap)), 
+                            y: currentY, 
+                            w: colW, 
+                            h: rowH, 
+                            type: 'card',
+                            index: cardIndex++
+                        });
+                    }
+                    currentY += rowH + gap;
+                }
+            } else {
+                // Uniform columns for all rows
+                const colW = (effW - (gap * (gridColumns - 1))) / gridColumns;
+                
+                for (let row = 0; row < gridRows; row++) {
+                    for (let col = 0; col < gridColumns; col++) {
+                        newItems.push({ 
+                            x: padding + (col * (colW + gap)), 
+                            y: contentY + (row * (rowH + gap)), 
+                            w: colW, 
+                            h: rowH, 
+                            type: 'card',
+                            index: cardIndex++
+                        });
+                    }
                 }
             }
         } 
@@ -408,7 +471,8 @@ const SVGGenerator = () => {
                             y: visualY + mainChartH + gap + (row * (cardH + gap)),
                             w: cardW,
                             h: cardH,
-                            type: 'card'
+                            type: 'card',
+                            index: cardIndex++
                         });
                     }
                 }
@@ -427,7 +491,8 @@ const SVGGenerator = () => {
                         y: visualY + (row * (cardH + gap)),
                         w: cardW,
                         h: cardH,
-                        type: 'card'
+                        type: 'card',
+                        index: cardIndex++
                     });
                 }
             }
@@ -485,7 +550,8 @@ const SVGGenerator = () => {
                         y: contentY + kpiH + gap + (row * (visualH + gap)), 
                         w: colW, 
                         h: visualH, 
-                        type: 'card' 
+                        type: 'card',
+                        index: cardIndex++
                     });
                 }
             }
@@ -547,7 +613,8 @@ const SVGGenerator = () => {
                     y: contentY + kpiH + gap + (i * (sideCardH + gap)), 
                     w: sideW, 
                     h: sideCardH, 
-                    type: 'card' 
+                    type: 'card',
+                    index: cardIndex++
                 });
             }
         }
@@ -656,7 +723,7 @@ const SVGGenerator = () => {
 
     // --- SVG Generation ---
     const getSVGString = () => {
-        const { bgHex, cardHex, accentHex, radius, strokeWidth, width, height, noise } = config;
+        const { bgHex, cardHex, accentHex, radius, strokeWidth, width, height, noise, showVisualTypes, showVisualLabels, visualTypes, visualLabels, defaultVisualType } = config;
 
         let defs = '';
         let rects = '';
@@ -722,6 +789,91 @@ const SVGGenerator = () => {
                     stroke-width="${(isHeader || isFooter || isTrustBar) ? 0 : strokeWidth}"
                     filter="${filter}"
                 />`;
+                
+                // Add visual type and label for card-type items
+                if (item.type === 'card' || item.type === 'kpi' || item.type === 'main') {
+                    // Use item.index if available, otherwise find index in items array
+                    const itemIndex = item.index !== undefined ? item.index : items.findIndex(i => 
+                        Math.abs(i.x - item.x) < 1 && Math.abs(i.y - item.y) < 1 && 
+                        Math.abs(i.w - item.w) < 1 && Math.abs(i.h - item.h) < 1 && i.type === item.type
+                    );
+                    const visualType = visualTypes?.[itemIndex] || defaultVisualType || 'card';
+                    const visualLabel = visualLabels?.[itemIndex] || '';
+                    
+                    // Visual type indicator (top-left corner)
+                    if (showVisualTypes && visualType !== 'card') {
+                        const typeIcons = {
+                            'chart': '📊',
+                            'table': '📋',
+                            'map': '🗺️',
+                            'kpi': '📈',
+                            'slicer': '🔽',
+                            'text': '📄',
+                            'image': '🖼️'
+                        };
+                        const typeColors = {
+                            'chart': HHS_COLORS.primary.DEFAULT,
+                            'table': HHS_COLORS.accent.cool,
+                            'map': HHS_COLORS.primary.vivid,
+                            'kpi': HHS_COLORS.secondary.DEFAULT,
+                            'slicer': HHS_COLORS.base.dark,
+                            'text': HHS_COLORS.accent.warm,
+                            'image': HHS_COLORS.primary.dark
+                        };
+                        const icon = typeIcons[visualType] || '📦';
+                        const color = typeColors[visualType] || HHS_COLORS.primary.DEFAULT;
+                        
+                        // Icon background circle
+                        rects += `<circle 
+                            cx="${item.x + 20}" 
+                            cy="${item.y + 20}" 
+                            r="12" 
+                            fill="${color}"
+                            opacity="0.9"
+                        />`;
+                        // Icon text
+                        rects += `<text 
+                            x="${item.x + 20}" 
+                            y="${item.y + 20}" 
+                            font-family="Arial, sans-serif" 
+                            font-size="14" 
+                            fill="white"
+                            text-anchor="middle"
+                            dominant-baseline="middle"
+                        >${icon}</text>`;
+                        // Type label
+                        rects += `<text 
+                            x="${item.x + 20}" 
+                            y="${item.y + 38}" 
+                            font-family="Arial, sans-serif" 
+                            font-size="9" 
+                            fill="${color}"
+                            font-weight="600"
+                            text-anchor="middle"
+                        >${visualType.toUpperCase()}</text>`;
+                    }
+                    
+                    // Visual label (centered or top)
+                    if (showVisualLabels && visualLabel) {
+                        const lines = visualLabel.split('\n');
+                        const lineHeight = 14;
+                        const startY = item.y + (item.h / 2) - ((lines.length - 1) * lineHeight / 2);
+                        
+                        lines.forEach((line, idx) => {
+                            rects += `<text 
+                                x="${item.x + item.w / 2}" 
+                                y="${startY + (idx * lineHeight)}" 
+                                font-family="Arial, sans-serif" 
+                                font-size="12" 
+                                fill="${HHS_COLORS.base.darkest}"
+                                opacity="0.7"
+                                font-weight="500"
+                                text-anchor="middle"
+                                dominant-baseline="middle"
+                            >${line}</text>`;
+                        });
+                    }
+                }
             }
             
             // Trust bar - add subtle bottom border
@@ -792,94 +944,179 @@ const SVGGenerator = () => {
                 />`;
             }
             
-            // Slicer zone - enhanced visualization for Power BI slicer placement
+            // Slicer zone - flexible visualization for Power BI slicer placement
             if (isSlicerZone) {
-                // Background fill (more visible)
-                rects += `<rect 
-                    x="${item.x}" 
-                    y="${item.y}" 
-                    width="${item.w}" 
-                    height="${item.h}" 
-                    fill="${HHS_COLORS.primary.DEFAULT}"
-                    opacity="${config.slicerZoneOpacity || 0.08}"
-                />`;
-                // Top border (solid, more prominent)
-                rects += `<rect 
-                    x="${item.x}" 
-                    y="${item.y}" 
-                    width="${item.w}" 
-                    height="2"
-                    fill="${HHS_COLORS.primary.DEFAULT}"
-                    opacity="0.4"
-                />`;
-                // Bottom border (solid, more prominent)
-                rects += `<rect 
-                    x="${item.x}" 
-                    y="${item.y + item.h - 2}" 
-                    width="${item.w}" 
-                    height="2"
-                    fill="${HHS_COLORS.primary.DEFAULT}"
-                    opacity="0.4"
-                />`;
-                // Side borders (dashed for flexibility)
-                rects += `<line 
-                    x1="${item.x}" 
-                    y1="${item.y}" 
-                    x2="${item.x}" 
-                    y2="${item.y + item.h}" 
-                    stroke="${HHS_COLORS.primary.DEFAULT}"
-                    stroke-width="2"
-                    stroke-dasharray="6,4"
-                    opacity="0.4"
-                />`;
-                rects += `<line 
-                    x1="${item.x + item.w}" 
-                    y1="${item.y}" 
-                    x2="${item.x + item.w}" 
-                    y2="${item.y + item.h}" 
-                    stroke="${HHS_COLORS.primary.DEFAULT}"
-                    stroke-width="2"
-                    stroke-dasharray="6,4"
-                    opacity="0.4"
-                />`;
-                // Helper text label (if enabled)
-                if (config.showSlicerZoneLabel) {
-                    rects += `<text 
-                    x="${item.x + item.w / 2}" 
-                    y="${item.y + item.h / 2}" 
-                    font-family="Arial, sans-serif" 
-                    font-size="14" 
-                    fill="${HHS_COLORS.primary.DEFAULT}"
-                    opacity="0.5"
-                    text-anchor="middle"
-                    dominant-baseline="middle"
-                    font-weight="500"
-                >Slicer Zone</text>`;
-                    // Subtitle
-                    rects += `<text 
-                    x="${item.x + item.w / 2}" 
-                    y="${item.y + item.h / 2 + 18}" 
-                    font-family="Arial, sans-serif" 
-                    font-size="11" 
-                    fill="${HHS_COLORS.base.dark}"
-                    opacity="0.4"
-                    text-anchor="middle"
-                    dominant-baseline="middle"
-                >Place filters here</text>`;
-                }
-                // Visual guide lines (subtle grid pattern)
-                const guideSpacing = 40;
-                for (let x = item.x + guideSpacing; x < item.x + item.w; x += guideSpacing) {
+                const style = config.slicerZoneStyle || 'standard';
+                const showBg = config.slicerZoneShowBackground !== false;
+                const showBorders = config.slicerZoneShowBorders !== false;
+                const showGuides = config.slicerZoneShowGuides !== false;
+                
+                // Minimal style: just a subtle top line
+                if (style === 'minimal') {
                     rects += `<line 
-                        x1="${x}" 
-                        y1="${item.y + 4}" 
-                        x2="${x}" 
-                        y2="${item.y + item.h - 4}" 
+                        x1="${item.x}" 
+                        y1="${item.y}" 
+                        x2="${item.x + item.w}" 
+                        y2="${item.y}" 
                         stroke="${HHS_COLORS.primary.DEFAULT}"
                         stroke-width="1"
-                        opacity="0.15"
-                        stroke-dasharray="2,6"
+                        stroke-dasharray="4,4"
+                        opacity="0.3"
                     />`;
+                    if (config.showSlicerZoneLabel) {
+                        rects += `<text 
+                            x="${item.x + 10}" 
+                            y="${item.y + 12}" 
+                            font-family="Arial, sans-serif" 
+                            font-size="10" 
+                            fill="${HHS_COLORS.primary.DEFAULT}"
+                            opacity="0.4"
+                            font-weight="500"
+                        >Slicer Zone</text>`;
+                    }
+                } 
+                // Standard style: top/bottom borders, optional background
+                else if (style === 'standard') {
+                    if (showBg) {
+                        rects += `<rect 
+                            x="${item.x}" 
+                            y="${item.y}" 
+                            width="${item.w}" 
+                            height="${item.h}" 
+                            fill="${HHS_COLORS.primary.DEFAULT}"
+                            opacity="${config.slicerZoneOpacity || 0.08}"
+                        />`;
+                    }
+                    if (showBorders) {
+                        // Top border
+                        rects += `<line 
+                            x1="${item.x}" 
+                            y1="${item.y}" 
+                            x2="${item.x + item.w}" 
+                            y2="${item.y}" 
+                            stroke="${HHS_COLORS.primary.DEFAULT}"
+                            stroke-width="2"
+                            opacity="0.4"
+                        />`;
+                        // Bottom border
+                        rects += `<line 
+                            x1="${item.x}" 
+                            y1="${item.y + item.h}" 
+                            x2="${item.x + item.w}" 
+                            y2="${item.y + item.h}" 
+                            stroke="${HHS_COLORS.primary.DEFAULT}"
+                            stroke-width="2"
+                            opacity="0.4"
+                        />`;
+                    }
+                    if (config.showSlicerZoneLabel) {
+                        rects += `<text 
+                            x="${item.x + item.w / 2}" 
+                            y="${item.y + item.h / 2}" 
+                            font-family="Arial, sans-serif" 
+                            font-size="12" 
+                            fill="${HHS_COLORS.primary.DEFAULT}"
+                            opacity="0.5"
+                            text-anchor="middle"
+                            dominant-baseline="middle"
+                            font-weight="500"
+                        >Slicer Zone</text>`;
+                    }
+                } 
+                // Full style: all borders, background, guides
+                else {
+                    if (showBg) {
+                        rects += `<rect 
+                            x="${item.x}" 
+                            y="${item.y}" 
+                            width="${item.w}" 
+                            height="${item.h}" 
+                            fill="${HHS_COLORS.primary.DEFAULT}"
+                            opacity="${config.slicerZoneOpacity || 0.08}"
+                        />`;
+                    }
+                    if (showBorders) {
+                        // Top border
+                        rects += `<line 
+                            x1="${item.x}" 
+                            y1="${item.y}" 
+                            x2="${item.x + item.w}" 
+                            y2="${item.y}" 
+                            stroke="${HHS_COLORS.primary.DEFAULT}"
+                            stroke-width="2"
+                            opacity="0.4"
+                        />`;
+                        // Bottom border
+                        rects += `<line 
+                            x1="${item.x}" 
+                            y1="${item.y + item.h}" 
+                            x2="${item.x + item.w}" 
+                            y2="${item.y + item.h}" 
+                            stroke="${HHS_COLORS.primary.DEFAULT}"
+                            stroke-width="2"
+                            opacity="0.4"
+                        />`;
+                        // Side borders (dashed)
+                        rects += `<line 
+                            x1="${item.x}" 
+                            y1="${item.y}" 
+                            x2="${item.x}" 
+                            y2="${item.y + item.h}" 
+                            stroke="${HHS_COLORS.primary.DEFAULT}"
+                            stroke-width="2"
+                            stroke-dasharray="6,4"
+                            opacity="0.3"
+                        />`;
+                        rects += `<line 
+                            x1="${item.x + item.w}" 
+                            y1="${item.y}" 
+                            x2="${item.x + item.w}" 
+                            y2="${item.y + item.h}" 
+                            stroke="${HHS_COLORS.primary.DEFAULT}"
+                            stroke-width="2"
+                            stroke-dasharray="6,4"
+                            opacity="0.3"
+                        />`;
+                    }
+                    if (config.showSlicerZoneLabel) {
+                        rects += `<text 
+                            x="${item.x + item.w / 2}" 
+                            y="${item.y + item.h / 2}" 
+                            font-family="Arial, sans-serif" 
+                            font-size="14" 
+                            fill="${HHS_COLORS.primary.DEFAULT}"
+                            opacity="0.5"
+                            text-anchor="middle"
+                            dominant-baseline="middle"
+                            font-weight="500"
+                        >Slicer Zone</text>`;
+                        rects += `<text 
+                            x="${item.x + item.w / 2}" 
+                            y="${item.y + item.h / 2 + 18}" 
+                            font-family="Arial, sans-serif" 
+                            font-size="11" 
+                            fill="${HHS_COLORS.base.dark}"
+                            opacity="0.4"
+                            text-anchor="middle"
+                            dominant-baseline="middle"
+                        >Place filters here</text>`;
+                    }
+                    // Visual guide lines (if enabled)
+                    if (showGuides) {
+                        const guideSpacing = 40;
+                        for (let x = item.x + guideSpacing; x < item.x + item.w; x += guideSpacing) {
+                            rects += `<line 
+                                x1="${x}" 
+                                y1="${item.y + 4}" 
+                                x2="${x}" 
+                                y2="${item.y + item.h - 4}" 
+                                stroke="${HHS_COLORS.primary.DEFAULT}"
+                                stroke-width="1"
+                                opacity="0.15"
+                                stroke-dasharray="2,6"
+                            />`;
+                        }
+                    }
                 }
             }
         });
@@ -1381,11 +1618,17 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                                 slicerZoneHeight: 60,
                                 showSlicerZoneLabel: true,
                                 slicerZoneOpacity: 0.08,
+                                slicerZoneStyle: 'standard',
+                                slicerZoneShowBackground: true,
+                                slicerZoneShowBorders: true,
+                                slicerZoneShowGuides: true,
                                 showVisualCountWarning: true,
                                 gridSpacing: 20,
                                 gridOpacity: 0.1,
                                 federalRows: 2,
                                 federalColumns: 2,
+                                federalRowColumns: [2, 2],
+                                useFederalPerRowColumns: false,
                                 federalSidebarWidth: 280,
                                 showFederalSidebar: true,
                                 sidebarLayoutWidth: 260,
@@ -1393,12 +1636,19 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                                 sidebarColumns: 1,
                                 gridRows: 2,
                                 gridColumns: 2,
+                                gridRowColumns: [2, 2],
+                                usePerRowColumns: false,
                                 kpiVisualCount: 1,
                                 kpiColumns: 1,
                                 kpiMainChartFullWidth: true,
                                 threeColVisualCount: 1,
                                 asymmetricSideCount: 2,
-                                mobileVisualCount: 3
+                                mobileVisualCount: 3,
+                                showVisualTypes: true,
+                                showVisualLabels: true,
+                                defaultVisualType: 'card',
+                                visualTypes: {},
+                                visualLabels: {}
                             });
                             setCanvasPreset('16:9');
                             setThemeMode('standard');
@@ -1557,16 +1807,87 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                                         <span>Grid Rows</span>
                                         <span>{config.federalRows}</span>
                                     </div>
-                                    <input type="range" min="0" max="4" value={config.federalRows} onChange={(e) => handleConfigChange('federalRows', Number(e.target.value))} className="input-range w-full" />
+                                    <input type="range" min="0" max="4" value={config.federalRows} onChange={(e) => {
+                                        const newRows = Number(e.target.value);
+                                        handleConfigChange('federalRows', newRows);
+                                        // Update row columns array to match new row count
+                                        if (newRows > 0) {
+                                            const currentArray = config.federalRowColumns || [];
+                                            const newArray = Array.from({ length: newRows }, (_, i) => 
+                                                i < currentArray.length ? currentArray[i] : config.federalColumns || 2
+                                            );
+                                            handleConfigChange('federalRowColumns', newArray);
+                                        }
+                                    }} className="input-range w-full" />
                                     <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of rows in grid (0 = no grid)</p>
                                 </div>
                                 <div>
-                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                        <span>Grid Columns</span>
-                                        <span>{config.federalColumns}</span>
+                                    <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
+                                        <span>Different Columns Per Row</span>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" checked={config.useFederalPerRowColumns} onChange={(e) => handleConfigChange('useFederalPerRowColumns', e.target.checked)} className="sr-only peer" />
+                                            <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
+                                        </label>
                                     </div>
-                                    <input type="range" min="0" max="4" value={config.federalColumns} onChange={(e) => handleConfigChange('federalColumns', Number(e.target.value))} className="input-range w-full" />
-                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of columns in grid (0 = no grid)</p>
+                                    {config.useFederalPerRowColumns ? (
+                                        <div className="space-y-3 bg-[#1a4480]/20 p-3 rounded border border-[#3d4551]">
+                                            <p className="text-[10px] text-[#97d4ea] mb-2 opacity-70">Configure columns for each row:</p>
+                                            {Array.from({ length: config.federalRows }).map((_, rowIndex) => {
+                                                const cols = config.federalRowColumns?.[rowIndex] || config.federalColumns || 2;
+                                                return (
+                                                    <div key={rowIndex} className="space-y-2">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-xs font-semibold text-[#dfe1e2]">Row {rowIndex + 1}</span>
+                                                                <div className="flex gap-1">
+                                                                    {[1, 2, 3, 4].map(num => (
+                                                                        <button
+                                                                            key={num}
+                                                                            onClick={() => {
+                                                                                const newArray = [...(config.federalRowColumns || [])];
+                                                                                newArray[rowIndex] = num;
+                                                                                handleConfigChange('federalRowColumns', newArray);
+                                                                            }}
+                                                                            className={`w-6 h-6 rounded text-[10px] font-bold transition-all ${
+                                                                                cols === num 
+                                                                                    ? 'bg-[#face00] text-[#162e51]' 
+                                                                                    : 'bg-[#3d4551] text-[#dfe1e2] hover:bg-[#565c65]'
+                                                                            }`}
+                                                                        >
+                                                                            {num}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                            <span className="text-xs text-[#97d4ea]">{cols} {cols === 1 ? 'column' : 'columns'}</span>
+                                                        </div>
+                                                        <input 
+                                                            type="range" 
+                                                            min="1" 
+                                                            max="4" 
+                                                            value={cols} 
+                                                            onChange={(e) => {
+                                                                const newValue = Number(e.target.value);
+                                                                const newArray = [...(config.federalRowColumns || [])];
+                                                                newArray[rowIndex] = newValue;
+                                                                handleConfigChange('federalRowColumns', newArray);
+                                                            }} 
+                                                            className="input-range w-full" 
+                                                        />
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                                <span>Grid Columns</span>
+                                                <span>{config.federalColumns}</span>
+                                            </div>
+                                            <input type="range" min="0" max="4" value={config.federalColumns} onChange={(e) => handleConfigChange('federalColumns', Number(e.target.value))} className="input-range w-full" />
+                                            <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of columns in grid (0 = no grid)</p>
+                                        </div>
+                                    )}
                                 </div>
                             </>
                         )}
@@ -1607,16 +1928,85 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                                         <span>Rows</span>
                                         <span>{config.gridRows}</span>
                                     </div>
-                                    <input type="range" min="1" max="6" value={config.gridRows} onChange={(e) => handleConfigChange('gridRows', Number(e.target.value))} className="input-range w-full" />
+                                    <input type="range" min="1" max="6" value={config.gridRows} onChange={(e) => {
+                                        const newRows = Number(e.target.value);
+                                        handleConfigChange('gridRows', newRows);
+                                        // Update row columns array to match new row count
+                                        const currentArray = config.gridRowColumns || [];
+                                        const newArray = Array.from({ length: newRows }, (_, i) => 
+                                            i < currentArray.length ? currentArray[i] : config.gridColumns || 2
+                                        );
+                                        handleConfigChange('gridRowColumns', newArray);
+                                    }} className="input-range w-full" />
                                     <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of rows in grid</p>
                                 </div>
                                 <div>
-                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                        <span>Columns</span>
-                                        <span>{config.gridColumns}</span>
+                                    <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
+                                        <span>Different Columns Per Row</span>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" checked={config.usePerRowColumns} onChange={(e) => handleConfigChange('usePerRowColumns', e.target.checked)} className="sr-only peer" />
+                                            <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
+                                        </label>
                                     </div>
-                                    <input type="range" min="1" max="4" value={config.gridColumns} onChange={(e) => handleConfigChange('gridColumns', Number(e.target.value))} className="input-range w-full" />
-                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of columns in grid</p>
+                                    {config.usePerRowColumns ? (
+                                        <div className="space-y-3 bg-[#1a4480]/20 p-3 rounded border border-[#3d4551]">
+                                            <p className="text-[10px] text-[#97d4ea] mb-2 opacity-70">Configure columns for each row:</p>
+                                            {Array.from({ length: config.gridRows }).map((_, rowIndex) => {
+                                                const cols = config.gridRowColumns?.[rowIndex] || config.gridColumns || 2;
+                                                return (
+                                                    <div key={rowIndex} className="space-y-2">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-xs font-semibold text-[#dfe1e2]">Row {rowIndex + 1}</span>
+                                                                <div className="flex gap-1">
+                                                                    {[1, 2, 3, 4].map(num => (
+                                                                        <button
+                                                                            key={num}
+                                                                            onClick={() => {
+                                                                                const newArray = [...(config.gridRowColumns || [])];
+                                                                                newArray[rowIndex] = num;
+                                                                                handleConfigChange('gridRowColumns', newArray);
+                                                                            }}
+                                                                            className={`w-6 h-6 rounded text-[10px] font-bold transition-all ${
+                                                                                cols === num 
+                                                                                    ? 'bg-[#face00] text-[#162e51]' 
+                                                                                    : 'bg-[#3d4551] text-[#dfe1e2] hover:bg-[#565c65]'
+                                                                            }`}
+                                                                        >
+                                                                            {num}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                            <span className="text-xs text-[#97d4ea]">{cols} {cols === 1 ? 'column' : 'columns'}</span>
+                                                        </div>
+                                                        <input 
+                                                            type="range" 
+                                                            min="1" 
+                                                            max="4" 
+                                                            value={cols} 
+                                                            onChange={(e) => {
+                                                                const newValue = Number(e.target.value);
+                                                                const newArray = [...(config.gridRowColumns || [])];
+                                                                newArray[rowIndex] = newValue;
+                                                                handleConfigChange('gridRowColumns', newArray);
+                                                            }} 
+                                                            className="input-range w-full" 
+                                                        />
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                                <span>Columns</span>
+                                                <span>{config.gridColumns}</span>
+                                            </div>
+                                            <input type="range" min="1" max="4" value={config.gridColumns} onChange={(e) => handleConfigChange('gridColumns', Number(e.target.value))} className="input-range w-full" />
+                                            <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of columns in grid</p>
+                                        </div>
+                                    )}
                                 </div>
                             </>
                         )}
@@ -1714,6 +2104,96 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                                 </div>
                                 <input type="range" min="2" max="6" value={config.mobileVisualCount} onChange={(e) => handleConfigChange('mobileVisualCount', Number(e.target.value))} className="input-range w-full" />
                                 <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of cards in vertical stack</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Visual Types & Labels */}
+                <div className="p-5 border-b border-[#3d4551] space-y-4">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-2 flex items-center gap-2">
+                        <Grid3x3 className="w-3 h-3"/> Visual Types & Labels
+                    </h3>
+                    
+                    <div className="space-y-4">
+                        <div>
+                            <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
+                                <span>Show Visual Type Indicators</span>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" checked={config.showVisualTypes} onChange={(e) => handleConfigChange('showVisualTypes', e.target.checked)} className="sr-only peer" />
+                                    <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
+                                </label>
+                            </div>
+                            <p className="text-[10px] text-[#97d4ea] opacity-70">Show icons and type labels on visual cards</p>
+                        </div>
+                        
+                        <div>
+                            <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
+                                <span>Show Visual Labels</span>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" checked={config.showVisualLabels} onChange={(e) => handleConfigChange('showVisualLabels', e.target.checked)} className="sr-only peer" />
+                                    <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
+                                </label>
+                            </div>
+                            <p className="text-[10px] text-[#97d4ea] opacity-70">Show custom labels on visual cards</p>
+                        </div>
+
+                        {items.filter(item => item.type === 'card' || item.type === 'kpi' || item.type === 'main').length > 0 && (
+                            <div className="space-y-3 bg-[#1a4480]/20 p-3 rounded border border-[#3d4551] max-h-64 overflow-y-auto">
+                                <p className="text-[10px] text-[#97d4ea] mb-2 opacity-70">Configure each visual card:</p>
+                                {items
+                                    .filter(item => item.type === 'card' || item.type === 'kpi' || item.type === 'main')
+                                    .map((item, idx) => {
+                                        const itemIndex = item.index !== undefined ? item.index : idx;
+                                        const visualType = config.visualTypes?.[itemIndex] || config.defaultVisualType || 'card';
+                                        const visualLabel = config.visualLabels?.[itemIndex] || '';
+                                        
+                                        return (
+                                            <div key={itemIndex} className="space-y-2 p-2 bg-[#162e51]/50 rounded">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-xs font-semibold text-[#dfe1e2]">Visual {itemIndex + 1}</span>
+                                                    <span className="text-[10px] text-[#97d4ea]">{Math.round(item.w)}×{Math.round(item.h)}px</span>
+                                                </div>
+                                                
+                                                <div>
+                                                    <label className="text-[10px] text-[#97d4ea] mb-1 block">Type:</label>
+                                                    <select
+                                                        value={visualType}
+                                                        onChange={(e) => {
+                                                            const newTypes = { ...(config.visualTypes || {}) };
+                                                            newTypes[itemIndex] = e.target.value;
+                                                            handleConfigChange('visualTypes', newTypes);
+                                                        }}
+                                                        className="w-full bg-[#1a4480] border border-[#3d4551] rounded px-2 py-1 text-xs text-[#dfe1e2]"
+                                                    >
+                                                        <option value="card">Card (Generic)</option>
+                                                        <option value="chart">📊 Chart</option>
+                                                        <option value="table">📋 Table</option>
+                                                        <option value="map">🗺️ Map</option>
+                                                        <option value="kpi">📈 KPI</option>
+                                                        <option value="slicer">🔽 Slicer</option>
+                                                        <option value="text">📄 Text Box</option>
+                                                        <option value="image">🖼️ Image</option>
+                                                    </select>
+                                                </div>
+                                                
+                                                <div>
+                                                    <label className="text-[10px] text-[#97d4ea] mb-1 block">Label:</label>
+                                                    <input
+                                                        type="text"
+                                                        value={visualLabel}
+                                                        onChange={(e) => {
+                                                            const newLabels = { ...(config.visualLabels || {}) };
+                                                            newLabels[itemIndex] = e.target.value;
+                                                            handleConfigChange('visualLabels', newLabels);
+                                                        }}
+                                                        placeholder="e.g., Sales by Region"
+                                                        className="w-full bg-[#1a4480] border border-[#3d4551] rounded px-2 py-1 text-xs text-[#dfe1e2] placeholder-[#565c65]"
+                                                    />
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                             </div>
                         )}
                     </div>
@@ -1965,6 +2445,58 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                                         <input type="range" min="0.02" max="0.2" step="0.01" value={config.slicerZoneOpacity || 0.08} onChange={(e) => handleConfigChange('slicerZoneOpacity', Number(e.target.value))} className="input-range w-full" />
                                         <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Adjust visibility of slicer zone background</p>
                                     </div>
+                                    
+                                    <div className="mt-3 pt-3 border-t border-[#3d4551]">
+                                        <label className="text-[10px] text-[#97d4ea] mb-2 block">Visual Style:</label>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {['minimal', 'standard', 'full'].map(style => (
+                                                <button
+                                                    key={style}
+                                                    onClick={() => handleConfigChange('slicerZoneStyle', style)}
+                                                    className={`p-2 rounded text-[10px] font-semibold transition-all capitalize ${
+                                                        (config.slicerZoneStyle || 'standard') === style
+                                                            ? 'bg-[#face00] text-[#162e51] border border-[#e5a000]'
+                                                            : 'bg-[#1a4480] text-white border border-transparent hover:border-[#face00]'
+                                                    }`}
+                                                >
+                                                    {style}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <p className="text-[10px] text-[#97d4ea] mt-2 opacity-70">
+                                            {(config.slicerZoneStyle || 'standard') === 'minimal' && 'Just a subtle top line indicator'}
+                                            {(config.slicerZoneStyle || 'standard') === 'standard' && 'Top/bottom borders, optional background'}
+                                            {(config.slicerZoneStyle || 'standard') === 'full' && 'All borders, background, and guide lines'}
+                                        </p>
+                                    </div>
+                                    
+                                    {(config.slicerZoneStyle || 'standard') !== 'minimal' && (
+                                        <div className="mt-3 pt-3 border-t border-[#3d4551] space-y-2">
+                                            <div className="flex items-center justify-between text-xs text-[#dfe1e2]">
+                                                <span>Show Background</span>
+                                                <label className="relative inline-flex items-center cursor-pointer">
+                                                    <input type="checkbox" checked={config.slicerZoneShowBackground !== false} onChange={(e) => handleConfigChange('slicerZoneShowBackground', e.target.checked)} className="sr-only peer" />
+                                                    <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
+                                                </label>
+                                            </div>
+                                            <div className="flex items-center justify-between text-xs text-[#dfe1e2]">
+                                                <span>Show Borders</span>
+                                                <label className="relative inline-flex items-center cursor-pointer">
+                                                    <input type="checkbox" checked={config.slicerZoneShowBorders !== false} onChange={(e) => handleConfigChange('slicerZoneShowBorders', e.target.checked)} className="sr-only peer" />
+                                                    <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
+                                                </label>
+                                            </div>
+                                            {(config.slicerZoneStyle || 'standard') === 'full' && (
+                                                <div className="flex items-center justify-between text-xs text-[#dfe1e2]">
+                                                    <span>Show Guide Lines</span>
+                                                    <label className="relative inline-flex items-center cursor-pointer">
+                                                        <input type="checkbox" checked={config.slicerZoneShowGuides !== false} onChange={(e) => handleConfigChange('slicerZoneShowGuides', e.target.checked)} className="sr-only peer" />
+                                                        <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
+                                                    </label>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </>
                             )}
                         </div>

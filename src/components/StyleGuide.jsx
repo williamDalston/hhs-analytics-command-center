@@ -322,17 +322,74 @@ const StyleGuide = () => {
                         <Download className="h-5 w-5 text-slate-400 group-hover:text-brand-600 transition-colors" />
                     </motion.div>
 
-                    <div className="card flex items-center justify-between group cursor-pointer hover:border-brand-300">
+                    <div className="card p-4 space-y-3">
                         <div className="flex items-center gap-4">
                             <div className="h-12 w-12 bg-brand-50 rounded-lg flex items-center justify-center text-brand-600">
                                 <ShieldCheck className="h-6 w-6" />
                             </div>
                             <div>
-                                <h4 className="font-semibold text-slate-900">Official Logos Pack</h4>
-                                <p className="text-xs text-slate-500">HHS, ASPA, and WebFirst Logos</p>
+                                <h4 className="font-semibold text-slate-900">Official HHS Logos</h4>
+                                <p className="text-xs text-slate-500">Download official HHS logos in multiple color variants</p>
                             </div>
                         </div>
-                        <Download className="h-5 w-5 text-slate-400 group-hover:text-brand-600" />
+                        <div className="grid grid-cols-1 gap-2 pt-2 border-t border-slate-200">
+                            <a
+                                href="https://www.hhs.gov/sites/default/files/logo-blue-lg.png"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-between p-2 rounded hover:bg-slate-50 transition-colors group"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="h-8 w-8 bg-[#005ea2] rounded flex items-center justify-center">
+                                        <span className="text-white text-xs font-bold">HHS</span>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-slate-900">Blue Logo</p>
+                                        <p className="text-xs text-slate-500">PNG, 59 KB</p>
+                                    </div>
+                                </div>
+                                <Download className="h-4 w-4 text-slate-400 group-hover:text-brand-600 transition-colors" />
+                            </a>
+                            <a
+                                href="https://www.hhs.gov/sites/default/files/logo-white-lg.png"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-between p-2 rounded hover:bg-slate-50 transition-colors group"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="h-8 w-8 bg-slate-200 border border-slate-300 rounded flex items-center justify-center">
+                                        <span className="text-slate-700 text-xs font-bold">HHS</span>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-slate-900">White Logo</p>
+                                        <p className="text-xs text-slate-500">PNG, 47 KB</p>
+                                    </div>
+                                </div>
+                                <Download className="h-4 w-4 text-slate-400 group-hover:text-brand-600 transition-colors" />
+                            </a>
+                            <a
+                                href="https://www.hhs.gov/sites/default/files/logo-black-lg.png"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-between p-2 rounded hover:bg-slate-50 transition-colors group"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="h-8 w-8 bg-slate-900 rounded flex items-center justify-center">
+                                        <span className="text-white text-xs font-bold">HHS</span>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-slate-900">Black Logo</p>
+                                        <p className="text-xs text-slate-500">PNG, 53 KB</p>
+                                    </div>
+                                </div>
+                                <Download className="h-4 w-4 text-slate-400 group-hover:text-brand-600 transition-colors" />
+                            </a>
+                        </div>
+                        <div className="pt-2 border-t border-slate-200">
+                            <p className="text-xs text-slate-600">
+                                <strong>Source:</strong> <a href="https://www.hhs.gov/web/services-and-resources/brand-guidance/index.html" target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:underline">HHS Brand Guidance</a>
+                            </p>
+                        </div>
                     </div>
                 </div>
                 
