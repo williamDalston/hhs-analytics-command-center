@@ -105,6 +105,8 @@ const SVGGenerator = () => {
     const [importMode, setImportMode] = useState(false); // Toggle between manual and wireframe import
     const [wireframeText, setWireframeText] = useState('');
     const [wireframeData, setWireframeData] = useState(null); // Parsed wireframe data
+    const [isExportingPages, setIsExportingPages] = useState(false); // Loading state for export all
+    const [cursorGuideCopied, setCursorGuideCopied] = useState(false); // Track if guide was copied
 
     // --- Canvas Size Presets ---
     const applyCanvasPreset = (preset) => {
@@ -1454,6 +1456,207 @@ ${spec.powerBI.importInstructions.map(step => step).join('\n')}
         setTimeout(() => setToast(null), 3000);
     };
 
+    // Cursor Guide Content (embedded for easy copying)
+    const cursorGuideContent = `# Cursor AI Guide: Generate HHS Power BI Wireframes
+
+**Copy this entire guide into Cursor to generate complete wireframe markdown files with chart types and labels.**
+
+## Your Task
+
+Generate a complete HHS Power BI wireframe markdown file that includes:
+1. Multiple pages (if needed)
+2. Layout specifications (Federal, Grid, KPI Top, etc.)
+3. Grid configurations (rows, columns, per-row columns)
+4. Visual specifications with chart types and labels
+5. Proper formatting for the HHS SVG Generator
+
+## Required Format
+
+The wireframe must follow this exact structure:
+
+\`\`\`markdown
+## PAGE 1: [Page Name]
+
+### Layout Type: [FEDERAL|GRID|KPI|SIDEBAR|THREE-COL|ASYMMETRIC|MOBILE]
+
+**Grid Configuration:**
+- Rows: [number]
+- Columns: [number]
+- Row 1 Columns: [number] (optional - for different columns per row)
+- Row 2 Columns: [number] (optional)
+
+**Visuals:**
+1. **Chart 1** - "[Label Text]" (show label: yes)
+2. **KPI Card 1** - "[Label Text]" (show label: yes)
+3. **Table 1** - "[Label Text]" (show label: no)
+4. **Map 1** - "[Label Text]" (show label: yes)
+\`\`\`
+
+## Visual Types Supported
+
+Use these exact visual type names:
+- \`Chart\` - For line, bar, column charts
+- \`KPI Card\` or \`KPI\` - For KPI indicators
+- \`Table\` - For data tables
+- \`Map\` - For geographic visualizations
+- \`Slicer\` - For filter controls
+- \`Text\` - For text boxes
+- \`Image\` - For images
+- \`Card\` - Generic card visual
+
+## Example Complete Wireframe
+
+\`\`\`markdown
+# HHS Power BI Layout Wireframes
+## ASPA Social Media Analytics Dashboard
+
+**Model:** ASPA-Social-Media-Analytics
+**Date:** 2025-01-15
+**Designer:** HHS WebFirst Analytics Team (ASPA)
+
+---
+
+## PAGE 1: Executive Social Media Overview
+
+### Layout Type: FEDERAL
+
+**Grid Configuration:**
+- Rows: 3
+- Columns: 3
+- Row 1 Columns: 4
+- Row 2 Columns: 3
+- Row 3 Columns: 2
+
+**Visuals:**
+1. **KPI Card 1** - "Total Impressions" (show label: yes)
+2. **KPI Card 2** - "Engagement Rate" (show label: yes)
+3. **KPI Card 3** - "Total Followers" (show label: yes)
+4. **KPI Card 4** - "Video Views" (show label: yes)
+5. **Chart 1** - "Impressions by Platform Over Time" (show label: yes)
+6. **Chart 2** - "Engagement by Content Type" (show label: yes)
+7. **Chart 3** - "Top Performing Posts" (show label: yes)
+8. **Table 1** - "Campaign Performance Details" (show label: no)
+9. **Map 1** - "Geographic Engagement" (show label: yes)
+
+---
+
+## PAGE 2: Platform Comparison
+
+### Layout Type: GRID
+
+**Grid Configuration:**
+- Rows: 2
+- Columns: 2
+
+**Visuals:**
+1. **Chart 1** - "X/Twitter Performance" (show label: yes)
+2. **Chart 2** - "Facebook Performance" (show label: yes)
+3. **Chart 3** - "Instagram Performance" (show label: yes)
+4. **Chart 4** - "YouTube Performance" (show label: yes)
+
+---
+
+## PAGE 3: Campaign Analysis
+
+### Layout Type: KPI
+
+**Grid Configuration:**
+- Rows: 2
+- Columns: 3
+
+**Visuals:**
+1. **KPI Card 1** - "Campaign Reach" (show label: yes)
+2. **KPI Card 2** - "Campaign Engagement" (show label: yes)
+3. **KPI Card 3** - "Campaign CTR" (show label: yes)
+4. **Chart 1** - "Campaign Performance Timeline" (show label: yes)
+5. **Chart 2** - "Campaign Comparison" (show label: yes)
+6. **Table 1** - "Campaign Details" (show label: no)
+\`\`\`
+
+## Instructions for Cursor
+
+When the user asks you to create a wireframe:
+
+1. **Ask for project details:**
+   - Project name
+   - Number of pages needed
+   - Layout types for each page
+   - Key metrics/visuals needed
+
+2. **Generate complete wireframe** following the format above
+
+3. **Include:**
+   - All pages with proper headers
+   - Grid configurations for each page
+   - Visual specifications with:
+     - Visual type (Chart, KPI Card, Table, etc.)
+     - Descriptive label text
+     - Show label preference (yes/no)
+
+4. **Use descriptive labels** that explain what each visual shows
+
+5. **Ensure proper markdown formatting** - the parser is strict
+
+## Common Layout Patterns
+
+### Federal Layout (Executive)
+- Use for high-level dashboards
+- Typically 2-3 rows, 2-4 columns
+- Top row often has KPIs
+
+### Grid Layout (Balanced)
+- Use for comparison views
+- Typically 2x2 or 3x3
+- Equal-sized visuals
+
+### KPI Top Layout
+- Use when KPIs are primary focus
+- Top row: KPI cards
+- Below: Supporting charts
+
+## Output Requirements
+
+Your generated wireframe must:
+- ✅ Start with \`## PAGE 1:\` format
+- ✅ Include \`### Layout Type:\` for each page
+- ✅ Have \`**Grid Configuration:**\` section
+- ✅ Have \`**Visuals:**\` section with numbered list
+- ✅ Use exact format: \`**Chart 1** - "Label" (show label: yes)\`
+- ✅ Be ready to paste directly into the HHS SVG Generator
+
+## Tips
+
+- Use clear, descriptive labels
+- Match visual types to actual Power BI visuals
+- Consider the user's story/flow across pages
+- Keep grid configurations reasonable (2-4 columns typically)
+- Use "show label: yes" for important visuals, "no" for detailed tables
+
+---
+
+**Ready? Generate a complete wireframe markdown file that the user can paste directly into the HHS SVG Generator to create all their layout SVGs at once!**`;
+
+    // Copy Cursor Guide to Clipboard
+    const copyCursorGuide = async () => {
+        try {
+            await navigator.clipboard.writeText(cursorGuideContent);
+            setCursorGuideCopied(true);
+            showToast('✓ Cursor Guide copied to clipboard! Paste into Cursor now.');
+            setTimeout(() => setCursorGuideCopied(false), 3000);
+        } catch (err) {
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = cursorGuideContent;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            setCursorGuideCopied(true);
+            showToast('✓ Cursor Guide copied to clipboard! Paste into Cursor now.');
+            setTimeout(() => setCursorGuideCopied(false), 3000);
+        }
+    };
+
     // --- Wireframe Parser ---
     const parseWireframe = (wireframeText) => {
         try {
@@ -2049,6 +2252,28 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                     <p className="text-xs text-[#97d4ea] mt-1 opacity-90 font-sans">Official Brand Background Tool</p>
                 </div>
 
+                {/* Quick Start - Wireframe Import Banner */}
+                {!importMode && (
+                    <div className="p-4 border-b border-[#3d4551] bg-gradient-to-r from-[#face00] to-[#e5a000]">
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-[#162e51]" />
+                                <span className="text-sm font-bold text-[#162e51]">Quick Start: Import Wireframe</span>
+                            </div>
+                        </div>
+                        <p className="text-[10px] text-[#162e51] mb-3 opacity-90">
+                            Paste your wireframe markdown with chart types and labels → Generate all SVGs at once
+                        </p>
+                        <button
+                            onClick={() => setImportMode(true)}
+                            className="w-full px-4 py-2 rounded bg-[#162e51] hover:bg-[#1a4480] text-white text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg"
+                        >
+                            <FileText className="w-4 h-4" />
+                            Switch to Wireframe Import Mode
+                        </button>
+                    </div>
+                )}
+
                 {/* Mode Toggle */}
                 <div className="p-4 border-b border-[#3d4551] bg-[#1a4480]">
                     <div className="flex gap-2">
@@ -2070,7 +2295,7 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                                     : 'bg-[#3d4551] text-white hover:bg-[#565c65]'
                             }`}
                         >
-                            Import Wireframe
+                            📋 Import Wireframe
                         </button>
                     </div>
                 </div>
@@ -2078,46 +2303,163 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                 {/* Wireframe Import Section */}
                 {importMode && (
                     <div className="p-5 border-b border-[#3d4551] space-y-4">
-                        <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-2 flex items-center gap-2">
-                            <FileText className="w-3 h-3"/> Wireframe Import
-                        </h3>
+                        <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] flex items-center gap-2">
+                                <FileText className="w-3 h-3"/> Wireframe Import
+                            </h3>
+                            <a
+                                href="/WIREFRAME_IMPORT_GUIDE.md"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[10px] text-[#97d4ea] hover:text-[#face00] transition-colors underline flex items-center gap-1"
+                                title="Open wireframe format guide in new tab"
+                            >
+                                <HelpCircle className="w-3 h-3" />
+                                Format Guide
+                            </a>
+                        </div>
+                        <div className="bg-[#face00]/20 border-2 border-[#face00] rounded p-4 mb-3">
+                            <div className="flex items-center justify-between mb-2">
+                                <p className="text-[11px] font-bold text-[#face00] flex items-center gap-2">
+                                    <FileText className="w-4 h-4" />
+                                    Step 1: Copy Cursor Guide
+                                </p>
+                                <button
+                                    onClick={copyCursorGuide}
+                                    className={`px-4 py-2 rounded text-xs font-bold transition-all flex items-center gap-2 ${
+                                        cursorGuideCopied
+                                            ? 'bg-[#00a398] text-white'
+                                            : 'bg-[#face00] hover:bg-[#e5a000] text-[#162e51]'
+                                    }`}
+                                >
+                                    {cursorGuideCopied ? (
+                                        <>
+                                            <CheckCircle className="w-4 h-4" />
+                                            Copied!
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Copy className="w-4 h-4" />
+                                            Copy Guide to Clipboard
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                            <p className="text-[9px] text-[#dfe1e2] mb-2">
+                                Click the button above to copy the complete guide. Then paste it into Cursor and ask:
+                            </p>
+                            <div className="bg-[#162e51] rounded p-2 mb-2">
+                                <p className="text-[9px] text-[#face00] font-mono">
+                                    "Generate a wireframe for [your project] with [X] pages"
+                                </p>
+                            </div>
+                            <div className="border-t border-[#face00]/30 pt-2 mt-2">
+                                <p className="text-[9px] font-bold text-[#face00] mb-1">Complete Workflow:</p>
+                                <ol className="text-[9px] text-[#dfe1e2] space-y-1 list-decimal list-inside">
+                                    <li>Click <strong className="text-[#face00]">"Copy Guide to Clipboard"</strong> above</li>
+                                    <li>Paste into Cursor and ask for wireframe</li>
+                                    <li>Copy Cursor's response and paste below</li>
+                                    <li>Click "Parse Wireframe" → "Export All Pages"</li>
+                                </ol>
+                            </div>
+                        </div>
                         <div className="space-y-3">
                             <div>
-                                <label className="text-[10px] text-[#97d4ea] mb-2 block">Paste Wireframe Markdown:</label>
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="text-[10px] text-[#97d4ea] block">Paste Wireframe Markdown:</label>
+                                    {wireframeText && (
+                                        <button
+                                            onClick={() => {
+                                                setWireframeText('');
+                                                setWireframeData(null);
+                                                showToast('Wireframe text cleared');
+                                            }}
+                                            className="text-[10px] text-[#97d4ea] hover:text-[#face00] transition-colors"
+                                            title="Clear wireframe text"
+                                        >
+                                            Clear
+                                        </button>
+                                    )}
+                                </div>
                                 <textarea
                                     value={wireframeText}
                                     onChange={(e) => setWireframeText(e.target.value)}
-                                    placeholder="Paste your HHS Layout Wireframes.md content here..."
-                                    className="w-full h-48 bg-[#1a4480] border border-[#3d4551] rounded px-3 py-2 text-xs text-[#dfe1e2] placeholder-[#565c65] font-mono resize-none"
+                                    placeholder="📋 Paste your wireframe markdown here (generated from Cursor or your wireframe file)...
+
+Example:
+## PAGE 1: Executive Dashboard
+### Layout Type: FEDERAL
+**Grid Configuration:**
+- Rows: 3
+- Columns: 3
+**Visuals:**
+1. **KPI Card 1** - \"Total Impressions\" (show label: yes)
+2. **Chart 1** - \"Engagement Over Time\" (show label: yes)
+3. **Table 1** - \"Top Posts\" (show label: no)"
+                                    className="w-full h-64 bg-[#1a4480] border-2 border-[#3d4551] rounded px-3 py-2 text-xs text-[#dfe1e2] placeholder-[#565c65] font-mono resize-none focus:border-[#face00] focus:outline-none transition-colors"
                                 />
+                                <div className="flex items-center justify-between mt-1">
+                                    <p className="text-[9px] text-[#97d4ea] opacity-60">
+                                        💡 Need a wireframe? Use the <strong className="text-[#face00]">Cursor Guide</strong> button above
+                                    </p>
+                                    {wireframeText.length > 0 && (
+                                        <p className="text-[9px] text-[#97d4ea]">
+                                            {wireframeText.split('\n').length} lines
+                                        </p>
+                                    )}
+                                </div>
                             </div>
                             <button
                                 onClick={() => {
+                                    if (!wireframeText.trim()) {
+                                        showToast('Please paste wireframe content first');
+                                        return;
+                                    }
                                     const parsed = parseWireframe(wireframeText);
                                     if (parsed) {
                                         setWireframeData(parsed);
-                                        showToast('Wireframe parsed successfully!');
+                                        const pageCount = parsed.hasPages && parsed.pages ? parsed.pages.length : 0;
+                                        const layoutCount = parsed.layouts ? Object.keys(parsed.layouts).length : 0;
+                                        if (pageCount > 0) {
+                                            showToast(`✓ Parsed ${pageCount} page${pageCount !== 1 ? 's' : ''} successfully!`);
+                                        } else if (layoutCount > 0) {
+                                            showToast(`✓ Parsed ${layoutCount} layout${layoutCount !== 1 ? 's' : ''} successfully!`);
+                                        } else {
+                                            showToast('Wireframe parsed successfully!');
+                                        }
                                     } else {
-                                        showToast('Error parsing wireframe. Check format.');
+                                        showToast('✗ Error: Could not parse wireframe. Check format and try again.');
                                     }
                                 }}
-                                className="w-full px-3 py-2 rounded bg-[#005ea2] hover:bg-[#00bde3] text-white text-sm transition-colors border border-[#1a4480]"
+                                disabled={!wireframeText.trim()}
+                                className={`w-full px-3 py-2 rounded text-white text-sm transition-colors border border-[#1a4480] flex items-center justify-center gap-2 ${
+                                    wireframeText.trim() 
+                                        ? 'bg-[#005ea2] hover:bg-[#00bde3] cursor-pointer' 
+                                        : 'bg-[#3d4551] opacity-50 cursor-not-allowed'
+                                }`}
                             >
+                                <FileText className="w-4 h-4" />
                                 Parse Wireframe
                             </button>
                             {wireframeData && (
                                 <div className="space-y-3">
                                     {wireframeData.hasPages && wireframeData.pages ? (
                                         <>
-                                            <div className="flex items-center justify-between">
-                                                <p className="text-[10px] text-[#97d4ea]">Pages Found:</p>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <p className="text-[10px] text-[#97d4ea] font-semibold">
+                                                    ✓ {wireframeData.pages.length} Page{wireframeData.pages.length !== 1 ? 's' : ''} Found:
+                                                </p>
                                                 <button
                                                     onClick={async () => {
+                                                        if (isExportingPages) return;
                                                         try {
+                                                            setIsExportingPages(true);
                                                             showToast(`Exporting ${wireframeData.pages.length} pages...`);
                                                             // Export all pages sequentially
                                                             for (let idx = 0; idx < wireframeData.pages.length; idx++) {
                                                                 const page = wireframeData.pages[idx];
+                                                                showToast(`Exporting page ${idx + 1} of ${wireframeData.pages.length}...`);
+                                                                
                                                                 // Apply the page configuration
                                                                 applyWireframePage(page, wireframeData);
                                                                 
@@ -2143,15 +2485,32 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                                                                     await new Promise(resolve => setTimeout(resolve, 200));
                                                                 }
                                                             }
-                                                            showToast(`Exported ${wireframeData.pages.length} pages successfully!`);
+                                                            showToast(`✓ Successfully exported ${wireframeData.pages.length} page${wireframeData.pages.length !== 1 ? 's' : ''}!`);
                                                         } catch (error) {
                                                             console.error('Error exporting pages:', error);
-                                                            showToast('Error exporting pages. Check console.');
+                                                            showToast('✗ Error exporting pages. Check console for details.');
+                                                        } finally {
+                                                            setIsExportingPages(false);
                                                         }
                                                     }}
-                                                    className="px-2 py-1 rounded bg-[#face00] hover:bg-[#e5a000] text-[#162e51] text-[10px] font-bold transition-colors"
+                                                    disabled={isExportingPages}
+                                                    className={`px-2 py-1 rounded text-[#162e51] text-[10px] font-bold transition-colors flex items-center gap-1 ${
+                                                        isExportingPages 
+                                                            ? 'bg-[#97d4ea] cursor-wait opacity-75' 
+                                                            : 'bg-[#face00] hover:bg-[#e5a000] cursor-pointer'
+                                                    }`}
                                                 >
-                                                    Export All Pages
+                                                    {isExportingPages ? (
+                                                        <>
+                                                            <div className="w-3 h-3 border-2 border-[#162e51] border-t-transparent rounded-full animate-spin"></div>
+                                                            Exporting...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Download className="w-3 h-3" />
+                                                            Export All Pages
+                                                        </>
+                                                    )}
                                                 </button>
                                             </div>
                                             <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -2182,7 +2541,9 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                                         </>
                                     ) : (
                                         <>
-                                            <p className="text-[10px] text-[#97d4ea]">Available Layouts:</p>
+                                            <p className="text-[10px] text-[#97d4ea] font-semibold mb-2">
+                                                ✓ {Object.keys(wireframeData.layouts || {}).length} Layout{Object.keys(wireframeData.layouts || {}).length !== 1 ? 's' : ''} Available:
+                                            </p>
                                             <div className="grid grid-cols-2 gap-2">
                                                 {Object.keys(wireframeData.layouts || {}).map(layoutName => (
                                                     <button
@@ -3359,11 +3720,42 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
 
                 {/* Toast Notification */}
                 {toast && (
-                    <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-[#00a398] text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-2 animate-bounce font-bold z-50">
-                        <CheckCircle className="w-5 h-5"/>
-                        {toast}
+                    <div 
+                        className={`fixed top-20 left-1/2 -translate-x-1/2 px-6 py-3 rounded-lg shadow-2xl flex items-center gap-2 font-semibold z-50 min-w-[300px] max-w-[500px] transition-all ${
+                            toast.startsWith('✓') || toast.startsWith('Success') 
+                                ? 'bg-[#00a398] text-white' 
+                                : toast.startsWith('✗') || toast.startsWith('Error')
+                                ? 'bg-[#d54309] text-white'
+                                : 'bg-[#005ea2] text-white'
+                        }`}
+                        style={{
+                            animation: 'slideDown 0.3s ease-out'
+                        }}
+                    >
+                        {toast.startsWith('✓') ? (
+                            <CheckCircle className="w-5 h-5 flex-shrink-0"/>
+                        ) : toast.startsWith('✗') ? (
+                            <div className="w-5 h-5 flex-shrink-0 text-xl leading-none">✗</div>
+                        ) : (
+                            <CheckCircle className="w-5 h-5 flex-shrink-0"/>
+                        )}
+                        <span className="text-sm">{toast}</span>
                     </div>
                 )}
+                
+                {/* Toast Animation Style */}
+                <style>{`
+                    @keyframes slideDown {
+                        from {
+                            opacity: 0;
+                            transform: translate(-50%, -20px);
+                        }
+                        to {
+                            opacity: 1;
+                            transform: translate(-50%, 0);
+                        }
+                    }
+                `}</style>
 
                 {/* Power BI Import Guide Modal */}
                 {showImportGuide && (

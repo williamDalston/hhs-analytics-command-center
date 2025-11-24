@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Calendar, User, FileText, Briefcase, AlertCircle, CheckCircle2, Users, LayoutList, AlertTriangle, Activity, ClipboardList, CheckSquare, Square, X, Cloud, HardDrive } from 'lucide-react';
+import { Plus, Trash2, Calendar, User, FileText, Briefcase, AlertCircle, CheckCircle2, Users, LayoutList, AlertTriangle, Activity, ClipboardList, CheckSquare, Square, X, Cloud, HardDrive, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
 import { getSupabaseClient } from '../config/supabase';
@@ -14,6 +14,8 @@ const ProjectTracker = () => {
 
     // Form state
     const [isAdding, setIsAdding] = useState(false);
+    const [isBulkImporting, setIsBulkImporting] = useState(false);
+    const [bulkImportText, setBulkImportText] = useState('');
     const [selectedProjects, setSelectedProjects] = useState([]);
     const [isSelectionMode, setIsSelectionMode] = useState(false);
     const [newProject, setNewProject] = useState({
@@ -179,6 +181,221 @@ const ProjectTracker = () => {
         }
     };
 
+    // --- Bulk Import Parser ---
+    const parseBulkImport = (text) => {
+        const projects = [];
+        const decisions = [];
+        const blockers = [];
+
+        const lines = text.split('\n');
+        let currentSection = null;
+        let currentItem = null;
+        let currentField = null;
+        let currentContent = [];
+
+        const flushCurrentItem = () => {
+            if (currentItem) {
+                if (currentField && currentContent.length > 0) {
+                    currentItem[currentField] = currentContent.join('\n').trim();
+                }
+                
+                if (currentSection === 'PROJECTS' && currentItem.name) {
+                    projects.push(currentItem);
+                } else if (currentSection === 'DECISIONS' && currentItem.title) {
+                    decisions.push({ ...currentItem, type: 'Decision' });
+                } else if (currentSection === 'BLOCKERS' && currentItem.title) {
+                    blockers.push({ ...currentItem, type: 'Pain Point' });
+                }
+            }
+            currentItem = null;
+            currentField = null;
+            currentContent = [];
+        };
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            
+            // Section headers
+            if (line.match(/^##\s+(PROJECTS|DECISIONS|BLOCKERS)/i)) {
+                flushCurrentItem();
+                currentSection = line.match(/^##\s+(PROJECTS|DECISIONS|BLOCKERS)/i)[1].toUpperCase();
+                continue;
+            }
+
+            // Item headers (Project, Decision, Blocker)
+            if (line.match(/^###\s+(Project\s*\d*|Decision|Blocker)[\s:]+(.+)/i)) {
+                flushCurrentItem();
+                const match = line.match(/^###\s+(Project\s*\d*|Decision|Blocker)[\s:]+(.+)/i);
+                const itemType = match[1].toLowerCase();
+                const title = match[2].trim();
+                
+                if (itemType.includes('project')) {
+                    currentItem = { name: title, stakeholder: '', deadline: '', status: 'Planning', priority: 'Normal', requirements: '' };
+                } else {
+                    currentItem = { title: title, date_logged: new Date().toISOString().split('T')[0], status: 'Active', description: '' };
+                }
+                currentField = null;
+                currentContent = [];
+                continue;
+            }
+
+            // Field headers
+            if (line.match(/^\*\*([^*]+):\*\*\s*(.*)/)) {
+                if (currentItem) {
+                    if (currentField && currentContent.length > 0) {
+                        currentItem[currentField] = currentContent.join('\n').trim();
+                    }
+                    currentContent = [];
+                }
+                
+                const match = line.match(/^\*\*([^*]+):\*\*\s*(.*)/);
+                const fieldName = match[1].trim().toLowerCase();
+                const fieldValue = match[2].trim();
+                
+                // Map field names to database fields
+                const fieldMap = {
+                    'stakeholder': 'stakeholder',
+                    'deadline': 'deadline',
+                    'status': 'status',
+                    'priority': 'priority',
+                    'requirements': 'requirements',
+                    'date': 'date_logged',
+                    'description': 'description'
+                };
+
+                currentField = fieldMap[fieldName] || fieldName;
+                
+                if (fieldValue) {
+                    currentContent.push(fieldValue);
+                }
+                continue;
+            }
+
+            // Content lines (for multi-line fields)
+            if (currentItem && currentField && line) {
+                currentContent.push(line);
+            }
+
+            // Separator (---) - flush current item
+            if (line.match(/^---+$/)) {
+                flushCurrentItem();
+            }
+        }
+
+        flushCurrentItem();
+
+        return { projects, decisions, blockers };
+    };
+
+    const handleBulkImport = async () => {
+        if (!bulkImportText.trim()) {
+            addToast('Please paste your data first', 'error');
+            return;
+        }
+
+        try {
+            const { projects: parsedProjects, decisions: parsedDecisions, blockers: parsedBlockers } = parseBulkImport(bulkImportText);
+            
+            if (parsedProjects.length === 0 && parsedDecisions.length === 0 && parsedBlockers.length === 0) {
+                addToast('No valid data found. Check the format.', 'error');
+                return;
+            }
+
+            let successCount = 0;
+            let errorCount = 0;
+
+            if (useCloud && supabase) {
+                // Import Projects
+                if (parsedProjects.length > 0) {
+                    const projectsToInsert = parsedProjects.map(p => ({
+                        name: p.name,
+                        stakeholder: p.stakeholder || '',
+                        deadline: p.deadline || null,
+                        status: p.status || 'Planning',
+                        priority: p.priority || 'Normal',
+                        requirements: p.requirements || ''
+                    }));
+
+                    const { data: projData, error: projError } = await supabase
+                        .from('projects')
+                        .insert(projectsToInsert)
+                        .select();
+
+                    if (projError) throw projError;
+                    successCount += projData.length;
+                }
+
+                // Import Decisions
+                if (parsedDecisions.length > 0) {
+                    const decisionsToInsert = parsedDecisions.map(d => ({
+                        type: 'Decision',
+                        title: d.title,
+                        date_logged: d.date_logged || new Date().toISOString().split('T')[0],
+                        status: d.status || 'Active',
+                        description: d.description || ''
+                    }));
+
+                    const { data: decData, error: decError } = await supabase
+                        .from('strategic_items')
+                        .insert(decisionsToInsert)
+                        .select();
+
+                    if (decError) throw decError;
+                    successCount += decData.length;
+                }
+
+                // Import Blockers
+                if (parsedBlockers.length > 0) {
+                    const blockersToInsert = parsedBlockers.map(b => ({
+                        type: 'Pain Point',
+                        title: b.title,
+                        date_logged: b.date_logged || new Date().toISOString().split('T')[0],
+                        status: b.status || 'Active',
+                        description: b.description || ''
+                    }));
+
+                    const { data: blockerData, error: blockerError } = await supabase
+                        .from('strategic_items')
+                        .insert(blockersToInsert)
+                        .select();
+
+                    if (blockerError) throw blockerError;
+                    successCount += blockerData.length;
+                }
+
+                // Refresh data from database
+                const { data: projData, error: projError } = await supabase
+                    .from('projects')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (!projError) setProjects(projData || []);
+
+                const { data: decData, error: decError } = await supabase
+                    .from('strategic_items')
+                    .select('*')
+                    .order('date_logged', { ascending: false });
+
+                if (!decError) setDecisions(decData || []);
+            } else {
+                // Local fallback
+                const newProjects = parsedProjects.map((p, idx) => ({
+                    id: Date.now() + idx,
+                    ...p
+                }));
+                setProjects([...newProjects, ...projects]);
+                successCount += newProjects.length;
+            }
+
+            addToast(`Successfully imported ${successCount} item${successCount !== 1 ? 's' : ''}`, 'success');
+            setBulkImportText('');
+            setIsBulkImporting(false);
+        } catch (error) {
+            console.error('Error bulk importing:', error);
+            addToast('Failed to import data. Check the format and try again.', 'error');
+        }
+    };
+
     const generateReport = () => {
         const activeProjects = projects.filter(p => p.status !== 'Done');
         const activeDecisions = decisions.filter(d => d.status === 'Active');
@@ -275,6 +492,15 @@ NEXT STEPS:
                                 ) : (
                                     <div className="flex gap-2">
                                         <button
+                                            onClick={() => setIsBulkImporting(!isBulkImporting)}
+                                            className="btn-secondary text-xs sm:text-sm"
+                                            title="Bulk import projects, decisions, and blockers"
+                                        >
+                                            <Upload className="h-4 w-4" />
+                                            <span className="hidden sm:inline ml-2">Bulk Import</span>
+                                            <span className="sm:hidden ml-1">Import</span>
+                                        </button>
+                                        <button
                                             onClick={toggleSelectionMode}
                                             className="btn-secondary text-xs sm:text-sm"
                                             title="Select multiple projects"
@@ -366,6 +592,93 @@ NEXT STEPS:
             {/* Projects Tab */}
             {activeTab === 'projects' && (
                 <div className="space-y-6">
+                    {isBulkImporting && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            className="card border-brand-200 bg-white"
+                        >
+                            <div className="mb-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Bulk Import</h3>
+                                    <button
+                                        onClick={() => {
+                                            setIsBulkImporting(false);
+                                            setBulkImportText('');
+                                        }}
+                                        className="text-slate-400 hover:text-slate-600"
+                                    >
+                                        <X className="h-5 w-5" />
+                                    </button>
+                                </div>
+                                <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
+                                    Paste all your projects, decisions, and blockers. See{' '}
+                                    <a 
+                                        href="/PROJECT_BULK_IMPORT_FORMAT.md" 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="text-brand-600 hover:text-brand-700 underline"
+                                    >
+                                        format guide
+                                    </a>
+                                    {' '}for the exact format.
+                                </p>
+                            </div>
+                            <textarea
+                                value={bulkImportText}
+                                onChange={(e) => setBulkImportText(e.target.value)}
+                                placeholder={`## PROJECTS
+
+### Project 1: [Project Name]
+**Stakeholder:** [Name]
+**Deadline:** YYYY-MM-DD
+**Status:** Planning | Data Modeling | Visualizing | Review | Done
+**Priority:** Normal | High | Critical
+**Requirements:** 
+[Your requirements text here]
+
+---
+
+## DECISIONS
+
+### Decision: [Decision Title]
+**Date:** YYYY-MM-DD
+**Status:** Active | Resolved | Mitigated
+**Description:** 
+[Description]
+
+---
+
+## BLOCKERS
+
+### Blocker: [Blocker Title]
+**Date:** YYYY-MM-DD
+**Status:** Active | Resolved | Mitigated
+**Description:** 
+[Description]`}
+                                className="w-full h-64 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded px-3 py-2 text-sm text-slate-700 dark:text-slate-300 placeholder-slate-400 dark:placeholder-slate-500 font-mono resize-none focus:border-brand-500 focus:outline-none transition-colors"
+                            />
+                            <div className="flex justify-end gap-3 mt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setIsBulkImporting(false);
+                                        setBulkImportText('');
+                                    }}
+                                    className="btn-secondary"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleBulkImport}
+                                    className="btn-primary"
+                                >
+                                    <Upload className="h-4 w-4 mr-2" />
+                                    Import All
+                                </button>
+                            </div>
+                        </motion.div>
+                    )}
                     {isAdding && (
                         <motion.form
                             initial={{ opacity: 0, height: 0 }}

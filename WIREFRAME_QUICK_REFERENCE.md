@@ -1,8 +1,18 @@
 # Wireframe Parser - Quick Reference
 
-## Quick Start
+## 🚀 Quick Start (Recommended Workflow)
 
-1. **Switch to Import Mode**: Click "Import Wireframe" button at top of sidebar
+### Option 1: Use Cursor AI to Generate Wireframe (FASTEST)
+
+1. **Open Cursor Guide**: Click the **"Cursor Guide"** button in the Wireframe Import section
+2. **Copy the Guide**: Copy the entire `CURSOR_WIREFRAME_GUIDE.md` content into Cursor
+3. **Ask Cursor**: "Generate a wireframe for [your project] with [X] pages"
+4. **Paste Result**: Copy Cursor's generated markdown and paste it into the textarea
+5. **Parse & Export**: Click "Parse Wireframe" → "Export All Pages"
+
+### Option 2: Manual Wireframe Creation
+
+1. **Switch to Import Mode**: Click "Import Wireframe" button at top of sidebar (or use the yellow banner)
 2. **Paste Your Wireframe**: Copy/paste your markdown wireframe file
 3. **Parse**: Click "Parse Wireframe" button
 4. **Apply**: Click any page/layout button to apply it
