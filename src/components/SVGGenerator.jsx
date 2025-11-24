@@ -55,7 +55,18 @@ const SVGGenerator = () => {
         showLogo: true, // HHS Logo area
         logoAreaWidth: 200, // Width reserved for logo in header
         showTitle: true, // Dashboard title/header text area
-        titleHeight: 60
+        titleHeight: 60,
+        federalVisualCount: 4, // Number of visual areas in federal layout
+        federalColumns: 2, // Number of columns for visual grid in federal layout
+        sidebarVisualCount: 1, // Number of visual areas in sidebar layout main area
+        sidebarColumns: 1, // Columns for sidebar layout main area
+        gridRows: 2, // Number of rows for grid layout
+        gridColumns: 2, // Number of columns for grid layout
+        kpiVisualCount: 1, // Number of visual areas in KPI layout main area
+        kpiColumns: 1, // Columns for KPI layout main area
+        threeColVisualCount: 1, // Number of visual areas per column in three-col layout
+        asymmetricSideCount: 2, // Number of side cards in asymmetric layout
+        mobileVisualCount: 3 // Number of visual cards in mobile layout
     });
 
     const [items, setItems] = useState([]);
@@ -84,7 +95,7 @@ const SVGGenerator = () => {
 
     // --- Layout Generator Engine ---
     const generateLayout = useCallback(() => {
-        const { width, height, gap, padding, headerHeight, footerHeight, kpiCount, showFooter, showTrustBar, trustBarHeight, showLogo, logoAreaWidth, showTitle, titleHeight } = config;
+        const { width, height, gap, padding, headerHeight, footerHeight, kpiCount, showFooter, showTrustBar, trustBarHeight, showLogo, logoAreaWidth, showTitle, titleHeight, federalVisualCount, federalColumns, sidebarVisualCount, sidebarColumns, gridRows, gridColumns, kpiVisualCount, kpiColumns, threeColVisualCount, asymmetricSideCount, mobileVisualCount } = config;
         const effW = width - (padding * 2);
         let effH = height - (padding * 2);
         let yOffset = 0;
@@ -152,9 +163,28 @@ const SVGGenerator = () => {
             const contentH = height - contentStartY - (showFooter ? footerH + gap : 0) - padding;
             
             // Left Card (e.g., filters/slicers)
-            newItems.push({ x: padding, y: contentStartY, w: 280, h: contentH - padding, type: 'sidebar' });
-            // Right Card (Main Content)
-            newItems.push({ x: padding + 280 + gap, y: contentStartY, w: effW - 280 - gap, h: contentH - padding, type: 'content' });
+            const sidebarW = 280;
+            newItems.push({ x: padding, y: contentStartY, w: sidebarW, h: contentH - padding, type: 'sidebar' });
+            
+            // Right side: Grid of visual areas
+            const mainContentX = padding + sidebarW + gap;
+            const mainContentW = effW - sidebarW - gap;
+            const cols = Math.min(federalColumns, federalVisualCount);
+            const rows = Math.ceil(federalVisualCount / cols);
+            const cardW = (mainContentW - (gap * (cols - 1))) / cols;
+            const cardH = (contentH - padding - (gap * (rows - 1))) / rows;
+            
+            for (let i = 0; i < federalVisualCount; i++) {
+                const row = Math.floor(i / cols);
+                const col = i % cols;
+                newItems.push({
+                    x: mainContentX + (col * (cardW + gap)),
+                    y: contentStartY + (row * (cardH + gap)),
+                    w: cardW,
+                    h: cardH,
+                    type: 'card'
+                });
+            }
 
         } else if (layoutMode === 'sidebar') {
             // Classic Dashboard Sidebar
@@ -180,13 +210,30 @@ const SVGGenerator = () => {
             newItems.push({ x: padding, y: contentY, w: sideW, h: availableH, type: 'nav' });
             
             const kpiH = 110;
-            const rowH = availableH - kpiH - gap;
+            const mainContentH = availableH - kpiH - gap;
             
             newItems.push({ x: padding + sideW + gap, y: contentY, w: mainW, h: kpiH, type: 'kpi-strip' });
-            newItems.push({ x: padding + sideW + gap, y: contentY + kpiH + gap, w: mainW, h: rowH, type: 'main' });
+            
+            // Grid of visuals in main area
+            const cols = Math.min(sidebarColumns, sidebarVisualCount);
+            const rows = Math.ceil(sidebarVisualCount / cols);
+            const cardW = (mainW - (gap * (cols - 1))) / cols;
+            const cardH = (mainContentH - (gap * (rows - 1))) / rows;
+            
+            for (let i = 0; i < sidebarVisualCount; i++) {
+                const row = Math.floor(i / cols);
+                const col = i % cols;
+                newItems.push({
+                    x: padding + sideW + gap + (col * (cardW + gap)),
+                    y: contentY + kpiH + gap + (row * (cardH + gap)),
+                    w: cardW,
+                    h: cardH,
+                    type: 'card'
+                });
+            }
 
         } else if (layoutMode === 'grid') {
-            // 2x2 Balanced Grid
+            // Customizable Grid
             let contentY = padding + yOffset;
             
             // Title area (if enabled)
@@ -202,14 +249,21 @@ const SVGGenerator = () => {
                 contentY += titleHeight + gap;
             }
             
-            const colW = (effW - gap) / 2;
             const availableH = effH - (showTitle ? titleHeight + gap : 0);
-            const rowH = (availableH - gap) / 2;
+            const colW = (effW - (gap * (gridColumns - 1))) / gridColumns;
+            const rowH = (availableH - (gap * (gridRows - 1))) / gridRows;
             
-            newItems.push({ x: padding, y: contentY, w: colW, h: rowH, type: 'card' });
-            newItems.push({ x: padding + colW + gap, y: contentY, w: colW, h: rowH, type: 'card' });
-            newItems.push({ x: padding, y: contentY + rowH + gap, w: colW, h: rowH, type: 'card' });
-            newItems.push({ x: padding + colW + gap, y: contentY + rowH + gap, w: colW, h: rowH, type: 'card' });
+            for (let row = 0; row < gridRows; row++) {
+                for (let col = 0; col < gridColumns; col++) {
+                    newItems.push({ 
+                        x: padding + (col * (colW + gap)), 
+                        y: contentY + (row * (rowH + gap)), 
+                        w: colW, 
+                        h: rowH, 
+                        type: 'card' 
+                    });
+                }
+            }
         } 
         else if (layoutMode === 'kpi') {
             // Top KPI Row (customizable count)
@@ -236,8 +290,24 @@ const SVGGenerator = () => {
                 newItems.push({ x: padding + (i * (kpiW + gap)), y: contentY, w: kpiW, h: kpiH, type: 'kpi' });
             }
             
-            // Big bottom card
-            newItems.push({ x: padding, y: contentY + kpiH + gap, w: effW, h: availableH - kpiH - gap, type: 'main' });
+            // Grid of visuals below KPIs
+            const mainContentH = availableH - kpiH - gap;
+            const cols = Math.min(kpiColumns, kpiVisualCount);
+            const rows = Math.ceil(kpiVisualCount / cols);
+            const cardW = (effW - (gap * (cols - 1))) / cols;
+            const cardH = (mainContentH - (gap * (rows - 1))) / rows;
+            
+            for (let i = 0; i < kpiVisualCount; i++) {
+                const row = Math.floor(i / cols);
+                const col = i % cols;
+                newItems.push({
+                    x: padding + (col * (cardW + gap)),
+                    y: contentY + kpiH + gap + (row * (cardH + gap)),
+                    w: cardW,
+                    h: cardH,
+                    type: 'card'
+                });
+            }
         }
         else if (layoutMode === 'three-col') {
             // 3-column layout (common for executive dashboards)
@@ -267,11 +337,22 @@ const SVGGenerator = () => {
                 newItems.push({ x: padding + (i * (kpiW + gap)), y: contentY, w: kpiW, h: kpiH, type: 'kpi' });
             }
             
-            // Three columns below
+            // Three columns below - each column can have multiple visuals
             const contentH = availableH - kpiH - gap;
-            newItems.push({ x: padding, y: contentY + kpiH + gap, w: colW, h: contentH, type: 'card' });
-            newItems.push({ x: padding + colW + gap, y: contentY + kpiH + gap, w: colW, h: contentH, type: 'card' });
-            newItems.push({ x: padding + (colW + gap) * 2, y: contentY + kpiH + gap, w: colW, h: contentH, type: 'card' });
+            const visualsPerCol = threeColVisualCount;
+            const visualH = (contentH - (gap * (visualsPerCol - 1))) / visualsPerCol;
+            
+            for (let col = 0; col < 3; col++) {
+                for (let row = 0; row < visualsPerCol; row++) {
+                    newItems.push({ 
+                        x: padding + (col * (colW + gap)), 
+                        y: contentY + kpiH + gap + (row * (visualH + gap)), 
+                        w: colW, 
+                        h: visualH, 
+                        type: 'card' 
+                    });
+                }
+            }
         }
         else if (layoutMode === 'asymmetric') {
             // Large main chart + smaller supporting visuals
@@ -303,14 +384,23 @@ const SVGGenerator = () => {
             }
             
             const contentH = availableH - kpiH - gap;
-            const sideH = (contentH - gap) / 2;
             
             // Large main chart (left)
             newItems.push({ x: padding, y: contentY + kpiH + gap, w: mainW, h: contentH, type: 'main' });
             
-            // Two smaller cards (right)
-            newItems.push({ x: padding + mainW + gap, y: contentY + kpiH + gap, w: sideW, h: sideH, type: 'card' });
-            newItems.push({ x: padding + mainW + gap, y: contentY + kpiH + gap + sideH + gap, w: sideW, h: sideH, type: 'card' });
+            // Side cards (right) - customizable count
+            const sideCardCount = Math.max(1, asymmetricSideCount);
+            const sideCardH = (contentH - (gap * (sideCardCount - 1))) / sideCardCount;
+            
+            for (let i = 0; i < sideCardCount; i++) {
+                newItems.push({ 
+                    x: padding + mainW + gap, 
+                    y: contentY + kpiH + gap + (i * (sideCardH + gap)), 
+                    w: sideW, 
+                    h: sideCardH, 
+                    type: 'card' 
+                });
+            }
         }
         else if (layoutMode === 'mobile') {
             // Mobile-optimized vertical stack
@@ -330,11 +420,17 @@ const SVGGenerator = () => {
             }
             
             const availableH = effH - (showTitle ? (titleHeight * 0.8) + gap : 0);
-            const cardH = (availableH - (gap * 2)) / 3;
+            const cardH = (availableH - (gap * (mobileVisualCount - 1))) / mobileVisualCount;
             
-            newItems.push({ x: padding, y: contentY, w: effW, h: cardH, type: 'kpi' });
-            newItems.push({ x: padding, y: contentY + cardH + gap, w: effW, h: cardH, type: 'card' });
-            newItems.push({ x: padding, y: contentY + (cardH + gap) * 2, w: effW, h: cardH, type: 'card' });
+            for (let i = 0; i < mobileVisualCount; i++) {
+                newItems.push({ 
+                    x: padding, 
+                    y: contentY + (i * (cardH + gap)), 
+                    w: effW, 
+                    h: cardH, 
+                    type: i === 0 ? 'kpi' : 'card' 
+                });
+            }
         }
 
         // Add footer if enabled
@@ -717,7 +813,7 @@ const SVGGenerator = () => {
                         {[
                             { key: 'federal', label: 'Federal', icon: Shield },
                             { key: 'sidebar', label: 'Sidebar', icon: Layout },
-                            { key: 'grid', label: 'Grid 2x2', icon: Grid3x3 },
+                            { key: 'grid', label: 'Grid', icon: Grid3x3 },
                             { key: 'kpi', label: 'KPI Top', icon: CheckCircle },
                             { key: 'three-col', label: '3 Column', icon: Columns3 },
                             { key: 'asymmetric', label: 'Asymmetric', icon: Maximize2 },
@@ -784,6 +880,123 @@ const SVGGenerator = () => {
                                     <span>{config.kpiCount}</span>
                                 </div>
                                 <input type="range" min="2" max="8" value={config.kpiCount} onChange={(e) => handleConfigChange('kpiCount', Number(e.target.value))} className="input-range w-full" />
+                            </div>
+                        )}
+
+                        {layoutMode === 'federal' && (
+                            <>
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                        <span>Visual Areas</span>
+                                        <span>{config.federalVisualCount}</span>
+                                    </div>
+                                    <input type="range" min="1" max="12" value={config.federalVisualCount} onChange={(e) => handleConfigChange('federalVisualCount', Number(e.target.value))} className="input-range w-full" />
+                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of visual cards in main content area</p>
+                                </div>
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                        <span>Columns</span>
+                                        <span>{config.federalColumns}</span>
+                                    </div>
+                                    <input type="range" min="1" max="4" value={config.federalColumns} onChange={(e) => handleConfigChange('federalColumns', Number(e.target.value))} className="input-range w-full" />
+                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Grid columns (rows auto-calculated)</p>
+                                </div>
+                            </>
+                        )}
+
+                        {layoutMode === 'sidebar' && (
+                            <>
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                        <span>Visual Areas</span>
+                                        <span>{config.sidebarVisualCount}</span>
+                                    </div>
+                                    <input type="range" min="1" max="9" value={config.sidebarVisualCount} onChange={(e) => handleConfigChange('sidebarVisualCount', Number(e.target.value))} className="input-range w-full" />
+                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of visual cards below KPIs</p>
+                                </div>
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                        <span>Columns</span>
+                                        <span>{config.sidebarColumns}</span>
+                                    </div>
+                                    <input type="range" min="1" max="3" value={config.sidebarColumns} onChange={(e) => handleConfigChange('sidebarColumns', Number(e.target.value))} className="input-range w-full" />
+                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Grid columns for main area</p>
+                                </div>
+                            </>
+                        )}
+
+                        {layoutMode === 'grid' && (
+                            <>
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                        <span>Rows</span>
+                                        <span>{config.gridRows}</span>
+                                    </div>
+                                    <input type="range" min="1" max="6" value={config.gridRows} onChange={(e) => handleConfigChange('gridRows', Number(e.target.value))} className="input-range w-full" />
+                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of rows in grid</p>
+                                </div>
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                        <span>Columns</span>
+                                        <span>{config.gridColumns}</span>
+                                    </div>
+                                    <input type="range" min="1" max="4" value={config.gridColumns} onChange={(e) => handleConfigChange('gridColumns', Number(e.target.value))} className="input-range w-full" />
+                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of columns in grid</p>
+                                </div>
+                            </>
+                        )}
+
+                        {layoutMode === 'kpi' && (
+                            <>
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                        <span>Visual Areas</span>
+                                        <span>{config.kpiVisualCount}</span>
+                                    </div>
+                                    <input type="range" min="1" max="9" value={config.kpiVisualCount} onChange={(e) => handleConfigChange('kpiVisualCount', Number(e.target.value))} className="input-range w-full" />
+                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of visual cards below KPIs</p>
+                                </div>
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                        <span>Columns</span>
+                                        <span>{config.kpiColumns}</span>
+                                    </div>
+                                    <input type="range" min="1" max="3" value={config.kpiColumns} onChange={(e) => handleConfigChange('kpiColumns', Number(e.target.value))} className="input-range w-full" />
+                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Grid columns for main area</p>
+                                </div>
+                            </>
+                        )}
+
+                        {layoutMode === 'three-col' && (
+                            <div>
+                                <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                    <span>Visuals per Column</span>
+                                    <span>{config.threeColVisualCount}</span>
+                                </div>
+                                <input type="range" min="1" max="4" value={config.threeColVisualCount} onChange={(e) => handleConfigChange('threeColVisualCount', Number(e.target.value))} className="input-range w-full" />
+                                <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of visual cards stacked in each column</p>
+                            </div>
+                        )}
+
+                        {layoutMode === 'asymmetric' && (
+                            <div>
+                                <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                    <span>Side Cards</span>
+                                    <span>{config.asymmetricSideCount}</span>
+                                </div>
+                                <input type="range" min="1" max="4" value={config.asymmetricSideCount} onChange={(e) => handleConfigChange('asymmetricSideCount', Number(e.target.value))} className="input-range w-full" />
+                                <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of side cards stacked on the right</p>
+                            </div>
+                        )}
+
+                        {layoutMode === 'mobile' && (
+                            <div>
+                                <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                    <span>Visual Cards</span>
+                                    <span>{config.mobileVisualCount}</span>
+                                </div>
+                                <input type="range" min="2" max="6" value={config.mobileVisualCount} onChange={(e) => handleConfigChange('mobileVisualCount', Number(e.target.value))} className="input-range w-full" />
+                                <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of cards in vertical stack</p>
                             </div>
                         )}
 
