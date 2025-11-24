@@ -758,22 +758,62 @@ const SecureFilePortal = () => {
 
   // --- Renders ---
 
+  // Helper function for relative time
+  const getRelativeTime = (timestamp) => {
+    if (!timestamp) return 'Just now';
+    try {
+      const date = new Date(timestamp);
+      if (isNaN(date.getTime())) return 'Just now';
+      
+      const now = new Date();
+      const diffMs = now - date;
+      const diffSecs = Math.floor(diffMs / 1000);
+      const diffMins = Math.floor(diffSecs / 60);
+      const diffHours = Math.floor(diffMins / 60);
+      const diffDays = Math.floor(diffHours / 24);
+      
+      if (diffSecs < 10) return 'Just now';
+      if (diffSecs < 60) return `${diffSecs}s ago`;
+      if (diffMins < 60) return `${diffMins}m ago`;
+      if (diffHours < 24) return `${diffHours}h ago`;
+      if (diffDays < 7) return `${diffDays}d ago`;
+      
+      return date.toLocaleDateString();
+    } catch {
+      return 'Just now';
+    }
+  };
+
   // Show loading state while authenticating
   if (!isAuthenticated) {
     return (
-      <div className="max-w-md mx-auto mt-10">
+      <div className="max-w-md mx-auto mt-10 px-4">
         <div className="card text-center p-8 space-y-6">
           <div className="flex justify-center">
-            <div className="h-16 w-16 bg-brand-100 rounded-full flex items-center justify-center animate-pulse">
-              <Shield className="h-8 w-8 text-brand-600" />
-            </div>
+            <motion.div 
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.3 }}
+              className="h-16 w-16 bg-gradient-to-br from-brand-500 to-brand-600 rounded-full flex items-center justify-center shadow-lg"
+            >
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              >
+                <Shield className="h-8 w-8 text-white" />
+              </motion.div>
+            </motion.div>
           </div>
-          <div>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
             <h2 className="text-2xl font-bold text-slate-900">Connecting...</h2>
             <p className="text-slate-600 mt-2">
               Joining the secure room...
             </p>
-          </div>
+          </motion.div>
         </div>
       </div>
     );
@@ -782,84 +822,95 @@ const SecureFilePortal = () => {
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
-      <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 bg-brand-600 rounded-lg flex items-center justify-center text-white">
+      <div className="flex justify-between items-center bg-gradient-to-r from-white to-slate-50 p-5 rounded-xl shadow-md border border-slate-200">
+        <div className="flex items-center gap-4">
+          <div className="h-12 w-12 bg-gradient-to-br from-brand-600 to-brand-700 rounded-xl flex items-center justify-center text-white shadow-lg">
             <Shield className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="font-bold text-lg text-slate-900">Secure Portal</h1>
-            <div className="flex items-center gap-2 text-xs text-slate-500">
-              <span className="flex items-center gap-1 bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-100">
+            <h1 className="font-bold text-xl text-slate-900">Secure Portal</h1>
+            <div className="flex items-center gap-2 text-xs mt-1">
+              <span className="flex items-center gap-1.5 bg-green-50 text-green-700 px-2.5 py-1 rounded-full border border-green-200 font-medium">
                 <Lock className="h-3 w-3" /> End-to-End Encrypted
               </span>
               <button 
                 onClick={handleCopyInviteLink}
-                className="flex items-center gap-1 hover:bg-slate-100 px-2 py-0.5 rounded transition-colors cursor-pointer group"
-                title="Copy invite link"
+                className="flex items-center gap-1.5 hover:bg-slate-100 px-2.5 py-1 rounded-full transition-all duration-200 cursor-pointer group hover:scale-105 active:scale-95"
+                title="Copy portal link"
               >
-                <span className="font-mono font-bold">
+                <span className="font-mono font-bold text-slate-600">
                   {accessToken.slice(0, 4)}***
                 </span>
-                <LinkIcon className="h-3 w-3 text-slate-400 group-hover:text-brand-600" />
+                <LinkIcon className="h-3.5 w-3.5 text-slate-400 group-hover:text-brand-600 transition-colors" />
               </button>
             </div>
           </div>
         </div>
         <div className="flex gap-2">
-              <button 
-                onClick={handleCopyInviteLink}
-                className="btn-secondary text-sm hidden lg:flex"
-              >
-                <LinkIcon className="h-4 w-4 mr-2" /> Copy Link
-              </button>
-          <button onClick={logout} className="btn-secondary text-sm text-red-600 hover:bg-red-50 border-red-200">
-            <Unlock className="h-4 w-4 mr-2" /> Leave
+          <button 
+            onClick={handleCopyInviteLink}
+            className="btn-secondary text-sm hidden lg:flex items-center gap-2 hover:scale-105 active:scale-95 transition-transform"
+          >
+            <LinkIcon className="h-4 w-4" /> Copy Link
+          </button>
+          <button 
+            onClick={logout} 
+            className="btn-secondary text-sm text-red-600 hover:bg-red-50 border-red-200 hover:scale-105 active:scale-95 transition-transform flex items-center gap-2"
+          >
+            <Unlock className="h-4 w-4" /> Leave
           </button>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 p-1 bg-slate-100 rounded-lg w-fit">
+      <div className="flex gap-2 p-1.5 bg-slate-100 rounded-xl w-fit shadow-inner">
         {['messages', 'files', 'encrypt'].map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
+            className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${
               activeTab === tab 
-                ? 'bg-white text-brand-600 shadow-sm' 
-                : 'text-slate-500 hover:text-slate-700'
+                ? 'bg-white text-brand-600 shadow-md scale-105' 
+                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
             }`}
           >
-            {tab === 'messages' && <Send className="h-4 w-4" />}
-            {tab === 'files' && <Upload className="h-4 w-4" />}
-            {tab === 'encrypt' && <Key className="h-4 w-4" />}
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            {tab === 'messages' && <Send className={`h-4 w-4 ${activeTab === tab ? 'text-brand-600' : ''}`} />}
+            {tab === 'files' && <Upload className={`h-4 w-4 ${activeTab === tab ? 'text-brand-600' : ''}`} />}
+            {tab === 'encrypt' && <Key className={`h-4 w-4 ${activeTab === tab ? 'text-brand-600' : ''}`} />}
+            <span>{tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
           </button>
         ))}
       </div>
 
       {/* MESSAGES TAB */}
       {activeTab === 'messages' && (
-        <div className="card h-[600px] flex flex-col p-0 overflow-hidden">
-          <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-            <h3 className="font-semibold text-slate-800 flex items-center gap-2">
-              <Send className="h-4 w-4 text-brand-500" /> Secure Chat
-            </h3>
+        <div className="card h-[600px] flex flex-col p-0 overflow-hidden shadow-lg border border-slate-200">
+          <div className="p-4 border-b border-slate-200 bg-gradient-to-r from-white to-slate-50/50 flex justify-between items-center shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 bg-brand-500 rounded-lg flex items-center justify-center shadow-sm">
+                <Send className="h-4 w-4 text-white" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-800">Secure Chat</h3>
+                <p className="text-xs text-slate-500">{messages.length} {messages.length === 1 ? 'message' : 'messages'}</p>
+              </div>
+            </div>
             <div className="flex gap-2">
               {messages.length > 0 && (
                 <button 
                   onClick={handleClearChat}
-                  className="p-2 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full transition-colors"
+                  className="p-2 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-lg transition-all duration-200 hover:scale-110 active:scale-95"
                   title="Clear all messages"
+                  aria-label="Clear all messages"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
               )}
               <button 
                 onClick={() => loadData()} 
-                className="p-2 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-full transition-colors"
-                title="Refresh"
+                className="p-2 hover:bg-slate-200 text-slate-400 hover:text-slate-700 rounded-lg transition-all duration-200 hover:scale-110 active:scale-95"
+                title="Refresh messages"
+                aria-label="Refresh messages"
               >
                 <RefreshCw className="h-4 w-4" />
               </button>
@@ -888,87 +939,90 @@ const SecureFilePortal = () => {
               }
             `}</style>
             {messages.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-slate-400">
-                <div className="bg-slate-100 p-4 rounded-full mb-4">
-                  <Send className="h-8 w-8 text-slate-300" />
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="h-full flex flex-col items-center justify-center text-slate-400 px-4"
+              >
+                <div className="bg-gradient-to-br from-slate-100 to-slate-50 p-6 rounded-full mb-6 shadow-inner">
+                  <Send className="h-10 w-10 text-slate-400" />
                 </div>
-                <p className="font-medium text-slate-600">No messages yet</p>
-                <p className="text-sm text-slate-400 mt-1 max-w-xs text-center">
-                  Anyone who opens this portal will automatically see all messages.
+                <h3 className="font-semibold text-lg text-slate-700 mb-2">No messages yet</h3>
+                <p className="text-sm text-slate-500 max-w-sm text-center leading-relaxed">
+                  Start the conversation! Anyone who opens this portal will automatically see all messages in real-time.
                 </p>
-              </div>
+                <div className="mt-6 flex items-center gap-2 text-xs text-slate-400">
+                  <Lock className="h-3 w-3" />
+                  <span>All messages are end-to-end encrypted</span>
+                </div>
+              </motion.div>
             ) : (
-              messages.map(msg => (
+              messages.map((msg, index) => (
                 <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ delay: index * 0.03, duration: 0.2 }}
                   key={msg.id} 
-                  className="group flex flex-col items-end"
+                  className="group flex flex-col items-end mb-1"
                 >
-                  <div className="max-w-[80%] bg-white border border-slate-200 p-3 rounded-2xl rounded-tr-sm shadow-sm hover:shadow-md transition-shadow relative">
-                     <div 
-                       className="message-content text-slate-800"
-                       dangerouslySetInnerHTML={{ 
-                         __html: (() => {
-                           if (!msg.text || typeof msg.text !== 'string') return '';
-                           try {
-                             return isHTMLContent(msg.text)
-                               ? sanitizeHTML(msg.text) // Sanitize HTML for security
-                               : msg.text.replace(/\n/g, '<br>').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                           } catch (error) {
-                             console.error('Error rendering message', error);
-                             return msg.text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                           }
-                         })()
-                       }}
-                       style={{
-                         wordBreak: 'break-word',
-                         whiteSpace: 'pre-wrap'
-                       }}
-                       role="article"
-                       aria-label={`Message from ${msg.author || 'User'}`}
-                     />
-                        <div className="flex items-center justify-between gap-4 mt-2">
-                        <span className="text-[10px] text-slate-400">
-                          {msg.timestamp ? (() => {
+                  <div className="max-w-[85%] sm:max-w-[75%] bg-gradient-to-br from-white to-slate-50 border border-slate-200/80 p-4 rounded-2xl rounded-tr-sm shadow-sm hover:shadow-lg transition-all duration-200 relative group/message">
+                    <div 
+                      className="message-content text-slate-800 leading-relaxed"
+                      dangerouslySetInnerHTML={{ 
+                        __html: (() => {
+                          if (!msg.text || typeof msg.text !== 'string') return '';
+                          try {
+                            return isHTMLContent(msg.text)
+                              ? sanitizeHTML(msg.text) // Sanitize HTML for security
+                              : msg.text.replace(/\n/g, '<br>').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                          } catch (error) {
+                            console.error('Error rendering message', error);
+                            return msg.text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                          }
+                        })()
+                      }}
+                      style={{
+                        wordBreak: 'break-word',
+                        whiteSpace: 'pre-wrap'
+                      }}
+                      role="article"
+                      aria-label={`Message from ${msg.author || 'User'}`}
+                    />
+                    <div className="flex items-center justify-between gap-3 mt-3 pt-2 border-t border-slate-100">
+                      <span className="text-[10px] text-slate-400 font-medium">
+                        {getRelativeTime(msg.timestamp)}
+                      </span>
+                      <div className="flex items-center gap-1 opacity-0 group-hover/message:opacity-100 transition-all duration-200">
+                        <button 
+                          onClick={async () => {
                             try {
-                              const date = new Date(msg.timestamp);
-                              return isNaN(date.getTime()) ? 'Just now' : date.toLocaleTimeString();
-                            } catch {
-                              return 'Just now';
+                              // Extract plain text from HTML for copying
+                              const tempDiv = document.createElement('div');
+                              tempDiv.innerHTML = msg.text || '';
+                              const plainText = tempDiv.textContent || tempDiv.innerText || msg.text || '';
+                              await navigator.clipboard.writeText(plainText);
+                              addToast('Message copied!', 'success');
+                            } catch (err) {
+                              console.error('Failed to copy message', err);
+                              addToast('Failed to copy message', 'error');
                             }
-                          })() : 'Just now'}
-                        </span>
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button 
-                            onClick={async () => {
-                              try {
-                                // Extract plain text from HTML for copying
-                                const tempDiv = document.createElement('div');
-                                tempDiv.innerHTML = msg.text || '';
-                                const plainText = tempDiv.textContent || tempDiv.innerText || msg.text || '';
-                                await navigator.clipboard.writeText(plainText);
-                                addToast('Message copied!', 'success');
-                              } catch (err) {
-                                console.error('Failed to copy message', err);
-                                addToast('Failed to copy message', 'error');
-                              }
-                            }}
-                            className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600 transition-colors"
-                            title="Copy message"
-                            aria-label="Copy message to clipboard"
-                          >
-                            <Copy className="h-3 w-3" />
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteMessage(msg.id)}
-                            className="p-1 hover:bg-red-50 rounded text-red-400 hover:text-red-600"
-                            title="Delete message"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        </div>
-                     </div>
+                          }}
+                          className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 hover:text-slate-700 transition-all duration-150 hover:scale-110 active:scale-95"
+                          title="Copy message"
+                          aria-label="Copy message to clipboard"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteMessage(msg.id)}
+                          className="p-1.5 hover:bg-red-50 rounded-md text-red-400 hover:text-red-600 transition-all duration-150 hover:scale-110 active:scale-95"
+                          title="Delete message"
+                          aria-label="Delete message"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </motion.div>
               ))
@@ -976,8 +1030,8 @@ const SecureFilePortal = () => {
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="p-4 bg-white border-t border-slate-100">
-            <div className="flex gap-2">
+          <div className="p-4 bg-gradient-to-t from-white to-slate-50/50 border-t border-slate-200">
+            <div className="flex gap-3 items-end">
               <div className="flex-1 relative">
                 <div
                   ref={messageContentRef}
@@ -994,13 +1048,20 @@ const SecureFilePortal = () => {
                        handleSendMessage();
                      }
                   }}
-                  data-placeholder="Type a secure message... (supports tables and formatting)"
-                  className="input-field min-h-[60px] max-h-[200px] overflow-y-auto resize-none"
+                  onFocus={(e) => {
+                    e.currentTarget.classList.add('ring-2', 'ring-brand-500/20');
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.classList.remove('ring-2', 'ring-brand-500/20');
+                  }}
+                  data-placeholder="Type a message... (supports tables and formatting)"
+                  className="input-field min-h-[64px] max-h-[200px] overflow-y-auto resize-none transition-all duration-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-300"
                   style={{
                     whiteSpace: 'pre-wrap',
                     wordBreak: 'break-word',
                     outline: 'none',
-                    minHeight: '60px'
+                    minHeight: '64px',
+                    padding: '12px 16px'
                   }}
                 />
                 <style>{`
@@ -1008,6 +1069,10 @@ const SecureFilePortal = () => {
                     content: attr(data-placeholder);
                     color: #94a3b8;
                     pointer-events: none;
+                    font-style: italic;
+                  }
+                  [contenteditable]:focus {
+                    border-color: rgb(99 102 241);
                   }
                   [contenteditable] table {
                     border-collapse: collapse;
@@ -1032,35 +1097,43 @@ const SecureFilePortal = () => {
               <button 
                 onClick={handleSendMessage}
                 disabled={!encryptionKey || sendingMessage}
-                className="btn-primary self-end disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="btn-primary self-end disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 min-w-[100px] justify-center h-[64px] px-6 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 active:scale-95 disabled:hover:scale-100"
                 aria-label="Send message"
               >
                 {sendingMessage ? (
                   <>
                     <Loader2 className="h-5 w-5 animate-spin" />
-                    <span className="hidden sm:inline">Sending...</span>
+                    <span className="hidden sm:inline font-medium">Sending...</span>
                   </>
                 ) : (
-                  <Send className="h-5 w-5" />
+                  <>
+                    <Send className="h-5 w-5" />
+                    <span className="hidden sm:inline font-medium">Send</span>
+                  </>
                 )}
               </button>
             </div>
-            <div className="text-xs text-center text-slate-400 mt-2 flex items-center justify-center gap-2 flex-wrap">
-              <span className="flex items-center gap-1">
-                <Lock className="h-3 w-3" /> Encrypted & Synced Instantly
+            <div className="text-xs text-center text-slate-400 mt-3 flex items-center justify-center gap-2 flex-wrap">
+              <span className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 rounded-full">
+                <Lock className="h-3 w-3 text-green-500" /> 
+                <span className="font-medium">Encrypted</span>
               </span>
-              <span>•</span>
-              <span>Paste tables to preserve formatting</span>
+              <span className="text-slate-300">•</span>
+              <span className="px-2 py-1 bg-slate-50 rounded-full">
+                <span className="font-medium">Real-time sync</span>
+              </span>
               {lastSyncTime && (
                 <>
-                  <span>•</span>
-                  <span>Last sync: {(() => {
-                    try {
-                      return lastSyncTime instanceof Date ? lastSyncTime.toLocaleTimeString() : new Date(lastSyncTime).toLocaleTimeString();
-                    } catch {
-                      return 'Just now';
-                    }
-                  })()}</span>
+                  <span className="text-slate-300">•</span>
+                  <span className="text-slate-500">
+                    {(() => {
+                      try {
+                        return lastSyncTime instanceof Date ? lastSyncTime.toLocaleTimeString() : new Date(lastSyncTime).toLocaleTimeString();
+                      } catch {
+                        return 'Just now';
+                      }
+                    })()}
+                  </span>
                 </>
               )}
             </div>
