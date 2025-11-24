@@ -88,7 +88,11 @@ export const sanitizeHTML = (html) => {
 };
 
 export const isHTMLContent = (text) => {
-  if (!text) return false;
-  return /<[a-z][\s\S]*>/i.test(text);
+  if (!text || typeof text !== 'string') return false;
+  // Check for HTML tags (but not just escaped HTML)
+  const htmlTagPattern = /<[a-z][\s\S]*>/i;
+  // Make sure it's not just escaped HTML entities
+  const hasEscapedOnly = /^(&lt;|&gt;|&amp;|&quot;|&#\d+;)+$/i.test(text);
+  return htmlTagPattern.test(text) && !hasEscapedOnly;
 };
 

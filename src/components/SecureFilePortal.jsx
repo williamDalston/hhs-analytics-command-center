@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Upload, Download, Lock, Unlock, FileText, Image, File, X, Shield, Eye, EyeOff, Send, AlertCircle, Cloud, HardDrive, Key, Copy, Trash2, RefreshCw, Link as LinkIcon, Shuffle, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Upload, Download, Lock, Unlock, FileText, Image, File, Shield, Send, AlertCircle, Cloud, HardDrive, Key, Copy, Trash2, RefreshCw, Link as LinkIcon, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getSupabaseClient } from '../config/supabase';
 import { useToast } from '../context/ToastContext';
@@ -179,7 +179,7 @@ const SecureFilePortal = () => {
       if (!useCloudStorage || !supabase) {
         const localMessages = readLocalMessages(token);
         const validMessages = Array.isArray(localMessages) 
-          ? localMessages.filter(m => m && m.text && typeof m.text === 'string') 
+          ? localMessages.filter(m => m && m.text && typeof m.text === 'string' && m.text.trim().length > 0) 
           : [];
         setMessages(validMessages);
         const localFiles = readLocalFiles(token);
@@ -221,9 +221,9 @@ const SecureFilePortal = () => {
       // Handle messages
       if (messageResult.status === 'fulfilled' && !messageResult.value.error) {
         const mappedMsgs = (messageResult.value.data || [])
-          .filter(m => m && m.message_text && typeof m.message_text === 'string')
+          .filter(m => m && m.message_text && typeof m.message_text === 'string' && m.message_text.trim().length > 0)
           .map(m => ({
-            id: m.id,
+            id: m.id || `msg-${Date.now()}-${Math.random()}`,
             text: m.message_text || '',
             author: m.author || 'User',
             timestamp: m.created_at || new Date().toISOString()
@@ -401,42 +401,39 @@ const SecureFilePortal = () => {
     const htmlData = clipboardData.getData('text/html');
     const textData = clipboardData.getData('text/plain');
     
-    if (htmlData && (htmlData.includes('<table') || htmlData.includes('<TABLE'))) {
-      // Preserve HTML table formatting
-      const selection = window.getSelection();
-      if (selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0);
-        range.deleteContents();
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = htmlData;
-        const fragment = document.createDocumentFragment();
-        while (tempDiv.firstChild) {
-          fragment.appendChild(tempDiv.firstChild);
-        }
-        range.insertNode(fragment);
-        selection.removeAllRanges();
-        selection.addRange(range);
-        // Update state
-        if (messageContentRef.current) {
-          setNewMessage(messageContentRef.current.innerHTML);
-        }
+    if (!messageContentRef.current) return;
+    
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    
+    const range = selection.getRangeAt(0);
+    range.deleteContents();
+    
+    if (htmlData && isHTMLContent(htmlData)) {
+      // Sanitize HTML before inserting to prevent XSS
+      const sanitizedHTML = sanitizeHTML(htmlData);
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = sanitizedHTML;
+      const fragment = document.createDocumentFragment();
+      while (tempDiv.firstChild) {
+        fragment.appendChild(tempDiv.firstChild);
       }
+      range.insertNode(fragment);
+      selection.removeAllRanges();
+      selection.addRange(range);
     } else {
-      // Plain text paste
-      const selection = window.getSelection();
-      if (selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0);
-        range.deleteContents();
-        const textNode = document.createTextNode(textData);
-        range.insertNode(textNode);
-        range.setStartAfter(textNode);
-        selection.removeAllRanges();
-        selection.addRange(range);
-        // Update state
-        if (messageContentRef.current) {
-          setNewMessage(messageContentRef.current.innerHTML);
-        }
-      }
+      // Plain text paste - escape HTML to prevent XSS
+      const escapedText = textData.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const textNode = document.createTextNode(textData); // Use original text, not escaped
+      range.insertNode(textNode);
+      range.setStartAfter(textNode);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+    
+    // Update state after paste
+    if (messageContentRef.current) {
+      setNewMessage(messageContentRef.current.innerHTML);
     }
   }, []);
 
@@ -912,20 +909,35 @@ const SecureFilePortal = () => {
                      <div 
                        className="message-content text-slate-800"
                        dangerouslySetInnerHTML={{ 
-                         __html: isHTMLContent(msg.text)
-                           ? sanitizeHTML(msg.text) // Sanitize HTML for security
-                           : (msg.text || '').replace(/\n/g, '<br>').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                         __html: (() => {
+                           if (!msg.text || typeof msg.text !== 'string') return '';
+                           try {
+                             return isHTMLContent(msg.text)
+                               ? sanitizeHTML(msg.text) // Sanitize HTML for security
+                               : msg.text.replace(/\n/g, '<br>').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                           } catch (error) {
+                             console.error('Error rendering message', error);
+                             return msg.text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                           }
+                         })()
                        }}
                        style={{
                          wordBreak: 'break-word',
                          whiteSpace: 'pre-wrap'
                        }}
                        role="article"
-                       aria-label={`Message from ${msg.author}`}
+                       aria-label={`Message from ${msg.author || 'User'}`}
                      />
                         <div className="flex items-center justify-between gap-4 mt-2">
                         <span className="text-[10px] text-slate-400">
-                          {new Date(msg.timestamp).toLocaleTimeString()}
+                          {msg.timestamp ? (() => {
+                            try {
+                              const date = new Date(msg.timestamp);
+                              return isNaN(date.getTime()) ? 'Just now' : date.toLocaleTimeString();
+                            } catch {
+                              return 'Just now';
+                            }
+                          })() : 'Just now'}
                         </span>
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button 
@@ -1042,7 +1054,13 @@ const SecureFilePortal = () => {
               {lastSyncTime && (
                 <>
                   <span>•</span>
-                  <span>Last sync: {lastSyncTime.toLocaleTimeString()}</span>
+                  <span>Last sync: {(() => {
+                    try {
+                      return lastSyncTime instanceof Date ? lastSyncTime.toLocaleTimeString() : new Date(lastSyncTime).toLocaleTimeString();
+                    } catch {
+                      return 'Just now';
+                    }
+                  })()}</span>
                 </>
               )}
             </div>
@@ -1106,7 +1124,22 @@ const SecureFilePortal = () => {
                  <div className="flex-1 min-w-0">
                    <h4 className="font-medium text-slate-900 truncate">{file.name}</h4>
                    <p className="text-xs text-slate-500">
-                     {(file.size / 1024).toFixed(1)} KB • {new Date(file.uploadedAt).toLocaleString()}
+                     {(() => {
+                       try {
+                         const sizeKB = file.size ? (file.size / 1024).toFixed(1) : '0';
+                         const date = file.uploadedAt ? (() => {
+                           try {
+                             const d = new Date(file.uploadedAt);
+                             return isNaN(d.getTime()) ? 'Unknown' : d.toLocaleString();
+                           } catch {
+                             return 'Unknown';
+                           }
+                         })() : 'Unknown';
+                         return `${sizeKB} KB • ${date}`;
+                       } catch {
+                         return 'Unknown size • Unknown date';
+                       }
+                     })()}
                    </p>
                  </div>
                  <div className="flex gap-2">
