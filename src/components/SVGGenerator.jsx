@@ -83,6 +83,7 @@ const SVGGenerator = () => {
     const [toast, setToast] = useState(null);
     const [showGrid, setShowGrid] = useState(false);
     const [showImportGuide, setShowImportGuide] = useState(false);
+    const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
 
     // --- Canvas Size Presets ---
     const applyCanvasPreset = (preset) => {
@@ -799,7 +800,8 @@ const SVGGenerator = () => {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `HHS-Background-${layoutMode}.svg`;
+        const timestamp = new Date().toISOString().split('T')[0];
+        link.download = `HHS-Background-${layoutMode}-${config.width}x${config.height}-${timestamp}.svg`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -834,10 +836,11 @@ const SVGGenerator = () => {
                             showToast("Error: Could not create PNG");
                             return;
                         }
-                        const pngUrl = URL.createObjectURL(blob);
-                        const link = document.createElement('a');
-                        link.href = pngUrl;
-                        link.download = `HHS-Background-${layoutMode}.png`;
+                                const pngUrl = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = pngUrl;
+                const timestamp = new Date().toISOString().split('T')[0];
+                link.download = `HHS-Background-${layoutMode}-${config.width}x${config.height}-${timestamp}.png`;
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
@@ -907,6 +910,112 @@ const SVGGenerator = () => {
         setToast(msg);
         setTimeout(() => setToast(null), 3000);
     };
+
+    // Copy Power BI settings to clipboard
+    const copyPowerBISettings = async () => {
+        const settings = `Power BI Image Settings:
+• Image fit: Fit
+• Transparency: 0%
+• Position: Send to back
+• Page size: ${config.width} x ${config.height}px (Custom)
+
+To set page size:
+View → Page View → Page Size → Custom → ${config.width} x ${config.height}`;
+        try {
+            await navigator.clipboard.writeText(settings);
+            showToast("Power BI Settings Copied!");
+        } catch (err) {
+            showToast("Could not copy settings");
+        }
+    };
+
+    // Copy dimensions to clipboard
+    const copyDimensions = async () => {
+        const dims = `${config.width} x ${config.height}`;
+        try {
+            await navigator.clipboard.writeText(dims);
+            showToast("Dimensions Copied!");
+        } catch (err) {
+            showToast("Could not copy dimensions");
+        }
+    };
+
+    // Calculate aspect ratio
+    const getAspectRatio = () => {
+        const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
+        const divisor = gcd(config.width, config.height);
+        return `${config.width / divisor}:${config.height / divisor}`;
+    };
+
+    // Keyboard shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            // Don't trigger shortcuts when typing in inputs
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+                return;
+            }
+
+            const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+            const modKey = isMac ? e.metaKey : e.ctrlKey;
+
+            if (modKey) {
+                switch (e.key) {
+                    case 's':
+                        e.preventDefault();
+                        // Save template
+                        try {
+                            const template = {
+                                layoutMode,
+                                themeMode,
+                                canvasPreset,
+                                config,
+                                timestamp: new Date().toISOString()
+                            };
+                            const templates = JSON.parse(localStorage.getItem('svgGeneratorTemplates') || '[]');
+                            templates.push(template);
+                            localStorage.setItem('svgGeneratorTemplates', JSON.stringify(templates));
+                            showToast("Template Saved!");
+                        } catch (error) {
+                            showToast("Error: Could not save template");
+                        }
+                        break;
+                    case 'e':
+                        e.preventDefault();
+                        // Export SVG
+                        const svgString = getSVGString();
+                        const blob = new Blob([svgString], { type: 'image/svg+xml' });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        const timestamp = new Date().toISOString().split('T')[0];
+                        link.download = `HHS-Background-${layoutMode}-${config.width}x${config.height}-${timestamp}.svg`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(url);
+                        showToast("SVG Exported! Ready for Power BI.");
+                        break;
+                    case 'g':
+                        e.preventDefault();
+                        setShowGrid(prev => !prev);
+                        break;
+                    case '?':
+                        e.preventDefault();
+                        setShowKeyboardShortcuts(true);
+                        break;
+                }
+            }
+
+            // Escape to close modals
+            if (e.key === 'Escape') {
+                setShowImportGuide(false);
+                setShowKeyboardShortcuts(false);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [layoutMode, themeMode, canvasPreset, config]);
 
     return (
         <div className="flex h-[calc(100vh-4rem)] w-[calc(100%+2rem)] overflow-hidden bg-[#1c1d1f] text-[#f1f3f6] -m-4 lg:-m-10 lg:w-[calc(100%+5rem)] lg:h-[calc(100vh-6rem)]">
@@ -1563,13 +1672,35 @@ const SVGGenerator = () => {
                 <div className="h-14 border-b border-[#3d4551] bg-[#1c1d1f] flex items-center justify-between px-6 shadow-md z-10">
                     <div className="flex items-center gap-4">
                          <div className="text-sm font-bold text-white font-serif">Preview</div>
-                         <div className="text-xs text-[#97d4ea] bg-[#162e51] px-2 py-1 rounded">Fit: {config.width} x {config.height}</div>
+                         <div className="text-xs text-[#97d4ea] bg-[#162e51] px-2 py-1 rounded flex items-center gap-2">
+                            <span>{config.width} x {config.height}</span>
+                            <span className="opacity-50">•</span>
+                            <span className="opacity-70">{getAspectRatio()}</span>
+                            <button
+                                onClick={copyDimensions}
+                                className="ml-1 hover:opacity-100 opacity-70 transition-opacity"
+                                title="Copy dimensions"
+                                aria-label="Copy dimensions to clipboard"
+                            >
+                                <Copy className="w-3 h-3" />
+                            </button>
+                         </div>
+                         {(() => {
+                            const visualCount = items.filter(item => ['card', 'kpi', 'main', 'sidebar', 'nav', 'kpi-strip'].includes(item.type)).length;
+                            return (
+                                <div className={`text-xs px-2 py-1 rounded ${
+                                    visualCount > 10 ? 'bg-[#d54309] text-white' : 'bg-[#162e51] text-[#97d4ea]'
+                                }`}>
+                                    {visualCount} visual{visualCount !== 1 ? 's' : ''}
+                                </div>
+                            );
+                         })()}
                          <button
                             onClick={() => setShowGrid(!showGrid)}
                             className={`px-3 py-1 rounded text-xs font-semibold transition-colors flex items-center gap-1 ${
                                 showGrid ? 'bg-[#face00] text-[#162e51]' : 'bg-[#3d4551] text-white hover:bg-[#565c65]'
                             }`}
-                            title="Toggle grid overlay"
+                            title="Toggle grid overlay (Ctrl/Cmd+G)"
                         >
                             <Grid className="w-3 h-3" /> Grid
                         </button>
@@ -1577,11 +1708,27 @@ const SVGGenerator = () => {
                     
                     <div className="flex items-center gap-2">
                         <button
+                            onClick={() => setShowKeyboardShortcuts(true)}
+                            className="p-2 rounded bg-[#3d4551] hover:bg-[#565c65] text-white transition-colors"
+                            title="Keyboard shortcuts (Ctrl/Cmd+?)"
+                            aria-label="Show keyboard shortcuts"
+                        >
+                            ⌨️
+                        </button>
+                        <button
                             onClick={() => setShowImportGuide(true)}
                             className="p-2 rounded bg-[#3d4551] hover:bg-[#565c65] text-white transition-colors"
                             title="Power BI Import Guide"
                         >
                             <HelpCircle className="w-4 h-4" />
+                        </button>
+                        <button 
+                            onClick={copyPowerBISettings}
+                            className="bg-[#1a4480] hover:bg-[#005ea2] text-white px-3 py-2 rounded-md font-semibold text-sm flex items-center gap-2 transition-all border border-transparent hover:border-[#face00]"
+                            title="Copy Power BI settings to clipboard"
+                            aria-label="Copy Power BI import settings"
+                        >
+                            <Copy className="w-4 h-4" /> Settings
                         </button>
                         <button 
                             onClick={copySVGToClipboard}
@@ -1732,6 +1879,56 @@ const SVGGenerator = () => {
                                     onClick={() => setShowImportGuide(false)}
                                     className="px-4 py-2 bg-[#005ea2] hover:bg-[#00bde3] text-white rounded font-semibold transition-colors"
                                     aria-label="Close import guide"
+                                >
+                                    Got it!
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Keyboard Shortcuts Modal */}
+                {showKeyboardShortcuts && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-[#162e51] border border-[#3d4551] rounded-xl shadow-2xl max-w-md w-full">
+                            <div className="p-6 border-b border-[#3d4551] flex items-center justify-between">
+                                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                    ⌨️ Keyboard Shortcuts
+                                </h3>
+                                <button
+                                    onClick={() => setShowKeyboardShortcuts(false)}
+                                    className="text-[#97d4ea] hover:text-white transition-colors"
+                                    aria-label="Close keyboard shortcuts"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                            <div className="p-6 space-y-3 text-[#dfe1e2] text-sm">
+                                <div className="flex justify-between items-center">
+                                    <span>Save Template</span>
+                                    <kbd className="px-2 py-1 bg-[#1a4480] rounded text-xs font-mono">Ctrl/Cmd + S</kbd>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span>Export SVG</span>
+                                    <kbd className="px-2 py-1 bg-[#1a4480] rounded text-xs font-mono">Ctrl/Cmd + E</kbd>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span>Toggle Grid</span>
+                                    <kbd className="px-2 py-1 bg-[#1a4480] rounded text-xs font-mono">Ctrl/Cmd + G</kbd>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span>Show Shortcuts</span>
+                                    <kbd className="px-2 py-1 bg-[#1a4480] rounded text-xs font-mono">Ctrl/Cmd + ?</kbd>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span>Close Modal</span>
+                                    <kbd className="px-2 py-1 bg-[#1a4480] rounded text-xs font-mono">Esc</kbd>
+                                </div>
+                            </div>
+                            <div className="p-6 border-t border-[#3d4551] flex justify-end">
+                                <button
+                                    onClick={() => setShowKeyboardShortcuts(false)}
+                                    className="px-4 py-2 bg-[#005ea2] hover:bg-[#00bde3] text-white rounded font-semibold transition-colors"
                                 >
                                     Got it!
                                 </button>
