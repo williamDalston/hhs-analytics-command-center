@@ -780,73 +780,54 @@ NEXT STEPS:
                                         <X className="h-5 w-5" />
                                     </button>
                                 </div>
-                                <div className="flex items-center justify-between mb-3">
-                                    <p className="text-sm text-slate-600 dark:text-slate-400">
-                                        Paste all your projects, decisions, and blockers. Copy the format guide below.
-                                    </p>
-                                    <button
-                                        onClick={copyBulkImportGuide}
-                                        className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs font-semibold transition-all ${
-                                            bulkGuideCopied
-                                                ? 'bg-green-500 text-white'
-                                                : 'bg-brand-500 hover:bg-brand-600 text-white'
-                                        }`}
-                                        title="Copy bulk import format guide to clipboard"
-                                    >
-                                        {bulkGuideCopied ? (
-                                            <>
-                                                <CheckCircle className="h-4 w-4" />
-                                                Copied!
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Copy className="h-4 w-4" />
-                                                Copy Guide
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
-                                <div className="mb-3 p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded text-xs font-mono text-slate-600 dark:text-slate-400 max-h-48 overflow-y-auto">
-                                    <div className="whitespace-pre-wrap">{bulkImportGuideContent.substring(0, 500)}...</div>
-                                    <p className="text-xs text-slate-500 dark:text-slate-500 mt-2 italic">
-                                        Click "Copy Guide" above to copy the full format guide
+                                <div className="mb-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Format Template (Copy & Fill In)</h4>
+                                        <button
+                                            onClick={copyBulkImportGuide}
+                                            className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs font-semibold transition-all ${
+                                                bulkGuideCopied
+                                                    ? 'bg-green-500 text-white'
+                                                    : 'bg-brand-500 hover:bg-brand-600 text-white'
+                                            }`}
+                                            title="Copy full template to clipboard"
+                                        >
+                                            {bulkGuideCopied ? (
+                                                <>
+                                                    <CheckCircle className="h-4 w-4" />
+                                                    Copied!
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Copy className="h-4 w-4" />
+                                                    Copy Template
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                    <textarea
+                                        readOnly
+                                        value={bulkImportGuideContent}
+                                        onClick={(e) => e.target.select()}
+                                        className="w-full h-64 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded px-3 py-2 text-xs font-mono text-slate-700 dark:text-slate-300 resize-none focus:border-brand-500 focus:outline-none transition-colors cursor-text"
+                                        style={{ fontFamily: 'monospace' }}
+                                    />
+                                    <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">
+                                        Click in the box above to select all, or click "Copy Template" button to copy to clipboard
                                     </p>
                                 </div>
                             </div>
-                            <textarea
-                                value={bulkImportText}
-                                onChange={(e) => setBulkImportText(e.target.value)}
-                                placeholder={`## PROJECTS
-
-### Project 1: [Project Name]
-**Stakeholder:** [Name]
-**Deadline:** YYYY-MM-DD
-**Status:** Planning | Data Modeling | Visualizing | Review | Done
-**Priority:** Normal | High | Critical
-**Requirements:** 
-[Your requirements text here]
-
----
-
-## DECISIONS
-
-### Decision: [Decision Title]
-**Date:** YYYY-MM-DD
-**Status:** Active | Resolved | Mitigated
-**Description:** 
-[Description]
-
----
-
-## BLOCKERS
-
-### Blocker: [Blocker Title]
-**Date:** YYYY-MM-DD
-**Status:** Active | Resolved | Mitigated
-**Description:** 
-[Description]`}
-                                className="w-full h-64 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded px-3 py-2 text-sm text-slate-700 dark:text-slate-300 placeholder-slate-400 dark:placeholder-slate-500 font-mono resize-none focus:border-brand-500 focus:outline-none transition-colors"
-                            />
+                            <div className="mb-3">
+                                <label className="block text-sm font-semibold text-slate-900 dark:text-slate-100 mb-2">
+                                    Your Data (Paste your filled-in template here):
+                                </label>
+                                <textarea
+                                    value={bulkImportText}
+                                    onChange={(e) => setBulkImportText(e.target.value)}
+                                    placeholder={`Paste your filled-in template here, or copy the template above, fill it in, and paste it here...`}
+                                    className="w-full h-64 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded px-3 py-2 text-sm text-slate-700 dark:text-slate-300 placeholder-slate-400 dark:placeholder-slate-500 font-mono resize-none focus:border-brand-500 focus:outline-none transition-colors"
+                                />
+                            </div>
                             <div className="flex justify-end gap-3 mt-4">
                                 <button
                                     type="button"
