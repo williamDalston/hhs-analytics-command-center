@@ -102,6 +102,9 @@ const SVGGenerator = () => {
     const [showImportGuide, setShowImportGuide] = useState(false);
     const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
     const [showColorGuide, setShowColorGuide] = useState(false);
+    const [importMode, setImportMode] = useState(false); // Toggle between manual and wireframe import
+    const [wireframeText, setWireframeText] = useState('');
+    const [wireframeData, setWireframeData] = useState(null); // Parsed wireframe data
 
     // --- Canvas Size Presets ---
     const applyCanvasPreset = (preset) => {
@@ -675,11 +678,8 @@ const SVGGenerator = () => {
         }
 
         setItems(newItems);
+        return newItems; // Return items for use in other functions
     }, [layoutMode, config]);
-
-    useEffect(() => {
-        generateLayout();
-    }, [generateLayout]);
 
     const handleConfigChange = (key, val) => {
         setConfig(prev => ({ ...prev, [key]: val }));
@@ -793,15 +793,20 @@ const SVGGenerator = () => {
                 // Add visual type and label for card-type items
                 if (item.type === 'card' || item.type === 'kpi' || item.type === 'main') {
                     // Use item.index if available, otherwise find index in items array
-                    const itemIndex = item.index !== undefined ? item.index : items.findIndex(i => 
-                        Math.abs(i.x - item.x) < 1 && Math.abs(i.y - item.y) < 1 && 
-                        Math.abs(i.w - item.w) < 1 && Math.abs(i.h - item.h) < 1 && i.type === item.type
-                    );
-                    const visualType = visualTypes?.[itemIndex] || defaultVisualType || 'card';
-                    const visualLabel = visualLabels?.[itemIndex] || '';
-                    
-                    // Visual type indicator (top-left corner)
-                    if (showVisualTypes && visualType !== 'card') {
+                    let itemIndex = item.index;
+                    if (itemIndex === undefined) {
+                        itemIndex = items.findIndex(i => 
+                            Math.abs(i.x - item.x) < 1 && Math.abs(i.y - item.y) < 1 && 
+                            Math.abs(i.w - item.w) < 1 && Math.abs(i.h - item.h) < 1 && i.type === item.type
+                        );
+                    }
+                    // Safety check: if index not found, skip visual type/label
+                    if (itemIndex >= 0) {
+                        const visualType = visualTypes?.[itemIndex] || defaultVisualType || 'card';
+                        const visualLabel = visualLabels?.[itemIndex] || '';
+                        
+                        // Visual type indicator (top-left corner)
+                        if (showVisualTypes && visualType !== 'card') {
                         const typeIcons = {
                             'chart': '📊',
                             'table': '📋',
@@ -872,6 +877,7 @@ const SVGGenerator = () => {
                                 dominant-baseline="middle"
                             >${line}</text>`;
                         });
+                        }
                     }
                 }
             }
@@ -1448,6 +1454,483 @@ ${spec.powerBI.importInstructions.map(step => step).join('\n')}
         setTimeout(() => setToast(null), 3000);
     };
 
+    // --- Wireframe Parser ---
+    const parseWireframe = (wireframeText) => {
+        try {
+            const lines = wireframeText.split('\n');
+            const pages = [];
+            const layouts = {};
+            let currentPage = null;
+            let currentLayout = null;
+            let inLayoutSection = false;
+            let inVisualsSection = false;
+            
+            // Extract common elements
+            const commonElements = {
+                trustBarHeight: 32,
+                padding: 20,
+                radius: 8,
+                gridSpacing: 20,
+                gridOpacity: 0.1,
+                headerHeight: 88,
+                headerBg: '#162e51',
+                accentColor: '#face00',
+                accentHeight: 3
+            };
+            
+            // Parse each line
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                
+                // Detect page sections (e.g., "## PAGE 1: Page Name")
+                const pageMatch = line.match(/##\s*PAGE\s*(\d+):\s*(.+)/i);
+                if (pageMatch) {
+                    const pageNum = parseInt(pageMatch[1]);
+                    const pageName = pageMatch[2].trim();
+                    currentPage = {
+                        number: pageNum,
+                        name: pageName,
+                        layout: null,
+                        visuals: [],
+                        gridConfig: null,
+                        settings: {}
+                    };
+                    pages.push(currentPage);
+                    inLayoutSection = false;
+                    inVisualsSection = false;
+                    continue;
+                }
+                
+                // Detect layout type (e.g., "### Layout Type: FEDERAL")
+                const layoutTypeMatch = line.match(/###\s*Layout\s+Type:\s*(\w+)/i);
+                if (layoutTypeMatch && currentPage) {
+                    let layoutName = layoutTypeMatch[1].toLowerCase().replace(/\s+/g, '-');
+                    // Normalize layout names
+                    if (layoutName === 'federal') layoutName = 'federal';
+                    if (layoutName === 'sidebar') layoutName = 'sidebar';
+                    if (layoutName === 'grid') layoutName = 'grid';
+                    if (layoutName === 'kpi-top' || layoutName === 'kpi') layoutName = 'kpi';
+                    if (layoutName === 'three-column' || layoutName === 'three-col') layoutName = 'three-col';
+                    if (layoutName === 'asymmetric') layoutName = 'asymmetric';
+                    if (layoutName === 'mobile') layoutName = 'mobile';
+                    
+                    currentPage.layout = layoutName;
+                    currentLayout = layoutName;
+                    inLayoutSection = true;
+                    if (!layouts[layoutName]) {
+                        layouts[layoutName] = { ...commonElements, visuals: [] };
+                    }
+                    continue;
+                }
+                
+                // Detect layout sections (legacy format: "## 1. FEDERAL LAYOUT")
+                const legacyLayoutMatch = line.match(/##\s*\d+\.\s*(\w+)\s+LAYOUT/i);
+                if (legacyLayoutMatch && !currentPage) {
+                    currentLayout = legacyLayoutMatch[1].toLowerCase().replace(/\s+/g, '-');
+                    if (currentLayout === 'federal') currentLayout = 'federal';
+                    if (currentLayout === 'sidebar') currentLayout = 'sidebar';
+                    if (currentLayout === 'grid') currentLayout = 'grid';
+                    if (currentLayout === 'kpi-top' || currentLayout === 'kpi') currentLayout = 'kpi';
+                    if (currentLayout === 'three-column' || currentLayout === 'three-col') currentLayout = 'three-col';
+                    if (currentLayout === 'asymmetric') currentLayout = 'asymmetric';
+                    if (currentLayout === 'mobile') currentLayout = 'mobile';
+                    inLayoutSection = true;
+                    layouts[currentLayout] = { ...commonElements, visuals: [] };
+                    continue;
+                }
+                
+                // Detect Visuals section
+                if (line.match(/^\*\*Visuals:\*\*|^Visuals:/i)) {
+                    inVisualsSection = true;
+                    continue;
+                }
+                
+                // Parse visual specifications (e.g., "1. **Chart 1** - "Sales by Region" (show label: yes)")
+                if (inVisualsSection && (currentPage || currentLayout)) {
+                    const visualMatch = line.match(/(\d+)\.\s*\*\*([^*]+)\*\*\s*-\s*"([^"]+)"\s*\(show\s+label:\s*(yes|no)\)/i);
+                    if (visualMatch) {
+                        const visualIndex = parseInt(visualMatch[1]) - 1;
+                        const visualType = visualMatch[2].trim();
+                        const labelText = visualMatch[3].trim();
+                        const showLabel = visualMatch[4].toLowerCase() === 'yes';
+                        
+                        // Determine visual type
+                        let type = 'card';
+                        if (visualType.match(/kpi/i)) type = 'kpi';
+                        else if (visualType.match(/chart/i)) type = 'chart';
+                        else if (visualType.match(/table/i)) type = 'table';
+                        else if (visualType.match(/map/i)) type = 'map';
+                        else if (visualType.match(/slicer/i)) type = 'slicer';
+                        else if (visualType.match(/text/i)) type = 'text';
+                        else if (visualType.match(/image/i)) type = 'image';
+                        
+                        const visual = {
+                            index: visualIndex,
+                            type: type,
+                            label: labelText,
+                            showLabel: showLabel,
+                            originalType: visualType
+                        };
+                        
+                        if (currentPage) {
+                            currentPage.visuals.push(visual);
+                        } else if (currentLayout) {
+                            if (!layouts[currentLayout].visuals) {
+                                layouts[currentLayout].visuals = [];
+                            }
+                            layouts[currentLayout].visuals.push(visual);
+                        }
+                        continue;
+                    }
+                }
+                
+                // Parse Grid Configuration
+                if (line.match(/^\*\*Grid\s+Configuration:\*\*|^Grid\s+Configuration:/i)) {
+                    if (currentPage) {
+                        currentPage.gridConfig = { rows: null, columns: null, rowColumns: [] };
+                    }
+                    continue;
+                }
+                
+                // Parse grid rows
+                const gridRowsMatch = line.match(/Rows:\s*(\d+)/i);
+                if (gridRowsMatch && (currentPage || currentLayout)) {
+                    const rows = parseInt(gridRowsMatch[1]);
+                    if (currentPage && currentPage.gridConfig) {
+                        currentPage.gridConfig.rows = rows;
+                    } else if (currentLayout) {
+                        layouts[currentLayout].gridRows = rows;
+                    }
+                }
+                
+                // Parse grid columns
+                const gridColsMatch = line.match(/Columns:\s*(\d+)/i);
+                if (gridColsMatch && (currentPage || currentLayout)) {
+                    const cols = parseInt(gridColsMatch[1]);
+                    if (currentPage && currentPage.gridConfig) {
+                        currentPage.gridConfig.columns = cols;
+                    } else if (currentLayout) {
+                        layouts[currentLayout].gridColumns = cols;
+                    }
+                }
+                
+                // Parse per-row columns (e.g., "Row 1 Columns: 3")
+                const rowColsMatch = line.match(/Row\s+(\d+)\s+Columns:\s*(\d+)/i);
+                if (rowColsMatch && currentPage && currentPage.gridConfig) {
+                    const rowIndex = parseInt(rowColsMatch[1]) - 1;
+                    const cols = parseInt(rowColsMatch[2]);
+                    if (!currentPage.gridConfig.rowColumns) {
+                        currentPage.gridConfig.rowColumns = [];
+                    }
+                    currentPage.gridConfig.rowColumns[rowIndex] = cols;
+                }
+                
+                // Parse page settings (e.g., "**Federal Settings:**", "Sidebar Width: 280px")
+                if (currentPage && line.match(/\*\*.*Settings:\*\*|Settings:/i)) {
+                    // Settings section detected, will parse individual settings below
+                    continue;
+                }
+                
+                // Parse sidebar width in settings
+                if (currentPage && line.match(/Sidebar\s+Width:\s*(\d+)/i)) {
+                    const sidebarMatch = line.match(/Sidebar\s+Width:\s*(\d+)/i);
+                    if (sidebarMatch) {
+                        if (!currentPage.settings) currentPage.settings = {};
+                        currentPage.settings.sidebarWidth = parseInt(sidebarMatch[1]);
+                    }
+                }
+                
+                // Parse show sidebar setting
+                if (currentPage && line.match(/Show\s+Sidebar:\s*(yes|no)/i)) {
+                    const showMatch = line.match(/Show\s+Sidebar:\s*(yes|no)/i);
+                    if (showMatch) {
+                        if (!currentPage.settings) currentPage.settings = {};
+                        currentPage.settings.showSidebar = showMatch[1].toLowerCase() === 'yes';
+                    }
+                }
+                
+                // Parse KPI count in settings
+                if (currentPage && line.match(/KPI\s+Count:\s*(\d+)/i)) {
+                    const kpiMatch = line.match(/KPI\s+Count:\s*(\d+)/i);
+                    if (kpiMatch) {
+                        if (!currentPage.settings) currentPage.settings = {};
+                        currentPage.settings.kpiCount = parseInt(kpiMatch[1]);
+                    }
+                }
+                
+                // Parse visuals per column
+                if (currentPage && line.match(/Visuals\s+Per\s+Column:\s*(\d+)/i)) {
+                    const visualMatch = line.match(/Visuals\s+Per\s+Column:\s*(\d+)/i);
+                    if (visualMatch) {
+                        if (!currentPage.settings) currentPage.settings = {};
+                        currentPage.settings.visualsPerColumn = parseInt(visualMatch[1]);
+                    }
+                }
+                
+                // Parse side card count
+                if (currentPage && line.match(/Side\s+Card\s+Count:\s*(\d+)/i)) {
+                    const sideMatch = line.match(/Side\s+Card\s+Count:\s*(\d+)/i);
+                    if (sideMatch) {
+                        if (!currentPage.settings) currentPage.settings = {};
+                        currentPage.settings.sideCardCount = parseInt(sideMatch[1]);
+                    }
+                }
+                
+                // Parse visual count
+                if (currentPage && line.match(/Visual\s+Count:\s*(\d+)/i)) {
+                    const visualMatch = line.match(/Visual\s+Count:\s*(\d+)/i);
+                    if (visualMatch) {
+                        if (!currentPage.settings) currentPage.settings = {};
+                        currentPage.settings.visualCount = parseInt(visualMatch[1]);
+                    }
+                }
+                
+                // Extract specifications
+                if (inLayoutSection && currentLayout) {
+                    // Header height
+                    const headerMatch = line.match(/Header.*?(\d+)px/i);
+                    if (headerMatch) {
+                        layouts[currentLayout].headerHeight = parseInt(headerMatch[1]);
+                    }
+                    
+                    // Sidebar width (look for "260-280px" or "260px")
+                    const sidebarMatch = line.match(/(?:Sidebar|sidebar).*?(\d+)(?:-(\d+))?px/i);
+                    if (sidebarMatch) {
+                        layouts[currentLayout].sidebarWidth = parseInt(sidebarMatch[1]);
+                    }
+                    
+                    // Grid dimensions (2×2, 3×3, etc.)
+                    const gridMatch = line.match(/(?:Grid|grid).*?(\d+)[×xX](\d+)/i);
+                    if (gridMatch) {
+                        layouts[currentLayout].gridRows = parseInt(gridMatch[1]);
+                        layouts[currentLayout].gridColumns = parseInt(gridMatch[2]);
+                    }
+                    
+                    // KPI count - look for "4 KPI" or count "KPI Card" in diagrams
+                    const kpiMatch = line.match(/(\d+)\s+KPI/i);
+                    if (kpiMatch) {
+                        layouts[currentLayout].kpiCount = parseInt(kpiMatch[1]);
+                    }
+                    // Count KPI cards in ASCII diagrams
+                    const kpiCardMatches = line.match(/KPI\s+Card/gi);
+                    if (kpiCardMatches && kpiCardMatches.length > 0) {
+                        layouts[currentLayout].kpiCount = Math.max(layouts[currentLayout].kpiCount || 0, kpiCardMatches.length);
+                    }
+                    
+                    // Visual count per column (for three-col layout)
+                    const visualPerColMatch = line.match(/(\d+)\s+visual.*?column/i);
+                    if (visualPerColMatch) {
+                        layouts[currentLayout].visualCount = parseInt(visualPerColMatch[1]);
+                    }
+                    
+                    // General visual count
+                    const visualMatch = line.match(/(\d+)\s+visual/i);
+                    if (visualMatch && !layouts[currentLayout].visualCount) {
+                        layouts[currentLayout].visualCount = parseInt(visualMatch[1]);
+                    }
+                    
+                    // Count Chart instances in diagrams
+                    const chartMatches = line.match(/Chart\s+\d+/gi);
+                    if (chartMatches && chartMatches.length > 0) {
+                        const chartCount = chartMatches.length;
+                        if (!layouts[currentLayout].visualCount || chartCount > layouts[currentLayout].visualCount) {
+                            layouts[currentLayout].visualCount = chartCount;
+                        }
+                    }
+                }
+                
+                // End of layout section
+                if (line.startsWith('---') && inLayoutSection) {
+                    inLayoutSection = false;
+                    inVisualsSection = false;
+                }
+                
+                // End of visuals section
+                if (line.startsWith('---') && inVisualsSection) {
+                    inVisualsSection = false;
+                }
+            }
+            
+            // Return pages if found, otherwise return layouts (legacy format)
+            if (pages.length > 0) {
+                return { pages, layouts, commonElements, hasPages: true };
+            } else {
+                return { layouts, commonElements, hasPages: false };
+            }
+        } catch (error) {
+            console.error('Error parsing wireframe:', error);
+            return null;
+        }
+    };
+
+    // --- Apply Wireframe Layout ---
+    const applyWireframeLayout = (layoutName, wireframeData) => {
+        if (!wireframeData) {
+            showToast('No wireframe data available');
+            return;
+        }
+        
+        // Handle page-based wireframes
+        if (wireframeData.hasPages && wireframeData.pages) {
+            const page = wireframeData.pages.find(p => p.layout === layoutName || p.number.toString() === layoutName);
+            if (page) {
+                applyWireframePage(page, wireframeData);
+                return;
+            }
+        }
+        
+        // Handle legacy layout-based wireframes
+        if (!wireframeData.layouts || !wireframeData.layouts[layoutName]) {
+            showToast('Layout not found in wireframe');
+            return;
+        }
+        
+        const layout = wireframeData.layouts[layoutName];
+        const common = wireframeData.commonElements;
+        
+        // Set layout mode
+        setLayoutMode(layoutName);
+        
+        // Apply common settings
+        const newConfig = {
+            ...config,
+            padding: common.padding || 20,
+            radius: common.radius || 8,
+            gridSpacing: common.gridSpacing || 20,
+            gridOpacity: common.gridOpacity || 0.1,
+            headerHeight: layout.headerHeight || common.headerHeight || 88,
+            trustBarHeight: common.trustBarHeight || 32,
+            showHeaderAccent: true,
+            accentHex: common.accentColor || '#face00'
+        };
+        
+        // Apply layout-specific settings
+        if (layoutName === 'federal') {
+            newConfig.federalRows = layout.gridRows || 2;
+            newConfig.federalColumns = layout.gridColumns || 2;
+            newConfig.federalSidebarWidth = layout.sidebarWidth || 280;
+            newConfig.showFederalSidebar = !!layout.sidebarWidth;
+        } else if (layoutName === 'sidebar') {
+            newConfig.sidebarLayoutWidth = layout.sidebarWidth || 260;
+        } else if (layoutName === 'grid') {
+            newConfig.gridRows = layout.gridRows || 2;
+            newConfig.gridColumns = layout.gridColumns || 2;
+        } else if (layoutName === 'kpi') {
+            newConfig.kpiCount = layout.kpiCount || 5;
+        } else if (layoutName === 'three-col') {
+            newConfig.threeColVisualCount = layout.visualCount || 3;
+        } else if (layoutName === 'asymmetric') {
+            newConfig.asymmetricSideCount = layout.visualCount || 2;
+        } else if (layoutName === 'mobile') {
+            newConfig.mobileVisualCount = layout.visualCount || 3;
+        }
+        
+        // Apply visual labels if available
+        if (layout.visuals && layout.visuals.length > 0) {
+            const visualTypes = {};
+            const visualLabels = {};
+            layout.visuals.forEach(visual => {
+                visualTypes[visual.index] = visual.type;
+                visualLabels[visual.index] = visual.showLabel ? visual.label : '';
+            });
+            newConfig.visualTypes = { ...config.visualTypes, ...visualTypes };
+            newConfig.visualLabels = { ...config.visualLabels, ...visualLabels };
+            newConfig.showVisualLabels = true;
+        }
+        
+        setConfig(newConfig);
+        showToast(`Applied ${layoutName} layout from wireframe!`);
+    };
+
+    // --- Apply Wireframe Page ---
+    const applyWireframePage = (page, wireframeData) => {
+        const common = wireframeData.commonElements;
+        const layoutName = page.layout;
+        
+        if (!layoutName) {
+            showToast('Page has no layout type specified');
+            return;
+        }
+        
+        // Set layout mode
+        setLayoutMode(layoutName);
+        
+        // Apply common settings
+        const newConfig = {
+            ...config,
+            padding: common.padding || 20,
+            radius: common.radius || 8,
+            gridSpacing: common.gridSpacing || 20,
+            gridOpacity: common.gridOpacity || 0.1,
+            headerHeight: common.headerHeight || 88,
+            trustBarHeight: common.trustBarHeight || 32,
+            showHeaderAccent: true,
+            accentHex: common.accentColor || '#face00'
+        };
+        
+        // Apply grid configuration if available
+        if (page.gridConfig) {
+            if (layoutName === 'federal' || layoutName === 'grid') {
+                newConfig.gridRows = page.gridConfig.rows || 2;
+                newConfig.gridColumns = page.gridConfig.columns || 2;
+                
+                // Apply per-row columns if specified
+                if (page.gridConfig.rowColumns && page.gridConfig.rowColumns.length > 0) {
+                    if (layoutName === 'federal') {
+                        newConfig.federalRowColumns = page.gridConfig.rowColumns;
+                        newConfig.useFederalPerRowColumns = true;
+                    } else if (layoutName === 'grid') {
+                        newConfig.gridRowColumns = page.gridConfig.rowColumns;
+                        newConfig.usePerRowColumns = true;
+                    }
+                }
+            }
+        }
+        
+        // Apply layout-specific settings from page
+        if (layoutName === 'federal') {
+            newConfig.federalRows = page.gridConfig?.rows || 2;
+            newConfig.federalColumns = page.gridConfig?.columns || 2;
+            newConfig.federalSidebarWidth = (page.settings && page.settings.sidebarWidth) || 280;
+            newConfig.showFederalSidebar = (page.settings && page.settings.showSidebar !== false) || true;
+        } else if (layoutName === 'sidebar') {
+            newConfig.sidebarLayoutWidth = (page.settings && page.settings.sidebarWidth) || 260;
+        } else if (layoutName === 'grid') {
+            newConfig.gridRows = page.gridConfig?.rows || 2;
+            newConfig.gridColumns = page.gridConfig?.columns || 2;
+        } else if (layoutName === 'kpi') {
+            newConfig.kpiCount = (page.settings && page.settings.kpiCount) || 5;
+        } else if (layoutName === 'three-col') {
+            newConfig.threeColVisualCount = (page.settings && page.settings.visualsPerColumn) || 3;
+        } else if (layoutName === 'asymmetric') {
+            newConfig.asymmetricSideCount = (page.settings && page.settings.sideCardCount) || 2;
+        } else if (layoutName === 'mobile') {
+            newConfig.mobileVisualCount = (page.settings && page.settings.visualCount) || 3;
+        }
+        
+        // Apply visual labels
+        if (page.visuals && page.visuals.length > 0) {
+            const visualTypes = {};
+            const visualLabels = {};
+            page.visuals.forEach(visual => {
+                // Use visual.index for mapping to card items
+                visualTypes[visual.index] = visual.type;
+                // Only set label if showLabel is true, otherwise empty string
+                visualLabels[visual.index] = visual.showLabel ? visual.label : '';
+            });
+            // Merge with existing config, but prioritize wireframe labels
+            newConfig.visualTypes = { ...(config.visualTypes || {}), ...visualTypes };
+            newConfig.visualLabels = { ...(config.visualLabels || {}), ...visualLabels };
+            // Enable visual labels if any are set to show
+            if (page.visuals.some(v => v.showLabel)) {
+                newConfig.showVisualLabels = true;
+            }
+        }
+        
+        setConfig(newConfig);
+        showToast(`Applied Page ${page.number}: ${page.name} (${layoutName})`);
+    };
+
     // Copy Power BI settings to clipboard
     const copyPowerBISettings = async () => {
         const settings = `Power BI Image Settings:
@@ -1565,6 +2048,159 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                     </h1>
                     <p className="text-xs text-[#97d4ea] mt-1 opacity-90 font-sans">Official Brand Background Tool</p>
                 </div>
+
+                {/* Mode Toggle */}
+                <div className="p-4 border-b border-[#3d4551] bg-[#1a4480]">
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setImportMode(false)}
+                            className={`flex-1 px-3 py-2 rounded text-xs font-semibold transition-all ${
+                                !importMode
+                                    ? 'bg-[#face00] text-[#162e51]'
+                                    : 'bg-[#3d4551] text-white hover:bg-[#565c65]'
+                            }`}
+                        >
+                            Manual Create
+                        </button>
+                        <button
+                            onClick={() => setImportMode(true)}
+                            className={`flex-1 px-3 py-2 rounded text-xs font-semibold transition-all ${
+                                importMode
+                                    ? 'bg-[#face00] text-[#162e51]'
+                                    : 'bg-[#3d4551] text-white hover:bg-[#565c65]'
+                            }`}
+                        >
+                            Import Wireframe
+                        </button>
+                    </div>
+                </div>
+
+                {/* Wireframe Import Section */}
+                {importMode && (
+                    <div className="p-5 border-b border-[#3d4551] space-y-4">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-2 flex items-center gap-2">
+                            <FileText className="w-3 h-3"/> Wireframe Import
+                        </h3>
+                        <div className="space-y-3">
+                            <div>
+                                <label className="text-[10px] text-[#97d4ea] mb-2 block">Paste Wireframe Markdown:</label>
+                                <textarea
+                                    value={wireframeText}
+                                    onChange={(e) => setWireframeText(e.target.value)}
+                                    placeholder="Paste your HHS Layout Wireframes.md content here..."
+                                    className="w-full h-48 bg-[#1a4480] border border-[#3d4551] rounded px-3 py-2 text-xs text-[#dfe1e2] placeholder-[#565c65] font-mono resize-none"
+                                />
+                            </div>
+                            <button
+                                onClick={() => {
+                                    const parsed = parseWireframe(wireframeText);
+                                    if (parsed) {
+                                        setWireframeData(parsed);
+                                        showToast('Wireframe parsed successfully!');
+                                    } else {
+                                        showToast('Error parsing wireframe. Check format.');
+                                    }
+                                }}
+                                className="w-full px-3 py-2 rounded bg-[#005ea2] hover:bg-[#00bde3] text-white text-sm transition-colors border border-[#1a4480]"
+                            >
+                                Parse Wireframe
+                            </button>
+                            {wireframeData && (
+                                <div className="space-y-3">
+                                    {wireframeData.hasPages && wireframeData.pages ? (
+                                        <>
+                                            <div className="flex items-center justify-between">
+                                                <p className="text-[10px] text-[#97d4ea]">Pages Found:</p>
+                                                <button
+                                                    onClick={async () => {
+                                                        try {
+                                                            showToast(`Exporting ${wireframeData.pages.length} pages...`);
+                                                            // Export all pages sequentially
+                                                            for (let idx = 0; idx < wireframeData.pages.length; idx++) {
+                                                                const page = wireframeData.pages[idx];
+                                                                // Apply the page configuration
+                                                                applyWireframePage(page, wireframeData);
+                                                                
+                                                                // Wait for layout to update
+                                                                await new Promise(resolve => setTimeout(resolve, 300));
+                                                                
+                                                                // Generate and download SVG
+                                                                const svgString = getSVGString();
+                                                                const blob = new Blob([svgString], { type: 'image/svg+xml' });
+                                                                const url = URL.createObjectURL(blob);
+                                                                const link = document.createElement('a');
+                                                                link.href = url;
+                                                                const timestamp = new Date().toISOString().split('T')[0];
+                                                                const safeName = page.name.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '-');
+                                                                link.download = `HHS-Page-${page.number}-${safeName}-${timestamp}.svg`;
+                                                                document.body.appendChild(link);
+                                                                link.click();
+                                                                document.body.removeChild(link);
+                                                                URL.revokeObjectURL(url);
+                                                                
+                                                                // Small delay between exports
+                                                                if (idx < wireframeData.pages.length - 1) {
+                                                                    await new Promise(resolve => setTimeout(resolve, 200));
+                                                                }
+                                                            }
+                                                            showToast(`Exported ${wireframeData.pages.length} pages successfully!`);
+                                                        } catch (error) {
+                                                            console.error('Error exporting pages:', error);
+                                                            showToast('Error exporting pages. Check console.');
+                                                        }
+                                                    }}
+                                                    className="px-2 py-1 rounded bg-[#face00] hover:bg-[#e5a000] text-[#162e51] text-[10px] font-bold transition-colors"
+                                                >
+                                                    Export All Pages
+                                                </button>
+                                            </div>
+                                            <div className="space-y-2 max-h-64 overflow-y-auto">
+                                                {wireframeData.pages.map(page => (
+                                                    <div key={page.number} className="p-2 bg-[#1a4480]/30 rounded border border-[#3d4551]">
+                                                        <div className="flex items-center justify-between mb-1">
+                                                            <span className="text-xs font-semibold text-[#dfe1e2]">
+                                                                Page {page.number}: {page.name}
+                                                            </span>
+                                                            <span className="text-[10px] text-[#97d4ea] capitalize">
+                                                                {page.layout}
+                                                            </span>
+                                                        </div>
+                                                        {page.visuals && page.visuals.length > 0 && (
+                                                            <p className="text-[10px] text-[#97d4ea] opacity-70 mb-2">
+                                                                {page.visuals.length} visual{page.visuals.length !== 1 ? 's' : ''} with labels
+                                                            </p>
+                                                        )}
+                                                        <button
+                                                            onClick={() => applyWireframePage(page, wireframeData)}
+                                                            className="w-full px-2 py-1 rounded bg-[#1a4480] hover:bg-[#005ea2] text-white text-[10px] font-semibold transition-colors border border-[#3d4551]"
+                                                        >
+                                                            Apply This Page
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <p className="text-[10px] text-[#97d4ea]">Available Layouts:</p>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {Object.keys(wireframeData.layouts || {}).map(layoutName => (
+                                                    <button
+                                                        key={layoutName}
+                                                        onClick={() => applyWireframeLayout(layoutName, wireframeData)}
+                                                        className="px-2 py-1 rounded bg-[#1a4480] hover:bg-[#005ea2] text-white text-[10px] font-semibold transition-colors border border-[#3d4551] capitalize"
+                                                    >
+                                                        {layoutName.replace(/-/g, ' ')}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 {/* Quick Presets */}
                 <div className="p-5 border-b border-[#3d4551]">
@@ -1737,7 +2373,8 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                     )}
                 </div>
 
-                {/* Layout Mode */}
+                {/* Layout Mode - Only show in manual mode */}
+                {!importMode && (
                 <div className="p-5 border-b border-[#3d4551]">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-3 flex items-center gap-2">
                         <Layout className="w-3 h-3"/> Layout Structure
@@ -1766,8 +2403,10 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                         })}
                     </div>
                 </div>
+                )}
 
-                {/* Layout-Specific Configuration */}
+                {/* Layout-Specific Configuration - Only show in manual mode */}
+                {!importMode && (
                 <div className="p-5 border-b border-[#3d4551] space-y-4">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-2 flex items-center gap-2">
                         <Grid3x3 className="w-3 h-3"/> Layout Configuration
@@ -2109,7 +2748,8 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                     </div>
                 </div>
 
-                {/* Visual Types & Labels */}
+                {/* Visual Types & Labels - Only show in manual mode */}
+                {!importMode && (
                 <div className="p-5 border-b border-[#3d4551] space-y-4">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-2 flex items-center gap-2">
                         <Grid3x3 className="w-3 h-3"/> Visual Types & Labels
@@ -2546,6 +3186,8 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                         </div>
                     </div>
                 </div>
+                )}
+
             </div>
 
             {/* --- RIGHT PREVIEW --- */}
