@@ -340,8 +340,8 @@ const DAXLibrary = () => {
                     </div>
                 </motion.div>
             )}
-                <div className="flex gap-2 sm:gap-3 w-full md:w-auto">
-                    <div className="relative flex-1 md:w-64">
+            <div className="flex gap-2 sm:gap-3 w-full md:w-auto">
+                <div className="relative flex-1 md:w-64">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
                         <input
                             type="text"
@@ -360,7 +360,6 @@ const DAXLibrary = () => {
                         <span className="hidden xs:inline">Request</span>
                         <span className="hidden sm:inline">Pattern</span>
                     </button>
-                </div>
             </div>
 
             {isLoading ? (

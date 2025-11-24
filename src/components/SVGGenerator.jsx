@@ -2274,14 +2274,15 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                     </div>
                 )}
 
-                {/* Mode Toggle */}
-                <div className="p-4 border-b border-[#3d4551] bg-[#1a4480]">
+                {/* Mode Toggle - ALWAYS VISIBLE */}
+                <div className="p-4 border-b-2 border-[#face00] bg-[#1a4480] sticky top-0 z-10 shadow-lg">
+                    <p className="text-[9px] text-[#97d4ea] mb-2 uppercase font-bold tracking-wider">Work Mode:</p>
                     <div className="flex gap-2">
                         <button
                             onClick={() => setImportMode(false)}
-                            className={`flex-1 px-3 py-2 rounded text-xs font-semibold transition-all ${
+                            className={`flex-1 px-3 py-2.5 rounded text-xs font-bold transition-all ${
                                 !importMode
-                                    ? 'bg-[#face00] text-[#162e51]'
+                                    ? 'bg-[#face00] text-[#162e51] shadow-lg ring-2 ring-[#face00]'
                                     : 'bg-[#3d4551] text-white hover:bg-[#565c65]'
                             }`}
                         >
@@ -2289,15 +2290,18 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                         </button>
                         <button
                             onClick={() => setImportMode(true)}
-                            className={`flex-1 px-3 py-2 rounded text-xs font-semibold transition-all ${
+                            className={`flex-1 px-3 py-2.5 rounded text-xs font-bold transition-all ${
                                 importMode
-                                    ? 'bg-[#face00] text-[#162e51]'
+                                    ? 'bg-[#face00] text-[#162e51] shadow-lg ring-2 ring-[#face00]'
                                     : 'bg-[#3d4551] text-white hover:bg-[#565c65]'
                             }`}
                         >
                             📋 Import Wireframe
                         </button>
                     </div>
+                    <p className="text-[8px] text-[#97d4ea] mt-2 opacity-70">
+                        {importMode ? '✓ Wireframe mode active - Paste your markdown below' : 'Click "Import Wireframe" to generate SVGs from markdown'}
+                    </p>
                 </div>
 
                 {/* Wireframe Import Section */}
@@ -2393,9 +2397,9 @@ Example:
 - Rows: 3
 - Columns: 3
 **Visuals:**
-1. **KPI Card 1** - \"Total Impressions\" (show label: yes)
-2. **Chart 1** - \"Engagement Over Time\" (show label: yes)
-3. **Table 1** - \"Top Posts\" (show label: no)"
+1. **KPI Card 1** - 'Total Impressions' (show label: yes)
+2. **Chart 1** - 'Engagement Over Time' (show label: yes)
+3. **Table 1** - 'Top Posts' (show label: no)"
                                     className="w-full h-64 bg-[#1a4480] border-2 border-[#3d4551] rounded px-3 py-2 text-xs text-[#dfe1e2] placeholder-[#565c65] font-mono resize-none focus:border-[#face00] focus:outline-none transition-colors"
                                 />
                                 <div className="flex items-center justify-between mt-1">
@@ -3108,6 +3112,7 @@ Example:
                         )}
                     </div>
                 </div>
+                )}
 
                 {/* Visual Types & Labels - Only show in manual mode */}
                 {!importMode && (
@@ -3199,6 +3204,7 @@ Example:
                         )}
                     </div>
                 </div>
+                )}
 
                 {/* Metrics */}
                 <div className="p-5 border-b border-[#3d4551] space-y-6">
