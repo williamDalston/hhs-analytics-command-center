@@ -60,6 +60,8 @@ const SVGGenerator = () => {
         titlePosition: 'top', // 'top' or 'header' - where title appears
         showSlicerZone: false, // Explicit slicer/filter zone indicator at top
         slicerZoneHeight: 60, // Height of slicer zone if shown at top
+        showSlicerZoneLabel: true, // Show "Slicer Zone" label text
+        slicerZoneOpacity: 0.08, // Background opacity for slicer zone
         showVisualCountWarning: true, // Warn if too many visuals (>10 recommended)
         gridSpacing: 20, // Grid overlay spacing
         gridOpacity: 0.1, // Grid overlay opacity
@@ -736,29 +738,95 @@ const SVGGenerator = () => {
                 />`;
             }
             
-            // Slicer zone - add subtle background and border to show filter placement
+            // Slicer zone - enhanced visualization for Power BI slicer placement
             if (isSlicerZone) {
-                // Subtle background
+                // Background fill (more visible)
                 rects += `<rect 
                     x="${item.x}" 
                     y="${item.y}" 
                     width="${item.w}" 
                     height="${item.h}" 
                     fill="${HHS_COLORS.primary.DEFAULT}"
-                    opacity="0.03"
+                    opacity="${config.slicerZoneOpacity || 0.08}"
                 />`;
-                // Border
+                // Top border (solid, more prominent)
                 rects += `<rect 
                     x="${item.x}" 
                     y="${item.y}" 
                     width="${item.w}" 
-                    height="${item.h}" 
-                    fill="none"
+                    height="2"
+                    fill="${HHS_COLORS.primary.DEFAULT}"
+                    opacity="0.4"
+                />`;
+                // Bottom border (solid, more prominent)
+                rects += `<rect 
+                    x="${item.x}" 
+                    y="${item.y + item.h - 2}" 
+                    width="${item.w}" 
+                    height="2"
+                    fill="${HHS_COLORS.primary.DEFAULT}"
+                    opacity="0.4"
+                />`;
+                // Side borders (dashed for flexibility)
+                rects += `<line 
+                    x1="${item.x}" 
+                    y1="${item.y}" 
+                    x2="${item.x}" 
+                    y2="${item.y + item.h}" 
                     stroke="${HHS_COLORS.primary.DEFAULT}"
                     stroke-width="2"
-                    stroke-dasharray="8,4"
-                    opacity="0.3"
+                    stroke-dasharray="6,4"
+                    opacity="0.4"
                 />`;
+                rects += `<line 
+                    x1="${item.x + item.w}" 
+                    y1="${item.y}" 
+                    x2="${item.x + item.w}" 
+                    y2="${item.y + item.h}" 
+                    stroke="${HHS_COLORS.primary.DEFAULT}"
+                    stroke-width="2"
+                    stroke-dasharray="6,4"
+                    opacity="0.4"
+                />`;
+                // Helper text label (if enabled)
+                if (config.showSlicerZoneLabel) {
+                    rects += `<text 
+                    x="${item.x + item.w / 2}" 
+                    y="${item.y + item.h / 2}" 
+                    font-family="Arial, sans-serif" 
+                    font-size="14" 
+                    fill="${HHS_COLORS.primary.DEFAULT}"
+                    opacity="0.5"
+                    text-anchor="middle"
+                    dominant-baseline="middle"
+                    font-weight="500"
+                >Slicer Zone</text>`;
+                    // Subtitle
+                    rects += `<text 
+                    x="${item.x + item.w / 2}" 
+                    y="${item.y + item.h / 2 + 18}" 
+                    font-family="Arial, sans-serif" 
+                    font-size="11" 
+                    fill="${HHS_COLORS.base.dark}"
+                    opacity="0.4"
+                    text-anchor="middle"
+                    dominant-baseline="middle"
+                >Place filters here</text>`;
+                }
+                // Visual guide lines (subtle grid pattern)
+                const guideSpacing = 40;
+                for (let x = item.x + guideSpacing; x < item.x + item.w; x += guideSpacing) {
+                    rects += `<line 
+                        x1="${x}" 
+                        y1="${item.y + 4}" 
+                        x2="${x}" 
+                        y2="${item.y + item.h - 4}" 
+                        stroke="${HHS_COLORS.primary.DEFAULT}"
+                        stroke-width="1"
+                        opacity="0.15"
+                        stroke-dasharray="2,6"
+                    />`;
+                }
             }
         });
         
@@ -1078,6 +1146,8 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                                 titlePosition: 'top',
                                 showSlicerZone: false,
                                 slicerZoneHeight: 60,
+                                showSlicerZoneLabel: true,
+                                slicerZoneOpacity: 0.08,
                                 showVisualCountWarning: true,
                                 gridSpacing: 20,
                                 gridOpacity: 0.1,
@@ -1608,14 +1678,34 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                                 </label>
                             </div>
                             {config.showSlicerZone && (
-                                <div>
-                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                        <span>Slicer Zone Height</span>
-                                        <span>{config.slicerZoneHeight}px</span>
+                                <>
+                                    <div>
+                                        <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                            <span>Slicer Zone Height</span>
+                                            <span>{config.slicerZoneHeight}px</span>
+                                        </div>
+                                        <input type="range" min="40" max="120" value={config.slicerZoneHeight} onChange={(e) => handleConfigChange('slicerZoneHeight', Number(e.target.value))} className="input-range w-full" />
+                                        <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Height for horizontal filter bar (Power BI best practice)</p>
                                     </div>
-                                    <input type="range" min="40" max="120" value={config.slicerZoneHeight} onChange={(e) => handleConfigChange('slicerZoneHeight', Number(e.target.value))} className="input-range w-full" />
-                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Horizontal filter bar area (Power BI best practice)</p>
-                                </div>
+                                    <div className="mt-3 pt-3 border-t border-[#3d4551]">
+                                        <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
+                                            <span>Show Label</span>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" checked={config.showSlicerZoneLabel !== false} onChange={(e) => handleConfigChange('showSlicerZoneLabel', e.target.checked)} className="sr-only peer" />
+                                                <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
+                                            </label>
+                                        </div>
+                                        <p className="text-[10px] text-[#97d4ea] opacity-70">"Slicer Zone" text label in preview</p>
+                                    </div>
+                                    <div className="mt-2">
+                                        <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                            <span>Background Opacity</span>
+                                            <span>{Math.round((config.slicerZoneOpacity || 0.08) * 100)}%</span>
+                                        </div>
+                                        <input type="range" min="0.02" max="0.2" step="0.01" value={config.slicerZoneOpacity || 0.08} onChange={(e) => handleConfigChange('slicerZoneOpacity', Number(e.target.value))} className="input-range w-full" />
+                                        <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Adjust visibility of slicer zone background</p>
+                                    </div>
+                                </>
                             )}
                         </div>
 
