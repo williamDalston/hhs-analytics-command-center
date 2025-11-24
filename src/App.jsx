@@ -1,17 +1,23 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Code, Ruler, Flag, Layers, Shield, Sparkles, FileText, Upload, X, MessageSquare, Share2, Moon, Sun, Menu, ChevronLeft, Image } from 'lucide-react';
+import { LayoutDashboard, Code, Ruler, Flag, Layers, Shield, Sparkles, FileText, Upload, X, MessageSquare, Share2, Moon, Sun, Menu, ChevronLeft, Image, Zap, BookOpen, TrendingUp, GitCompare, CheckSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { SidebarProvider, useSidebar } from './context/SidebarContext';
 import ProjectTracker from './components/ProjectTracker';
 const DAXLibrary = lazy(() => import('./components/DAXLibrary'));
+const PowerQueryLibrary = lazy(() => import('./components/PowerQueryLibrary'));
 const StyleGuide = lazy(() => import('./components/StyleGuide'));
 const PrototypeBuilder = lazy(() => import('./components/PrototypeBuilder'));
 const SecureFilePortal = lazy(() => import('./components/SecureFilePortal'));
 const PowerBIGuru = lazy(() => import('./components/PowerBIGuru'));
 const SVGGenerator = lazy(() => import('./components/SVGGenerator'));
+const QuickReferenceCards = lazy(() => import('./components/QuickReferenceCards'));
+const PerformanceGuide = lazy(() => import('./components/PerformanceGuide'));
+const MeasureDependencyVisualizer = lazy(() => import('./components/MeasureDependencyVisualizer'));
+const DataModelValidator = lazy(() => import('./components/DataModelValidator'));
+const ReportComparisonTool = lazy(() => import('./components/ReportComparisonTool'));
 
 // Global Search/Command Palette
 const CommandPalette = ({ isOpen, onClose }) => {
@@ -23,10 +29,13 @@ const CommandPalette = ({ isOpen, onClose }) => {
     { label: 'Project Tracker', path: '/', icon: LayoutDashboard, shortcut: '⌘1' },
     { label: 'Prototype Builder', path: '/builder', icon: Layers, shortcut: '⌘2' },
     { label: 'DAX Library', path: '/dax', icon: Code, shortcut: '⌘3' },
+    { label: 'Power Query M', path: '/power-query', icon: Zap, shortcut: '⌘8' },
     { label: 'Style Guide', path: '/style-guide', icon: Ruler, shortcut: '⌘4' },
     { label: 'Secure Portal', path: '/portal', icon: Shield, shortcut: '⌘5' },
     { label: 'Power BI Guru', path: '/guru', icon: Sparkles, shortcut: '⌘6' },
     { label: 'SVG Generator', path: '/svg-generator', icon: Image, shortcut: '⌘7' },
+    { label: 'Quick Reference', path: '/quick-reference', icon: BookOpen, shortcut: '⌘9' },
+    { label: 'Performance Guide', path: '/performance', icon: TrendingUp, shortcut: '⌘0' },
   ];
 
   const filteredCommands = commands.filter(cmd =>
@@ -316,12 +325,15 @@ const Sidebar = ({ onDataManagerOpen }) => {
         <SidebarItem icon={LayoutDashboard} label="Project Tracker" path="/" shortcut="⌘1" />
         <SidebarItem icon={Layers} label="Prototype Builder" path="/builder" shortcut="⌘2" />
         <SidebarItem icon={Code} label="DAX Library" path="/dax" shortcut="⌘3" />
+        <SidebarItem icon={Zap} label="Power Query M" path="/power-query" shortcut="⌘8" />
 
         <div className="text-xs font-semibold text-brand-300/80 uppercase tracking-widest mt-8 mb-4 pl-2">Tools</div>
         <SidebarItem icon={Shield} label="Secure Portal" path="/portal" shortcut="⌘4" />
         <SidebarItem icon={Sparkles} label="Power BI Guru" path="/guru" shortcut="⌘5" />
         <SidebarItem icon={Ruler} label="Style Guide" path="/style-guide" shortcut="⌘6" />
         <SidebarItem icon={Image} label="SVG Generator" path="/svg-generator" shortcut="⌘7" />
+        <SidebarItem icon={BookOpen} label="Quick Reference" path="/quick-reference" shortcut="⌘9" />
+        <SidebarItem icon={TrendingUp} label="Performance Guide" path="/performance" shortcut="⌘0" />
       </nav>
 
 
@@ -504,6 +516,18 @@ const AnimatedRoutes = ({ onCommandPaletteOpen }) => {
             event.preventDefault();
             navigate('/svg-generator');
             break;
+          case '8':
+            event.preventDefault();
+            navigate('/power-query');
+            break;
+          case '9':
+            event.preventDefault();
+            navigate('/quick-reference');
+            break;
+          case '0':
+            event.preventDefault();
+            navigate('/performance');
+            break;
           case 'k':
             event.preventDefault();
             onCommandPaletteOpen();
@@ -537,10 +561,16 @@ const AnimatedRoutes = ({ onCommandPaletteOpen }) => {
           <Route path="/" element={<PageTransition><ProjectTracker /></PageTransition>} />
           <Route path="/builder" element={<PageTransition><PrototypeBuilder /></PageTransition>} />
           <Route path="/dax" element={<PageTransition><DAXLibrary /></PageTransition>} />
+          <Route path="/power-query" element={<PageTransition><PowerQueryLibrary /></PageTransition>} />
           <Route path="/style-guide" element={<PageTransition><StyleGuide /></PageTransition>} />
           <Route path="/portal" element={<PageTransition><SecureFilePortal /></PageTransition>} />
           <Route path="/guru" element={<PageTransition><PowerBIGuru /></PageTransition>} />
           <Route path="/svg-generator" element={<PageTransition><SVGGenerator /></PageTransition>} />
+          <Route path="/quick-reference" element={<PageTransition><QuickReferenceCards /></PageTransition>} />
+          <Route path="/performance" element={<PageTransition><PerformanceGuide /></PageTransition>} />
+          <Route path="/dependencies" element={<PageTransition><MeasureDependencyVisualizer /></PageTransition>} />
+          <Route path="/model-validator" element={<PageTransition><DataModelValidator /></PageTransition>} />
+          <Route path="/compare" element={<PageTransition><ReportComparisonTool /></PageTransition>} />
         </Routes>
       </Suspense>
     </AnimatePresence>

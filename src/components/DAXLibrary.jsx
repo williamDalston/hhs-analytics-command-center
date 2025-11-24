@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Copy, Check, Database } from 'lucide-react';
+import { Search, Copy, Check, Database, Code, AlertCircle, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
 import { SkeletonList } from './Skeleton';
@@ -149,11 +149,72 @@ DIVIDE(CumulativeSales, TotalSales)`,
     }
 ];
 
+// DAX Formatter
+const formatDAX = (code) => {
+    if (!code) return '';
+    
+    let formatted = code.trim();
+    
+    // Basic indentation for common patterns
+    formatted = formatted.replace(/\s*=\s*/g, ' = ');
+    formatted = formatted.replace(/\s*,\s*/g, ', ');
+    formatted = formatted.replace(/\s*\(\s*/g, '(\n    ');
+    formatted = formatted.replace(/\s*\)\s*/g, '\n)');
+    
+    // Indent CALCULATE, VAR, RETURN patterns
+    const lines = formatted.split('\n');
+    let indentLevel = 0;
+    const indented = lines.map(line => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith(')') || trimmed.startsWith('RETURN')) {
+            indentLevel = Math.max(0, indentLevel - 1);
+        }
+        const indentedLine = '    '.repeat(indentLevel) + trimmed;
+        if (trimmed.includes('(') && !trimmed.includes(')')) {
+            indentLevel++;
+        }
+        if (trimmed.startsWith('VAR ') || trimmed.startsWith('RETURN ')) {
+            indentLevel = Math.max(0, indentLevel - 1);
+        }
+        return indentedLine;
+    });
+    
+    return indented.join('\n');
+};
+
+const validateDAX = (code) => {
+    const errors = [];
+    const warnings = [];
+    
+    // Check for matching parentheses
+    const openParens = (code.match(/\(/g) || []).length;
+    const closeParens = (code.match(/\)/g) || []).length;
+    if (openParens !== closeParens) {
+        errors.push(`Mismatched parentheses: ${openParens} open, ${closeParens} close`);
+    }
+    
+    // Check for matching brackets
+    const openBrackets = (code.match(/\[/g) || []).length;
+    const closeBrackets = (code.match(/\]/g) || []).length;
+    if (openBrackets !== closeBrackets) {
+        errors.push(`Mismatched brackets: ${openBrackets} open, ${closeBrackets} close`);
+    }
+    
+    // Check for common issues
+    if (code.includes('=') && !code.includes(' = ')) {
+        warnings.push('Consider adding spaces around = operator');
+    }
+    
+    return { errors, warnings, isValid: errors.length === 0 };
+};
+
 const DAXLibrary = () => {
     const { addToast } = useToast();
     const [searchTerm, setSearchTerm] = useState('');
     const [copiedId, setCopiedId] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [daxInput, setDaxInput] = useState('');
+    const [showFormatter, setShowFormatter] = useState(false);
 
     useEffect(() => {
         // Simulate loading time for better UX
@@ -175,6 +236,9 @@ const DAXLibrary = () => {
         setTimeout(() => setCopiedId(null), 2000);
     };
 
+    const formattedDAX = daxInput ? formatDAX(daxInput) : '';
+    const validation = daxInput ? validateDAX(daxInput) : { errors: [], warnings: [], isValid: true };
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -182,6 +246,100 @@ const DAXLibrary = () => {
                     <h2 className="text-2xl font-bold text-slate-900">DAX Pattern Library</h2>
                     <p className="text-slate-600">HHS & WebFirst approved metrics and patterns.</p>
                 </div>
+                <button
+                    onClick={() => setShowFormatter(!showFormatter)}
+                    className={`btn-secondary whitespace-nowrap flex-shrink-0 text-xs sm:text-sm ${showFormatter ? 'bg-brand-600 text-white' : ''}`}
+                >
+                    <Code className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">{showFormatter ? 'Hide' : 'Show'} Formatter</span>
+                </button>
+            </div>
+
+            {/* DAX Formatter Section */}
+            {showFormatter && (
+                <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="card p-6 space-y-4"
+                >
+                    <div className="flex items-center gap-2 mb-4">
+                        <Code className="h-5 w-5 text-brand-600" />
+                        <h3 className="text-lg font-semibold text-slate-800">DAX Formatter & Validator</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-semibold text-slate-700 mb-2">Paste DAX Code</label>
+                            <textarea
+                                value={daxInput}
+                                onChange={(e) => setDaxInput(e.target.value)}
+                                placeholder="Paste your DAX code here..."
+                                className="w-full h-64 p-3 border border-slate-300 rounded-lg font-mono text-sm resize-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                            />
+                            <div className="flex gap-2 mt-2">
+                                <button
+                                    onClick={() => {
+                                        if (formattedDAX) {
+                                            navigator.clipboard.writeText(formattedDAX);
+                                            addToast('Formatted DAX copied!', 'success');
+                                        }
+                                    }}
+                                    disabled={!formattedDAX}
+                                    className="px-3 py-1 bg-brand-600 text-white rounded text-sm hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Copy Formatted
+                                </button>
+                                <button
+                                    onClick={() => setDaxInput('')}
+                                    className="px-3 py-1 bg-slate-200 text-slate-700 rounded text-sm hover:bg-slate-300"
+                                >
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-semibold text-slate-700 mb-2">Formatted Output</label>
+                            <div className="relative">
+                                <pre className="w-full h-64 p-3 border border-slate-300 rounded-lg bg-slate-50 font-mono text-sm overflow-auto">
+                                    <code className="text-slate-700">{formattedDAX || 'Formatted code will appear here...'}</code>
+                                </pre>
+                            </div>
+                            {validation.errors.length > 0 && (
+                                <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded">
+                                    <div className="flex items-center gap-2 text-red-700 font-semibold mb-1">
+                                        <AlertCircle className="h-4 w-4" />
+                                        Errors Found:
+                                    </div>
+                                    <ul className="text-xs text-red-600 space-y-1">
+                                        {validation.errors.map((error, idx) => (
+                                            <li key={idx}>• {error}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                            {validation.warnings.length > 0 && (
+                                <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                                    <div className="flex items-center gap-2 text-yellow-700 font-semibold mb-1">
+                                        <AlertCircle className="h-4 w-4" />
+                                        Warnings:
+                                    </div>
+                                    <ul className="text-xs text-yellow-600 space-y-1">
+                                        {validation.warnings.map((warning, idx) => (
+                                            <li key={idx}>• {warning}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                            {validation.isValid && daxInput && validation.warnings.length === 0 && (
+                                <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded flex items-center gap-2 text-green-700">
+                                    <CheckCircle className="h-4 w-4" />
+                                    <span className="text-sm font-semibold">Code is valid!</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </motion.div>
+            )}
                 <div className="flex gap-2 sm:gap-3 w-full md:w-auto">
                     <div className="relative flex-1 md:w-64">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />

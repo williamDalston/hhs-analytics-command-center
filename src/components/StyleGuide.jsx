@@ -1,5 +1,5 @@
-import React from 'react';
-import { Ruler, Type, Download, Layout, ShieldCheck, Copy } from 'lucide-react';
+import React, { useState } from 'react';
+import { Ruler, Type, Download, Layout, ShieldCheck, Copy, Contrast, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
 
@@ -63,8 +63,45 @@ const allColors = [
     ...colorPalette.logo,
 ];
 
+// WCAG Contrast Calculation
+const getLuminance = (hex) => {
+    const rgb = hexToRgb(hex);
+    if (!rgb) return 0;
+    const [r, g, b] = [rgb.r, rgb.g, rgb.b].map(val => {
+        val = val / 255;
+        return val <= 0.03928 ? val / 12.92 : Math.pow((val + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+
+const hexToRgb = (hex) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+    } : null;
+};
+
+const calculateContrast = (color1, color2) => {
+    const lum1 = getLuminance(color1);
+    const lum2 = getLuminance(color2);
+    const lighter = Math.max(lum1, lum2);
+    const darker = Math.min(lum1, lum2);
+    return (lighter + 0.05) / (darker + 0.05);
+};
+
+const getContrastRating = (ratio) => {
+    if (ratio >= 7) return { level: 'AAA Large', pass: true, color: 'green' };
+    if (ratio >= 4.5) return { level: 'AA Normal', pass: true, color: 'green' };
+    if (ratio >= 3) return { level: 'AA Large', pass: true, color: 'yellow' };
+    return { level: 'Fail', pass: false, color: 'red' };
+};
+
 const StyleGuide = () => {
     const { addToast } = useToast();
+    const [contrastForeground, setContrastForeground] = useState('#1c1d1f');
+    const [contrastBackground, setContrastBackground] = useState('#f1f3f6');
 
     const copyColor = (hex, name) => {
         navigator.clipboard.writeText(hex);
@@ -316,6 +353,169 @@ const StyleGuide = () => {
                         <p className="text-xs text-slate-600">
                             <strong>What's included:</strong> 15 HHS brand colors, WCAG AA compliant contrast ratios, optimized visual styles for cards, KPIs, slicers, and semantic colors for good/bad/warning indicators.
                         </p>
+                    </div>
+                </div>
+            </section>
+
+            {/* Color Contrast Checker Section */}
+            <section className="space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+                    <Contrast className="h-5 w-5 text-brand-600" />
+                    <h3 className="text-lg font-semibold text-slate-800">WCAG Color Contrast Checker</h3>
+                </div>
+                <div className="card p-6 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-sm font-semibold text-slate-700 mb-2">Foreground Color</label>
+                            <div className="flex gap-3">
+                                <input
+                                    type="color"
+                                    value={contrastForeground}
+                                    onChange={(e) => setContrastForeground(e.target.value)}
+                                    className="h-12 w-20 rounded border-2 border-slate-300 cursor-pointer"
+                                />
+                                <input
+                                    type="text"
+                                    value={contrastForeground}
+                                    onChange={(e) => setContrastForeground(e.target.value)}
+                                    className="flex-1 px-3 py-2 border border-slate-300 rounded font-mono text-sm"
+                                    placeholder="#000000"
+                                />
+                                <button
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(contrastForeground);
+                                        addToast('Foreground color copied', 'success');
+                                    }}
+                                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded transition-colors"
+                                >
+                                    <Copy className="h-4 w-4" />
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-semibold text-slate-700 mb-2">Background Color</label>
+                            <div className="flex gap-3">
+                                <input
+                                    type="color"
+                                    value={contrastBackground}
+                                    onChange={(e) => setContrastBackground(e.target.value)}
+                                    className="h-12 w-20 rounded border-2 border-slate-300 cursor-pointer"
+                                />
+                                <input
+                                    type="text"
+                                    value={contrastBackground}
+                                    onChange={(e) => setContrastBackground(e.target.value)}
+                                    className="flex-1 px-3 py-2 border border-slate-300 rounded font-mono text-sm"
+                                    placeholder="#ffffff"
+                                />
+                                <button
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(contrastBackground);
+                                        addToast('Background color copied', 'success');
+                                    }}
+                                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded transition-colors"
+                                >
+                                    <Copy className="h-4 w-4" />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Preview */}
+                    <div className="p-6 rounded-lg border-2 border-slate-200" style={{ backgroundColor: contrastBackground }}>
+                        <p style={{ color: contrastForeground }} className="text-lg font-semibold">
+                            Sample Text Preview
+                        </p>
+                        <p style={{ color: contrastForeground }} className="text-sm mt-2">
+                            This is how your text will appear with these colors. Check the contrast ratio below to ensure accessibility compliance.
+                        </p>
+                    </div>
+
+                    {/* Contrast Results */}
+                    {(() => {
+                        const ratio = calculateContrast(contrastForeground, contrastBackground);
+                        const rating = getContrastRating(ratio);
+                        return (
+                            <div className={`p-4 rounded-lg border-2 ${
+                                rating.color === 'green' ? 'bg-green-50 border-green-200' :
+                                rating.color === 'yellow' ? 'bg-yellow-50 border-yellow-200' :
+                                'bg-red-50 border-red-200'
+                            }`}>
+                                <div className="flex items-center gap-3 mb-3">
+                                    {rating.pass ? (
+                                        <CheckCircle className={`h-6 w-6 ${
+                                            rating.color === 'green' ? 'text-green-600' : 'text-yellow-600'
+                                        }`} />
+                                    ) : (
+                                        <XCircle className="h-6 w-6 text-red-600" />
+                                    )}
+                                    <div>
+                                        <h4 className="font-bold text-slate-900">Contrast Ratio: {ratio.toFixed(2)}:1</h4>
+                                        <p className={`text-sm font-semibold ${
+                                            rating.color === 'green' ? 'text-green-700' :
+                                            rating.color === 'yellow' ? 'text-yellow-700' :
+                                            'text-red-700'
+                                        }`}>
+                                            {rating.level} {rating.pass ? '✓' : '✗'}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="space-y-2 text-sm text-slate-700">
+                                    <div className="flex justify-between">
+                                        <span>WCAG AA (Normal Text):</span>
+                                        <span className={ratio >= 4.5 ? 'text-green-600 font-semibold' : 'text-red-600'}>
+                                            {ratio >= 4.5 ? 'Pass (4.5:1 required)' : 'Fail'}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>WCAG AA (Large Text):</span>
+                                        <span className={ratio >= 3 ? 'text-green-600 font-semibold' : 'text-red-600'}>
+                                            {ratio >= 3 ? 'Pass (3:1 required)' : 'Fail'}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>WCAG AAA (Normal Text):</span>
+                                        <span className={ratio >= 7 ? 'text-green-600 font-semibold' : 'text-slate-500'}>
+                                            {ratio >= 7 ? 'Pass (7:1 required)' : 'Not met'}
+                                        </span>
+                                    </div>
+                                </div>
+                                {!rating.pass && (
+                                    <div className="mt-3 p-3 bg-white rounded border border-red-200">
+                                        <p className="text-xs text-red-700">
+                                            <AlertTriangle className="h-4 w-4 inline mr-1" />
+                                            This color combination does not meet WCAG accessibility standards. Consider using darker text or a lighter background.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })()}
+
+                    {/* Quick Color Picker from Palette */}
+                    <div>
+                        <p className="text-sm font-semibold text-slate-700 mb-3">Quick Pick from HHS Palette:</p>
+                        <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
+                            {allColors.slice(0, 16).map((color) => (
+                                <button
+                                    key={color.hex}
+                                    onClick={() => {
+                                        const isDark = getLuminance(color.hex) < 0.5;
+                                        if (isDark) {
+                                            setContrastForeground(color.hex);
+                                        } else {
+                                            setContrastBackground(color.hex);
+                                        }
+                                    }}
+                                    className={`h-10 rounded border-2 hover:scale-110 transition-transform ${
+                                        getLuminance(color.hex) < 0.5 ? 'border-slate-400' : 'border-slate-300'
+                                    }`}
+                                    style={{ backgroundColor: color.hex }}
+                                    title={color.name}
+                                />
+                            ))}
+                        </div>
+                        <p className="text-xs text-slate-500 mt-2">Click dark colors for foreground, light colors for background</p>
                     </div>
                 </div>
             </section>

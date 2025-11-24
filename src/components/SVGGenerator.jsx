@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Download, Layout, Palette, Settings, CheckCircle, Shield, Maximize2, Grid3x3, Columns3, Smartphone, Copy, Grid, Save, FolderOpen, HelpCircle, Image as ImageIcon } from 'lucide-react';
+import { Download, Layout, Palette, Settings, CheckCircle, Shield, Maximize2, Grid3x3, Columns3, Smartphone, Copy, Grid, Save, FolderOpen, HelpCircle, Image as ImageIcon, FileText } from 'lucide-react';
 
 // --- HHS Official Color Constants ---
 const HHS_COLORS = {
@@ -945,6 +945,184 @@ const SVGGenerator = () => {
         }
     };
 
+    const downloadReportSpec = () => {
+        const layout = generateLayout();
+        const spec = {
+            metadata: {
+                title: `HHS Power BI Report - ${layoutMode.charAt(0).toUpperCase() + layoutMode.slice(1)} Layout`,
+                generated: new Date().toISOString(),
+                version: '1.0',
+                layout: layoutMode,
+                dimensions: {
+                    width: config.width,
+                    height: config.height,
+                    aspectRatio: (config.width / config.height).toFixed(2)
+                }
+            },
+            branding: {
+                trustBar: {
+                    enabled: config.showTrustBar,
+                    height: config.trustBarHeight
+                },
+                header: {
+                    height: config.headerHeight,
+                    accentLine: config.showHeaderAccent,
+                    logo: {
+                        enabled: config.showLogo,
+                        areaWidth: config.logoAreaWidth,
+                        isSquare: config.logoIsSquare
+                    },
+                    title: {
+                        enabled: config.showTitle,
+                        height: config.titleHeight,
+                        position: config.titlePosition
+                    }
+                },
+                footer: {
+                    enabled: config.showFooter,
+                    height: config.footerHeight
+                },
+                colors: {
+                    background: config.bgHex,
+                    card: config.cardHex,
+                    accent: config.accentHex
+                }
+            },
+            layout: {
+                slicerZone: {
+                    enabled: config.showSlicerZone,
+                    height: config.slicerZoneHeight,
+                    backgroundOpacity: config.slicerZoneBgOpacity,
+                    showLabel: config.showSlicerZoneLabel
+                },
+                visualAreas: layout.map(item => ({
+                    type: item.type,
+                    x: item.x,
+                    y: item.y,
+                    width: item.w,
+                    height: item.h,
+                    label: item.label || `${item.type} area`
+                })),
+                grid: {
+                    spacing: config.gridSpacing,
+                    opacity: config.gridOpacity
+                }
+            },
+            powerBI: {
+                recommendations: {
+                    maxVisuals: 10,
+                    currentVisualCount: layout.filter(item => item.type === 'card' || item.type === 'main').length,
+                    warning: layout.filter(item => item.type === 'card' || item.type === 'main').length > 10
+                        ? 'Consider reducing visual count for better performance'
+                        : null
+                },
+                importInstructions: [
+                    '1. Export the SVG background from this tool',
+                    '2. In Power BI Desktop, go to Format → Page background',
+                    '3. Select "Image" and upload the exported SVG',
+                    '4. Set image fit to "Fit" or "Fill"',
+                    '5. Place visuals according to the coordinates in this spec'
+                ]
+            }
+        };
+
+        // Generate both JSON and Markdown versions
+        const jsonSpec = JSON.stringify(spec, null, 2);
+        const markdownSpec = `# ${spec.metadata.title}
+
+**Generated:** ${new Date(spec.metadata.generated).toLocaleString()}  
+**Layout Type:** ${spec.metadata.layout}  
+**Dimensions:** ${spec.metadata.dimensions.width} × ${spec.metadata.dimensions.height}px (${spec.metadata.dimensions.aspectRatio}:1)
+
+## Branding Configuration
+
+### Trust Bar
+- **Enabled:** ${spec.branding.trustBar.enabled ? 'Yes' : 'No'}
+- **Height:** ${spec.branding.trustBar.height}px
+
+### Header
+- **Height:** ${spec.branding.header.height}px
+- **Accent Line:** ${spec.branding.header.accentLine ? 'Yes' : 'No'}
+- **Logo:**
+  - Enabled: ${spec.branding.header.logo.enabled ? 'Yes' : 'No'}
+  - Area Width: ${spec.branding.header.logo.areaWidth}px
+  - Square: ${spec.branding.header.logo.isSquare ? 'Yes' : 'No'}
+- **Title:**
+  - Enabled: ${spec.branding.header.title.enabled ? 'Yes' : 'No'}
+  - Height: ${spec.branding.header.title.height}px
+  - Position: ${spec.branding.header.title.position}
+
+### Footer
+- **Enabled:** ${spec.branding.footer.enabled ? 'Yes' : 'No'}
+- **Height:** ${spec.branding.footer.height}px
+
+### Colors
+- **Background:** ${spec.branding.colors.background}
+- **Card:** ${spec.branding.colors.card}
+- **Accent:** ${spec.branding.colors.accent}
+
+## Layout Details
+
+### Slicer Zone
+- **Enabled:** ${spec.layout.slicerZone.enabled ? 'Yes' : 'No'}
+- **Height:** ${spec.layout.slicerZone.height}px
+- **Background Opacity:** ${spec.layout.slicerZone.backgroundOpacity}
+- **Show Label:** ${spec.layout.slicerZone.showLabel ? 'Yes' : 'No'}
+
+### Visual Areas
+
+${spec.layout.visualAreas.map((area, idx) => `
+**${idx + 1}. ${area.label}**
+- Type: ${area.type}
+- Position: (${area.x}, ${area.y})
+- Size: ${area.width} × ${area.height}px
+`).join('\n')}
+
+### Grid
+- **Spacing:** ${spec.layout.grid.spacing}px
+- **Opacity:** ${spec.layout.grid.opacity}
+
+## Power BI Recommendations
+
+- **Current Visual Count:** ${spec.powerBI.recommendations.currentVisualCount}
+- **Max Recommended:** ${spec.powerBI.recommendations.maxVisuals}
+${spec.powerBI.recommendations.warning ? `- ⚠️ **Warning:** ${spec.powerBI.recommendations.warning}` : ''}
+
+### Import Instructions
+
+${spec.powerBI.importInstructions.map(step => step).join('\n')}
+
+---
+
+*This specification was generated by the HHS Power BI Developer Command Center SVG Generator.*
+`;
+
+        // Download JSON
+        const jsonBlob = new Blob([jsonSpec], { type: 'application/json' });
+        const jsonUrl = URL.createObjectURL(jsonBlob);
+        const jsonLink = document.createElement('a');
+        jsonLink.href = jsonUrl;
+        const timestamp = new Date().toISOString().split('T')[0];
+        jsonLink.download = `HHS-Report-Spec-${layoutMode}-${config.width}x${config.height}-${timestamp}.json`;
+        document.body.appendChild(jsonLink);
+        jsonLink.click();
+        document.body.removeChild(jsonLink);
+        URL.revokeObjectURL(jsonUrl);
+
+        // Download Markdown
+        const mdBlob = new Blob([markdownSpec], { type: 'text/markdown' });
+        const mdUrl = URL.createObjectURL(mdBlob);
+        const mdLink = document.createElement('a');
+        mdLink.href = mdUrl;
+        mdLink.download = `HHS-Report-Spec-${layoutMode}-${config.width}x${config.height}-${timestamp}.md`;
+        document.body.appendChild(mdLink);
+        mdLink.click();
+        document.body.removeChild(mdLink);
+        URL.revokeObjectURL(mdUrl);
+
+        showToast("Report specification exported (JSON + Markdown)!");
+    };
+
     const saveTemplate = () => {
         try {
             const template = {
@@ -1871,7 +2049,7 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                             >
                                 <Download className="w-4 h-4" /> Export
                             </button>
-                            <div className="absolute right-0 top-full mt-1 w-32 bg-[#162e51] border border-[#3d4551] rounded shadow-xl z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+                            <div className="absolute right-0 top-full mt-1 w-40 bg-[#162e51] border border-[#3d4551] rounded shadow-xl z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
                                 <button
                                     onClick={downloadSVG}
                                     className="w-full text-left px-3 py-2 text-xs text-white hover:bg-[#1a4480] transition-colors flex items-center gap-2 border-b border-[#3d4551]"
@@ -1881,10 +2059,17 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                                 </button>
                                 <button
                                     onClick={downloadPNG}
-                                    className="w-full text-left px-3 py-2 text-xs text-white hover:bg-[#1a4480] transition-colors flex items-center gap-2"
+                                    className="w-full text-left px-3 py-2 text-xs text-white hover:bg-[#1a4480] transition-colors flex items-center gap-2 border-b border-[#3d4551]"
                                     aria-label="Download as PNG"
                                 >
                                     <ImageIcon className="w-3 h-3" /> PNG
+                                </button>
+                                <button
+                                    onClick={downloadReportSpec}
+                                    className="w-full text-left px-3 py-2 text-xs text-white hover:bg-[#1a4480] transition-colors flex items-center gap-2"
+                                    aria-label="Download Report Specification"
+                                >
+                                    <FileText className="w-3 h-3" /> Spec
                                 </button>
                             </div>
                         </div>
