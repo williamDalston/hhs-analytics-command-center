@@ -136,7 +136,7 @@ const SecureFilePortal = () => {
   // State
   const [activeTab, setActiveTab] = useState('messages');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [accessToken, setAccessToken] = useState('');
+  const [accessToken, setAccessToken] = useState('password');
   const [encryptionKey, setEncryptionKey] = useState(null);
   const [useCloudStorage, setUseCloudStorage] = useState(false);
   const [error, setError] = useState('');
@@ -216,7 +216,8 @@ const SecureFilePortal = () => {
   }, [accessToken, supabase, useCloudStorage]);
 
   const handleAuthenticate = useCallback(async (tokenToUse) => {
-    const token = tokenToUse || accessToken;
+    // Always use lowercase "password" as the token
+    const token = 'password';
     if (!token || token.length < 8) {
       setError('Token must be at least 8 characters');
       return;
@@ -271,7 +272,7 @@ const SecureFilePortal = () => {
     }
 
     if (tokenParam && tokenParam.length >= 8 && !isAuthenticated) {
-      setAccessToken(tokenParam);
+      setAccessToken('password');
       addToast('Token loaded from link. Click "Unlock Portal" to enter.', 'info');
     }
   }, [addToast, isAuthenticated]);
@@ -286,8 +287,8 @@ const SecureFilePortal = () => {
     if (typeof window === 'undefined') return;
     const storedToken = localStorage.getItem('portal_access_token');
     if (storedToken) {
-      setAccessToken(storedToken);
-      handleAuthenticate(storedToken);
+      setAccessToken('password');
+      handleAuthenticate('password');
     }
   }, [handleAuthenticate]);
 
@@ -584,7 +585,7 @@ const SecureFilePortal = () => {
   };
 
   const handleGenerateToken = () => {
-    const newToken = generateRandomToken();
+    const newToken = 'password';
     setAccessToken(newToken);
     setError('');
   };
@@ -619,11 +620,12 @@ const SecureFilePortal = () => {
               <div className="flex gap-2">
                 <input
                   type="password"
-                  value={accessToken}
-                  onChange={(e) => setAccessToken(e.target.value)}
+                  value="password"
+                  onChange={(e) => setAccessToken('password')}
                   className="input-field flex-1 text-base sm:text-lg tracking-widest"
-                  placeholder="Paste token here..."
+                  placeholder="Token is always 'password'"
                   onKeyDown={e => e.key === 'Enter' && handleAuthenticate()}
+                  readOnly
                 />
                 <button 
                   onClick={handleGenerateToken}
