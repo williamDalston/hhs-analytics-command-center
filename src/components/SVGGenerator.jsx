@@ -1432,15 +1432,18 @@ const SVGGenerator = () => {
                         {layoutMode === 'federal' && (
                             <div>
                                 <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
-                                    <span>Header Accent Line</span>
+                                    <span className="flex items-center gap-1">
+                                        <span>Yellow Header Line</span>
+                                        <span className="w-2 h-2 rounded-full bg-[#face00]"></span>
+                                    </span>
                                     <label className="relative inline-flex items-center cursor-pointer">
                                         <input type="checkbox" checked={config.showHeaderAccent} onChange={(e) => handleConfigChange('showHeaderAccent', e.target.checked)} className="sr-only peer" />
                                         <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
                                     </label>
                                 </div>
-                                {!config.showHeaderAccent && (
-                                    <p className="text-[10px] text-[#97d4ea] opacity-70">Yellow accent line at bottom of header bar</p>
-                                )}
+                                <p className="text-[10px] text-[#97d4ea] opacity-70">
+                                    {config.showHeaderAccent ? 'Yellow accent line visible at bottom of header' : 'Yellow accent line hidden'}
+                                </p>
                             </div>
                         )}
 
