@@ -54,6 +54,7 @@ const SVGGenerator = () => {
         trustBarHeight: 32,
         showLogo: true, // HHS Logo area
         logoAreaWidth: 200, // Width reserved for logo in header
+        showHeaderAccent: true, // Yellow accent line at bottom of header
         showTitle: false, // Dashboard title/header text area - default OFF (users add titles in Power BI)
         titleHeight: 60,
         titlePosition: 'top', // 'top' or 'header' - where title appears
@@ -684,8 +685,8 @@ const SVGGenerator = () => {
                 rects += `<rect x="0" y="${item.h - 1}" width="${item.w}" height="1" fill="${HHS_COLORS.base.light}" opacity="0.3" />`;
             }
             
-            // Header - add yellow accent line at bottom
-            if (isHeader) {
+            // Header - add yellow accent line at bottom (if enabled)
+            if (isHeader && config.showHeaderAccent) {
                 rects += `<rect x="0" y="${item.y + item.h - 4}" width="${item.w}" height="4" fill="${HHS_COLORS.secondary.DEFAULT}" />`;
             }
             
@@ -762,7 +763,7 @@ const SVGGenerator = () => {
         
         // Add visual count warning if enabled and count > 10
         const visualCount = items.filter(item => 
-            ['card', 'kpi', 'main', 'content', 'sidebar', 'nav', 'kpi-strip'].includes(item.type)
+            ['card', 'kpi', 'main', 'sidebar', 'nav', 'kpi-strip'].includes(item.type)
         ).length;
         
         if (config.showVisualCountWarning && visualCount > 10) {
@@ -962,6 +963,7 @@ const SVGGenerator = () => {
                                 trustBarHeight: 32,
                                 showLogo: true,
                                 logoAreaWidth: 200,
+                                showHeaderAccent: true,
                                 showTitle: false,
                                 titleHeight: 60,
                                 titlePosition: 'top',
@@ -1426,6 +1428,22 @@ const SVGGenerator = () => {
                             )}
                         </div>
 
+                        {/* Header Accent Line */}
+                        {layoutMode === 'federal' && (
+                            <div>
+                                <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
+                                    <span>Header Accent Line</span>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" checked={config.showHeaderAccent} onChange={(e) => handleConfigChange('showHeaderAccent', e.target.checked)} className="sr-only peer" />
+                                        <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
+                                    </label>
+                                </div>
+                                {!config.showHeaderAccent && (
+                                    <p className="text-[10px] text-[#97d4ea] opacity-70">Yellow accent line at bottom of header bar</p>
+                                )}
+                            </div>
+                        )}
+
                         {/* Title Area */}
                         <div>
                             <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
@@ -1636,7 +1654,7 @@ const SVGGenerator = () => {
                 
                 {/* Bottom Help Text */}
                 {(() => {
-                    const visualCount = items.filter(item => ['card', 'kpi', 'main', 'content', 'sidebar', 'nav', 'kpi-strip'].includes(item.type)).length;
+                    const visualCount = items.filter(item => ['card', 'kpi', 'main', 'sidebar', 'nav', 'kpi-strip'].includes(item.type)).length;
                     return (
                         <div className="absolute bottom-4 right-4 text-[10px] text-[#dfe1e2] bg-[#1c1d1f] p-2 rounded opacity-70 pointer-events-none max-w-xs">
                             <div className="font-semibold mb-1">Power BI Tips:</div>
