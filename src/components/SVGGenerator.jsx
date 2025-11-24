@@ -3553,7 +3553,6 @@ Example:
                         </div>
                     </div>
                 </div>
-                )}
 
             </div>
 
