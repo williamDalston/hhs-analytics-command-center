@@ -71,66 +71,46 @@ const StyleGuide = () => {
         addToast(`Copied ${name} (${hex}) to clipboard`, 'success');
     };
 
-    // Comprehensive HHS Power BI Theme
+    // Comprehensive HHS Power BI Theme - Valid JSON format for direct import
     const downloadPowerBITheme = () => {
         const theme = {
             "name": "HHS Official Theme",
-            "version": "1.0.0",
-            "description": "Official HHS.gov Power BI theme with brand colors, accessibility compliance, and best practices",
             "dataColors": [
-                "#005ea2",  // Primary Blue
-                "#1a4480",  // Primary Dark (Navy)
-                "#00bde3",  // Primary Vivid (Cyan)
-                "#face00",  // Secondary (Yellow)
-                "#00a398",  // Accent Cool
-                "#162e51",  // Primary Darker
-                "#97d4ea",  // Primary Light
-                "#d54309",  // Accent Warm Darker (for alerts/negative)
-                "#565c65",  // Base Dark
-                "#1dc2ae",  // Accent Cool
-                "#ccecf2",  // Primary Lighter
-                "#e5faff",  // Primary Lightest
-                "#185394",  // HHS Blue (Logo)
-                "#f3966d",  // Accent Warm
-                "#3d4551"   // Base Darker
+                "#005ea2",
+                "#1a4480",
+                "#00bde3",
+                "#face00",
+                "#00a398",
+                "#162e51",
+                "#97d4ea",
+                "#d54309",
+                "#565c65",
+                "#1dc2ae",
+                "#ccecf2",
+                "#e5faff",
+                "#185394",
+                "#f3966d",
+                "#3d4551"
             ],
             "background": "#f1f3f6",
             "foreground": "#1c1d1f",
-            "tableAccentColor": "#005ea2",
+            "tableAccent": "#005ea2",
             "visualStyles": {
                 "*": {
                     "*": {
-                        "background": [
-                            {
-                                "transparency": 0,
-                                "color": {
-                                    "solid": {
-                                        "color": "#ffffff"
-                                    }
-                                }
-                            }
-                        ],
-                        "border": [
-                            {
-                                "show": false
-                            }
-                        ],
                         "title": [
                             {
-                                "show": true,
                                 "fontColor": {
                                     "solid": {
                                         "color": "#162e51"
                                     }
                                 },
                                 "fontFamily": "Source Sans Pro",
-                                "fontSize": 14,
-                                "alignment": "left"
+                                "fontSize": 14
                             }
                         ],
-                        "dataLabels": [
+                        "label": [
                             {
-                                "show": true,
                                 "fontColor": {
                                     "solid": {
                                         "color": "#1c1d1f"
@@ -141,129 +121,13 @@ const StyleGuide = () => {
                             }
                         ]
                     }
-                },
-                "card": {
-                    "*": {
-                        "card": {
-                            "outline": "None",
-                            "outlineColor": {
-                                "solid": {
-                                    "color": "#dfe1e2"
-                                }
-                            },
-                            "backgroundColor": {
-                                "solid": {
-                                    "color": "#ffffff"
-                                }
-                            },
-                            "foregroundColor": {
-                                "solid": {
-                                    "color": "#1c1d1f"
-                                }
-                            },
-                            "fontFamily": "Source Sans Pro"
-                        }
-                    }
-                },
-                "kpi": {
-                    "*": {
-                        "kpiIndicator": {
-                            "fontFamily": "Source Sans Pro"
-                        }
-                    }
-                },
-                "slicer": {
-                    "*": {
-                        "general": {
-                            "outlineColor": {
-                                "solid": {
-                                    "color": "#dfe1e2"
-                                }
-                            },
-                            "selectedItemColor": {
-                                "solid": {
-                                    "color": "#005ea2"
-                                }
-                            },
-                            "fontColor": {
-                                "solid": {
-                                    "color": "#1c1d1f"
-                                }
-                            },
-                            "fontFamily": "Source Sans Pro"
-                        }
-                    }
-                },
-                "page": {
-                    "*": {
-                        "background": [
-                            {
-                                "transparency": 0,
-                                "color": {
-                                    "solid": {
-                                        "color": "#f1f3f6"
-                                    }
-                                }
-                            }
-                        ]
-                    }
-                }
-            },
-            "outspace": [
-                {
-                    "visualType": "slicer",
-                    "outspacePaneColor": {
-                        "solid": {
-                            "color": "#ffffff"
-                        }
-                    },
-                    "outspacePaneTextColor": {
-                        "solid": {
-                            "color": "#1c1d1f"
-                        }
-                    }
-                }
-            ],
-            "semanticColors": {
-                "primaryTextColor": {
-                    "solid": {
-                        "color": "#1c1d1f"
-                    }
-                },
-                "secondaryTextColor": {
-                    "solid": {
-                        "color": "#565c65"
-                    }
-                },
-                "emphasisColor": {
-                    "solid": {
-                        "color": "#005ea2"
-                    }
-                },
-                "goodColor": {
-                    "solid": {
-                        "color": "#00a398"
-                    }
-                },
-                "neutralColor": {
-                    "solid": {
-                        "color": "#dfe1e2"
-                    }
-                },
-                "warningColor": {
-                    "solid": {
-                        "color": "#face00"
-                    }
-                },
-                "badColor": {
-                    "solid": {
-                        "color": "#d54309"
-                    }
                 }
             }
         };
 
-        const blob = new Blob([JSON.stringify(theme, null, 2)], { type: 'application/json' });
+        // Ensure valid JSON (no comments, proper formatting)
+        const jsonString = JSON.stringify(theme, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
