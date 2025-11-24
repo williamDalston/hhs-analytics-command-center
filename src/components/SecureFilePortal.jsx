@@ -216,7 +216,7 @@ const SecureFilePortal = () => {
   }, [accessToken, supabase, useCloudStorage]);
 
   const handleAuthenticate = useCallback(async (tokenToUse) => {
-    // Always use lowercase "password" as the token
+    // Always use lowercase "password" as the token - no sharing needed
     const token = 'password';
     if (!token || token.length < 8) {
       setError('Token must be at least 8 characters');
@@ -237,7 +237,7 @@ const SecureFilePortal = () => {
       setError('Authentication failed');
       console.error('Authentication failed', err);
     }
-  }, [accessToken, loadData]);
+  }, [loadData]);
 
   // Scroll to bottom of messages
   useEffect(() => {
@@ -271,10 +271,7 @@ const SecureFilePortal = () => {
       setActiveTab(tab);
     }
 
-    if (tokenParam && tokenParam.length >= 8 && !isAuthenticated) {
-      setAccessToken('password');
-      addToast('Token loaded from link. Click "Unlock Portal" to enter.', 'info');
-    }
+    // No need to handle token params - auto-connect always
   }, [addToast, isAuthenticated]);
 
   // Check Supabase availability
@@ -282,14 +279,12 @@ const SecureFilePortal = () => {
     if (supabase) setUseCloudStorage(true);
   }, [supabase]);
 
-  // Initialize from LocalStorage
+  // Auto-authenticate on mount - no token sharing needed
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const storedToken = localStorage.getItem('portal_access_token');
-    if (storedToken) {
-      setAccessToken('password');
-      handleAuthenticate('password');
-    }
+    // Always use "password" token and auto-connect
+    setAccessToken('password');
+    handleAuthenticate('password');
   }, [handleAuthenticate]);
 
   // Auto-sync
@@ -584,79 +579,29 @@ const SecureFilePortal = () => {
     }
   };
 
-  const handleGenerateToken = () => {
-    const newToken = 'password';
-    setAccessToken(newToken);
-    setError('');
-  };
-
   const handleCopyInviteLink = () => {
-    const url = `${window.location.origin}${window.location.pathname}#/portal?token=${accessToken}`;
+    const url = `${window.location.origin}${window.location.pathname}#/portal`;
     navigator.clipboard.writeText(url);
-    addToast('Invite link copied! Send it to a colleague.', 'success');
+    addToast('Portal link copied! Anyone can open it to join.', 'success');
   };
 
   // --- Renders ---
 
+  // Show loading state while authenticating
   if (!isAuthenticated) {
     return (
       <div className="max-w-md mx-auto mt-10">
         <div className="card text-center p-8 space-y-6">
           <div className="flex justify-center">
-            <div className="h-16 w-16 bg-brand-100 rounded-full flex items-center justify-center">
+            <div className="h-16 w-16 bg-brand-100 rounded-full flex items-center justify-center animate-pulse">
               <Shield className="h-8 w-8 text-brand-600" />
             </div>
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-slate-900">Secure Access</h2>
+            <h2 className="text-2xl font-bold text-slate-900">Connecting...</h2>
             <p className="text-slate-600 mt-2">
-              Enter a room token to join a secure session.
+              Joining the secure room...
             </p>
-          </div>
-          
-          <div className="space-y-4 text-left">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Room Token</label>
-              <div className="flex gap-2">
-                <input
-                  type="password"
-                  value="password"
-                  onChange={(e) => setAccessToken('password')}
-                  className="input-field flex-1 text-base sm:text-lg tracking-widest"
-                  placeholder="Token is always 'password'"
-                  onKeyDown={e => e.key === 'Enter' && handleAuthenticate()}
-                  readOnly
-                />
-                <button 
-                  onClick={handleGenerateToken}
-                  className="p-3 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 transition-colors"
-                  title="Generate Random Token"
-                >
-                  <Shuffle className="h-5 w-5" />
-                </button>
-              </div>
-              <p className="text-xs text-slate-500 mt-2">
-                Don&apos;t have a token? Click the shuffle button to create a new secure room.
-              </p>
-            </div>
-            {error && (
-              <div className="p-3 bg-red-50 text-red-700 text-sm rounded-lg flex items-center gap-2">
-                <AlertCircle className="h-4 w-4" /> {error}
-              </div>
-            )}
-            <button onClick={() => handleAuthenticate()} className="btn-primary w-full py-3 font-bold text-lg shadow-md hover:shadow-lg transition-all">
-              Unlock Portal
-            </button>
-          </div>
-
-          <div className="pt-4 border-t border-slate-100">
-            <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
-              {useCloudStorage ? (
-                <><Cloud className="h-4 w-4 text-green-500" /> Cloud Sync Active</>
-              ) : (
-                <><HardDrive className="h-4 w-4 text-amber-500" /> Local Mode</>
-              )}
-            </div>
           </div>
         </div>
       </div>
@@ -691,12 +636,12 @@ const SecureFilePortal = () => {
           </div>
         </div>
         <div className="flex gap-2">
-          <button 
-            onClick={handleCopyInviteLink}
-            className="btn-secondary text-sm hidden lg:flex"
-          >
-            <LinkIcon className="h-4 w-4 mr-2" /> Invite
-          </button>
+              <button 
+                onClick={handleCopyInviteLink}
+                className="btn-secondary text-sm hidden lg:flex"
+              >
+                <LinkIcon className="h-4 w-4 mr-2" /> Copy Link
+              </button>
           <button onClick={logout} className="btn-secondary text-sm text-red-600 hover:bg-red-50 border-red-200">
             <Unlock className="h-4 w-4 mr-2" /> Leave
           </button>
@@ -758,14 +703,8 @@ const SecureFilePortal = () => {
                 </div>
                 <p className="font-medium text-slate-600">No messages yet</p>
                 <p className="text-sm text-slate-400 mt-1 max-w-xs text-center">
-                  Share this room&apos;s token with others to start chatting securely.
+                  Anyone who opens this portal will automatically see all messages.
                 </p>
-                <button 
-                  onClick={handleCopyInviteLink}
-                  className="mt-4 text-brand-600 text-sm font-medium hover:underline flex items-center gap-1"
-                >
-                  <LinkIcon className="h-3 w-3" /> Copy Invite Link
-                </button>
               </div>
             ) : (
               messages.map(msg => (
@@ -906,12 +845,9 @@ const SecureFilePortal = () => {
                <div className="text-center py-12 text-slate-400">
                  <File className="h-12 w-12 mx-auto mb-2 opacity-20" />
                  <p>No files shared yet</p>
-                 <button 
-                  onClick={handleCopyInviteLink}
-                  className="mt-2 text-brand-600 text-sm font-medium hover:underline inline-flex items-center gap-1"
-                >
-                  <LinkIcon className="h-3 w-3" /> Invite others to share
-                </button>
+                 <p className="text-sm text-slate-400 mt-2">
+                  Anyone who opens this portal can see and share files.
+                </p>
                </div>
              )}
            </div>
