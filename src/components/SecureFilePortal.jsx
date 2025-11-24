@@ -170,7 +170,8 @@ const SecureFilePortal = () => {
 
     if (!useCloudStorage || !supabase) {
       const localMessages = readLocalMessages(token);
-      setMessages(Array.isArray(localMessages) ? localMessages : []);
+      const validMessages = Array.isArray(localMessages) ? localMessages.filter(m => m && m.text) : [];
+      setMessages(validMessages);
       const localFiles = readLocalFiles(token);
       setFiles(Array.isArray(localFiles) ? localFiles : []);
       return;
@@ -205,12 +206,13 @@ const SecureFilePortal = () => {
 
     if (messageError) {
       console.error('Failed to load messages', messageError);
-    } else if (msgData) {
-      const mappedMsgs = msgData.map(m => ({
+      setMessages([]);
+    } else {
+      const mappedMsgs = (msgData || []).map(m => ({
         id: m.id,
-        text: m.message_text,
-        author: m.author,
-        timestamp: m.created_at
+        text: m.message_text || '',
+        author: m.author || 'User',
+        timestamp: m.created_at || new Date().toISOString()
       }));
       setMessages(mappedMsgs);
     }
@@ -249,8 +251,8 @@ const SecureFilePortal = () => {
 
   // Auto-focus message input when tab changes
   useEffect(() => {
-    if (activeTab === 'messages' && messageInputRef.current) {
-      messageInputRef.current.focus();
+    if (activeTab === 'messages' && messageContentRef.current) {
+      messageContentRef.current.focus();
     }
   }, [activeTab]);
 
@@ -284,18 +286,27 @@ const SecureFilePortal = () => {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     // Always use "password" token and auto-connect
-    setAccessToken('password');
-    handleAuthenticate('password');
-  }, [handleAuthenticate]);
+    const token = 'password';
+    setAccessToken(token);
+    handleAuthenticate(token);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
   // Auto-sync
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !accessToken) return;
+    // Load immediately
+    loadData();
+    // Then set up interval
     syncIntervalRef.current = setInterval(() => {
       loadData();
-    }, 5000); // 5s sync
-    return () => clearInterval(syncIntervalRef.current);
-  }, [isAuthenticated, encryptionKey, loadData]);
+    }, 3000); // 3s sync for faster updates
+    return () => {
+      if (syncIntervalRef.current) {
+        clearInterval(syncIntervalRef.current);
+      }
+    };
+  }, [isAuthenticated, accessToken, loadData]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -392,10 +403,35 @@ const SecureFilePortal = () => {
   }, []);
 
   const handleSendMessage = async () => {
-    const messageContent = messageContentRef.current 
-      ? messageContentRef.current.innerHTML.trim() 
+    // Get content from contentEditable div
+    let messageContent = '';
+    if (messageContentRef.current) {
+      const text = messageContentRef.current.textContent || messageContentRef.current.innerText || '';
+      const html = messageContentRef.current.innerHTML || '';
+      // Use HTML if it contains formatting (tables, etc.), otherwise use plain text
+      messageContent = (html.includes('<table') || html.includes('<TABLE') || html.includes('<br>') || html.includes('<p>'))
+        ? html.trim()
+        : text.trim();
+    } else {
+      messageContent = newMessage.trim();
+    }
+    
+    // Check if message is empty (accounting for HTML tags and empty divs)
+    const textOnly = messageContentRef.current 
+      ? (messageContentRef.current.textContent || messageContentRef.current.innerText || '').trim()
       : newMessage.trim();
-    if (!messageContent || !encryptionKey) return;
+    
+    // Also check for empty HTML tags like <div><br></div> or <p></p>
+    const isEmpty = !textOnly || 
+      (messageContentRef.current && (
+        messageContentRef.current.innerHTML === '' || 
+        messageContentRef.current.innerHTML === '<br>' ||
+        messageContentRef.current.innerHTML === '<div><br></div>' ||
+        messageContentRef.current.innerHTML === '<p></p>' ||
+        messageContentRef.current.innerHTML === '<div></div>'
+      ));
+    
+    if (isEmpty || !encryptionKey) return;
 
     const msg = {
       text: messageContent,
@@ -422,7 +458,12 @@ const SecureFilePortal = () => {
       if (messageContentRef.current) {
         messageContentRef.current.innerHTML = '';
       }
-      if (messageInputRef.current) messageInputRef.current.focus();
+      // Refocus after sending
+      setTimeout(() => {
+        if (messageContentRef.current) {
+          messageContentRef.current.focus();
+        }
+      }, 100);
     } catch (err) {
       addToast('Failed to send message', 'error');
       console.error('Failed to send message', err);
@@ -790,12 +831,13 @@ const SecureFilePortal = () => {
                      <div 
                        className="message-content text-slate-800"
                        dangerouslySetInnerHTML={{ 
-                         __html: msg.text.includes('<table') || msg.text.includes('<TABLE') 
+                         __html: (msg.text && (msg.text.includes('<table') || msg.text.includes('<TABLE')))
                            ? msg.text 
-                           : msg.text.replace(/\n/g, '<br>')
+                           : (msg.text || '').replace(/\n/g, '<br>')
                        }}
                        style={{
-                         wordBreak: 'break-word'
+                         wordBreak: 'break-word',
+                         whiteSpace: 'pre-wrap'
                        }}
                      />
                         <div className="flex items-center justify-between gap-4 mt-2">
@@ -839,6 +881,7 @@ const SecureFilePortal = () => {
                 <div
                   ref={messageContentRef}
                   contentEditable
+                  suppressContentEditableWarning
                   onInput={(e) => {
                     const content = e.currentTarget.innerHTML;
                     setNewMessage(content);
@@ -855,7 +898,8 @@ const SecureFilePortal = () => {
                   style={{
                     whiteSpace: 'pre-wrap',
                     wordBreak: 'break-word',
-                    outline: 'none'
+                    outline: 'none',
+                    minHeight: '60px'
                   }}
                 />
                 <style>{`
@@ -886,8 +930,8 @@ const SecureFilePortal = () => {
               </div>
               <button 
                 onClick={handleSendMessage}
-                disabled={!newMessage.trim()}
-                className="btn-primary self-end"
+                disabled={!encryptionKey}
+                className="btn-primary self-end disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send className="h-5 w-5" />
               </button>
