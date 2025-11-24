@@ -54,6 +54,7 @@ const SVGGenerator = () => {
         trustBarHeight: 32,
         showLogo: true, // HHS Logo area
         logoAreaWidth: 200, // Width reserved for logo in header
+        logoIsSquare: true, // HHS logo is square-shaped, not rectangular
         showHeaderAccent: true, // Yellow accent line at bottom of header
         showTitle: false, // Dashboard title/header text area - default OFF (users add titles in Power BI)
         titleHeight: 60,
@@ -86,6 +87,7 @@ const SVGGenerator = () => {
     const [showGrid, setShowGrid] = useState(false);
     const [showImportGuide, setShowImportGuide] = useState(false);
     const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
+    const [showColorGuide, setShowColorGuide] = useState(false);
 
     // --- Canvas Size Presets ---
     const applyCanvasPreset = (preset) => {
@@ -114,7 +116,7 @@ const SVGGenerator = () => {
 
     // --- Layout Generator Engine ---
     const generateLayout = useCallback(() => {
-        const { width, height, gap, padding, headerHeight, footerHeight, kpiCount, showFooter, showTrustBar, trustBarHeight, showLogo, logoAreaWidth, showTitle, titleHeight, titlePosition, showSlicerZone, slicerZoneHeight, federalRows, federalColumns, federalSidebarWidth, showFederalSidebar, sidebarLayoutWidth, sidebarVisualCount, sidebarColumns, gridRows, gridColumns, kpiVisualCount, kpiColumns, threeColVisualCount, asymmetricSideCount, mobileVisualCount } = config;
+        const { width, height, gap, padding, headerHeight, footerHeight, kpiCount, showFooter, showTrustBar, trustBarHeight, showLogo, logoAreaWidth, logoIsSquare, showTitle, titleHeight, titlePosition, showSlicerZone, slicerZoneHeight, federalRows, federalColumns, federalSidebarWidth, showFederalSidebar, sidebarLayoutWidth, sidebarVisualCount, sidebarColumns, gridRows, gridColumns, kpiVisualCount, kpiColumns, threeColVisualCount, asymmetricSideCount, mobileVisualCount } = config;
         const effW = width - (padding * 2);
         let effH = height - (padding * 2);
         let yOffset = 0;
@@ -152,13 +154,14 @@ const SVGGenerator = () => {
             const headerY = yOffset;
             newItems.push({ x: 0, y: headerY, w: width, h: navH, type: 'header', fill: HHS_COLORS.primary.darker });
             
-            // Logo area (left side of header)
+            // Logo area (left side of header) - HHS logo is square
             if (showLogo) {
+                const logoSize = config.logoIsSquare ? Math.min(logoAreaWidth, 60) : 60;
                 newItems.push({ 
                     x: padding, 
-                    y: headerY + (navH - 60) / 2, 
-                    w: logoAreaWidth, 
-                    h: 60, 
+                    y: headerY + (navH - logoSize) / 2, 
+                    w: logoSize, 
+                    h: logoSize, 
                     type: 'logo', 
                     fill: 'transparent' 
                 });
@@ -698,9 +701,9 @@ const SVGGenerator = () => {
                 rects += `<rect x="0" y="${item.y}" width="${item.w}" height="2" fill="${HHS_COLORS.base.light}" opacity="0.5" />`;
             }
             
-            // Logo area - add subtle background and border to show placement
+            // Logo area - square indicator for HHS logo placement
             if (isLogo) {
-                // Subtle background
+                // Subtle background (square)
                 rects += `<rect 
                     x="${item.x}" 
                     y="${item.y}" 
@@ -709,7 +712,7 @@ const SVGGenerator = () => {
                     fill="${HHS_COLORS.primary.DEFAULT}"
                     opacity="0.05"
                 />`;
-                // Border
+                // Square border (dashed)
                 rects += `<rect 
                     x="${item.x}" 
                     y="${item.y}" 
@@ -721,6 +724,19 @@ const SVGGenerator = () => {
                     stroke-dasharray="6,4"
                     opacity="0.4"
                 />`;
+                // Helper text
+                if (config.showLogo) {
+                    rects += `<text 
+                        x="${item.x + item.w / 2}" 
+                        y="${item.y + item.h / 2}" 
+                        font-family="Arial, sans-serif" 
+                        font-size="10" 
+                        fill="${HHS_COLORS.primary.DEFAULT}"
+                        opacity="0.5"
+                        text-anchor="middle"
+                        dominant-baseline="middle"
+                    >HHS Logo</text>`;
+                }
             }
             
             // Title area - add subtle dashed border to show placement (only if enabled)
@@ -1140,6 +1156,7 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                                 trustBarHeight: 32,
                                 showLogo: true,
                                 logoAreaWidth: 200,
+                                logoIsSquare: true,
                                 showHeaderAccent: true,
                                 showTitle: false,
                                 titleHeight: 60,
@@ -1596,14 +1613,26 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                                 </label>
                             </div>
                             {config.showLogo && layoutMode === 'federal' && (
-                                <div>
-                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                        <span>Logo Width</span>
-                                        <span>{config.logoAreaWidth}px</span>
+                                <>
+                                    <div>
+                                        <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                            <span>Logo Size</span>
+                                            <span>{config.logoIsSquare ? Math.min(config.logoAreaWidth, 60) : config.logoAreaWidth}px</span>
+                                        </div>
+                                        <input type="range" min="40" max="120" value={config.logoAreaWidth} onChange={(e) => handleConfigChange('logoAreaWidth', Number(e.target.value))} className="input-range w-full" />
+                                        <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">HHS logo is square-shaped (shown as square indicator)</p>
                                     </div>
-                                    <input type="range" min="120" max="400" value={config.logoAreaWidth} onChange={(e) => handleConfigChange('logoAreaWidth', Number(e.target.value))} className="input-range w-full" />
-                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Shows where to place HHS logo in header</p>
-                                </div>
+                                    <div className="mt-2">
+                                        <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
+                                            <span>Square Shape</span>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" checked={config.logoIsSquare !== false} onChange={(e) => handleConfigChange('logoIsSquare', e.target.checked)} className="sr-only peer" />
+                                                <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
+                                            </label>
+                                        </div>
+                                        <p className="text-[10px] text-[#97d4ea] opacity-70">HHS logo is square (recommended: ON)</p>
+                                    </div>
+                                </>
                             )}
                         </div>
 
@@ -1806,6 +1835,14 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                             ⌨️
                         </button>
                         <button
+                            onClick={() => setShowColorGuide(true)}
+                            className="p-2 rounded bg-[#3d4551] hover:bg-[#565c65] text-white transition-colors"
+                            title="Data Visualization Color Guide"
+                            aria-label="Show color guide for charts"
+                        >
+                            <Palette className="w-4 h-4" />
+                        </button>
+                        <button
                             onClick={() => setShowImportGuide(true)}
                             className="p-2 rounded bg-[#3d4551] hover:bg-[#565c65] text-white transition-colors"
                             title="Power BI Import Guide"
@@ -1969,6 +2006,144 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                                     onClick={() => setShowImportGuide(false)}
                                     className="px-4 py-2 bg-[#005ea2] hover:bg-[#00bde3] text-white rounded font-semibold transition-colors"
                                     aria-label="Close import guide"
+                                >
+                                    Got it!
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Color Guide Modal */}
+                {showColorGuide && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-[#162e51] border border-[#3d4551] rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+                            <div className="p-6 border-b border-[#3d4551] flex items-center justify-between">
+                                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                    <Palette className="w-6 h-6 text-[#face00]" />
+                                    Data Visualization Color Guide
+                                </h3>
+                                <button
+                                    onClick={() => setShowColorGuide(false)}
+                                    className="text-[#97d4ea] hover:text-white transition-colors"
+                                    aria-label="Close color guide"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                            <div className="p-6 space-y-6 text-[#dfe1e2] text-sm">
+                                <div>
+                                    <h4 className="font-bold text-white mb-3">HHS Brand Color Palette</h4>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                        <div className="bg-[#005ea2] p-3 rounded text-white text-xs">
+                                            <div className="font-bold mb-1">Primary Blue</div>
+                                            <div className="font-mono">#005EA2</div>
+                                            <div className="text-[10px] opacity-80 mt-1">Main brand color</div>
+                                        </div>
+                                        <div className="bg-[#1a4480] p-3 rounded text-white text-xs">
+                                            <div className="font-bold mb-1">Navy</div>
+                                            <div className="font-mono">#1A4480</div>
+                                            <div className="text-[10px] opacity-80 mt-1">Header/dark</div>
+                                        </div>
+                                        <div className="bg-[#face00] p-3 rounded text-[#162e51] text-xs">
+                                            <div className="font-bold mb-1">Yellow</div>
+                                            <div className="font-mono">#FACE00</div>
+                                            <div className="text-[10px] opacity-80 mt-1">Accent/highlight</div>
+                                        </div>
+                                        <div className="bg-[#00bde3] p-3 rounded text-white text-xs">
+                                            <div className="font-bold mb-1">Cyan</div>
+                                            <div className="font-mono">#00BDE3</div>
+                                            <div className="text-[10px] opacity-80 mt-1">Secondary accent</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-white mb-3">Recommended Chart Color Schemes</h4>
+                                    
+                                    <div className="space-y-4">
+                                        <div className="bg-[#1a4480] p-4 rounded border border-[#3d4551]">
+                                            <div className="font-semibold text-white mb-2">✅ Column/Bar Charts (Sequential Data)</div>
+                                            <div className="grid grid-cols-5 gap-2 mb-2">
+                                                <div className="h-8 bg-[#005ea2] rounded"></div>
+                                                <div className="h-8 bg-[#1a4480] rounded"></div>
+                                                <div className="h-8 bg-[#00bde3] rounded"></div>
+                                                <div className="h-8 bg-[#face00] rounded"></div>
+                                                <div className="h-8 bg-[#565c65] rounded"></div>
+                                            </div>
+                                            <p className="text-xs opacity-80">Use primary blue → navy → cyan for related categories. Yellow for highlights/outliers.</p>
+                                        </div>
+
+                                        <div className="bg-[#1a4480] p-4 rounded border border-[#3d4551]">
+                                            <div className="font-semibold text-white mb-2">✅ Line Charts (Time Series)</div>
+                                            <div className="grid grid-cols-4 gap-2 mb-2">
+                                                <div className="h-8 bg-[#005ea2] rounded"></div>
+                                                <div className="h-8 bg-[#00bde3] rounded"></div>
+                                                <div className="h-8 bg-[#face00] rounded"></div>
+                                                <div className="h-8 bg-[#d54309] rounded"></div>
+                                            </div>
+                                            <p className="text-xs opacity-80">Primary blue for main metric, cyan for secondary, yellow for comparison, red for alerts.</p>
+                                        </div>
+
+                                        <div className="bg-[#1a4480] p-4 rounded border border-[#3d4551]">
+                                            <div className="font-semibold text-white mb-2">✅ Pie/Donut Charts (Categorical)</div>
+                                            <div className="grid grid-cols-6 gap-2 mb-2">
+                                                <div className="h-8 bg-[#005ea2] rounded"></div>
+                                                <div className="h-8 bg-[#1a4480] rounded"></div>
+                                                <div className="h-8 bg-[#00bde3] rounded"></div>
+                                                <div className="h-8 bg-[#face00] rounded"></div>
+                                                <div className="h-8 bg-[#00a398] rounded"></div>
+                                                <div className="h-8 bg-[#565c65] rounded"></div>
+                                            </div>
+                                            <p className="text-xs opacity-80">Limit to 5-6 categories max. Use distinct HHS colors for contrast.</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-white mb-3">Contrast & Accessibility</h4>
+                                    <div className="bg-[#1a4480] p-4 rounded border border-[#3d4551] space-y-2 text-xs">
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-3 h-3 rounded bg-green-500"></span>
+                                            <span><strong>WCAG AA Compliant:</strong> Primary blue (#005EA2) on white = 4.8:1 ✓</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-3 h-3 rounded bg-green-500"></span>
+                                            <span><strong>Yellow Accent:</strong> Use sparingly for highlights (low contrast on white)</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-3 h-3 rounded bg-yellow-500"></span>
+                                            <span><strong>Text on Yellow:</strong> Use dark navy (#162e51) for readability</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-3 h-3 rounded bg-green-500"></span>
+                                            <span><strong>Data Labels:</strong> Use dark colors (#1c1d1f or #162e51) on light backgrounds</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-white mb-3">Power BI Color Theme Setup</h4>
+                                    <div className="bg-[#1a4480] p-4 rounded border border-[#3d4551]">
+                                        <p className="text-xs mb-2">To apply HHS colors in Power BI:</p>
+                                        <ol className="list-decimal list-inside space-y-1 text-xs ml-2">
+                                            <li>Go to <strong>View → Themes → Customize current theme</strong></li>
+                                            <li>Set <strong>Data colors</strong> to: #005EA2, #1A4480, #00BDE3, #FACE00, #00A398</li>
+                                            <li>Set <strong>Background</strong> to: #F1F3F6 (matches canvas)</li>
+                                            <li>Set <strong>Visual header</strong> to: #005EA2</li>
+                                        </ol>
+                                    </div>
+                                </div>
+
+                                <div className="bg-[#face00] p-4 rounded border border-[#e5a000]">
+                                    <p className="text-[#162e51] font-semibold mb-1">💡 Pro Tip:</p>
+                                    <p className="text-[#162e51] text-xs">For multi-series charts, use blue shades for primary data, cyan for secondary, and yellow only for key highlights or comparisons. Avoid using yellow for large areas or text.</p>
+                                </div>
+                            </div>
+                            <div className="p-6 border-t border-[#3d4551] flex justify-end">
+                                <button
+                                    onClick={() => setShowColorGuide(false)}
+                                    className="px-4 py-2 bg-[#005ea2] hover:bg-[#00bde3] text-white rounded font-semibold transition-colors"
                                 >
                                     Got it!
                                 </button>
