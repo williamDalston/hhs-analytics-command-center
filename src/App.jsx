@@ -1,6 +1,6 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Code, Ruler, Flag, Layers, Shield, Sparkles, FileText, Upload, X, MessageSquare, Share2, Moon, Sun, Menu, ChevronLeft } from 'lucide-react';
+import { LayoutDashboard, Code, Ruler, Flag, Layers, Shield, Sparkles, FileText, Upload, X, MessageSquare, Share2, Moon, Sun, Menu, ChevronLeft, Image } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
@@ -11,6 +11,7 @@ const StyleGuide = lazy(() => import('./components/StyleGuide'));
 const PrototypeBuilder = lazy(() => import('./components/PrototypeBuilder'));
 const SecureFilePortal = lazy(() => import('./components/SecureFilePortal'));
 const PowerBIGuru = lazy(() => import('./components/PowerBIGuru'));
+const SVGGenerator = lazy(() => import('./components/SVGGenerator'));
 
 // Global Search/Command Palette
 const CommandPalette = ({ isOpen, onClose }) => {
@@ -25,6 +26,7 @@ const CommandPalette = ({ isOpen, onClose }) => {
     { label: 'Style Guide', path: '/style-guide', icon: Ruler, shortcut: '⌘4' },
     { label: 'Secure Portal', path: '/portal', icon: Shield, shortcut: '⌘5' },
     { label: 'Power BI Guru', path: '/guru', icon: Sparkles, shortcut: '⌘6' },
+    { label: 'SVG Generator', path: '/svg-generator', icon: Image, shortcut: '⌘7' },
   ];
 
   const filteredCommands = commands.filter(cmd =>
@@ -319,6 +321,7 @@ const Sidebar = ({ onDataManagerOpen }) => {
         <SidebarItem icon={Shield} label="Secure Portal" path="/portal" shortcut="⌘4" />
         <SidebarItem icon={Sparkles} label="Power BI Guru" path="/guru" shortcut="⌘5" />
         <SidebarItem icon={Ruler} label="Style Guide" path="/style-guide" shortcut="⌘6" />
+        <SidebarItem icon={Image} label="SVG Generator" path="/svg-generator" shortcut="⌘7" />
       </nav>
 
 
@@ -341,7 +344,7 @@ const Sidebar = ({ onDataManagerOpen }) => {
           <div className="flex items-center gap-2">
             <button
               onClick={() => alert(`Keyboard Shortcuts:
-• Cmd/Ctrl+1-6: Navigate to sections
+• Cmd/Ctrl+1-7: Navigate to sections
 • Cmd/Ctrl+K: Search/Command palette (coming soon)
 • ?: Show this help`)}
               className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-white text-xs"
@@ -497,6 +500,10 @@ const AnimatedRoutes = ({ onCommandPaletteOpen }) => {
             event.preventDefault();
             navigate('/guru');
             break;
+          case '7':
+            event.preventDefault();
+            navigate('/svg-generator');
+            break;
           case 'k':
             event.preventDefault();
             onCommandPaletteOpen();
@@ -509,7 +516,7 @@ const AnimatedRoutes = ({ onCommandPaletteOpen }) => {
         event.preventDefault();
         // Could show keyboard shortcuts help
         alert(`Keyboard Shortcuts:
-• Cmd/Ctrl+1-6: Navigate to sections
+• Cmd/Ctrl+1-7: Navigate to sections
 • Cmd/Ctrl+K: Search/Command palette (coming soon)
 • ?: Show this help`);
       }
@@ -533,6 +540,7 @@ const AnimatedRoutes = ({ onCommandPaletteOpen }) => {
           <Route path="/style-guide" element={<PageTransition><StyleGuide /></PageTransition>} />
           <Route path="/portal" element={<PageTransition><SecureFilePortal /></PageTransition>} />
           <Route path="/guru" element={<PageTransition><PowerBIGuru /></PageTransition>} />
+          <Route path="/svg-generator" element={<PageTransition><SVGGenerator /></PageTransition>} />
         </Routes>
       </Suspense>
     </AnimatePresence>

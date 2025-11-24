@@ -1,0 +1,1086 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { Download, Layout, Palette, Settings, CheckCircle, Shield, Maximize2, Grid3x3, Columns3, Smartphone, Copy, Grid, Save, FolderOpen, HelpCircle, Image as ImageIcon } from 'lucide-react';
+
+// --- HHS Official Color Constants ---
+const HHS_COLORS = {
+    primary: {
+        DEFAULT: '#005ea2',
+        lightest: '#e5faff',
+        lighter: '#ccecf2',
+        dark: '#1a4480',
+        darker: '#162e51',
+        vivid: '#00bde3'
+    },
+    secondary: {
+        DEFAULT: '#face00',
+        lighter: '#fff5c2',
+        dark: '#e5a000'
+    },
+    base: {
+        lightest: '#fbfcfd',
+        lighter: '#f1f3f6',
+        light: '#dfe1e2',
+        dark: '#565c65',
+        darkest: '#1c1d1f'
+    },
+    accent: {
+        warm: '#d54309',
+        cool: '#00a398'
+    }
+};
+
+const SVGGenerator = () => {
+    // --- State ---
+    const [layoutMode, setLayoutMode] = useState('federal'); // federal, sidebar, grid, kpi, three-col, asymmetric, mobile
+    const [themeMode, setThemeMode] = useState('standard'); // standard, executive, frosted
+    const [canvasPreset, setCanvasPreset] = useState('16:9'); // 16:9, 4:3, custom, mobile
+    const [config, setConfig] = useState({
+        width: 1280,
+        height: 720,
+        bgHex: HHS_COLORS.base.lighter, // #f1f3f6
+        cardHex: '#ffffff',
+        accentHex: HHS_COLORS.primary.DEFAULT, // #005ea2
+        gap: 16,
+        padding: 20,
+        radius: 8, // Sharper corners for Gov
+        strokeWidth: 0,
+        opacity: 1,
+        noise: false,
+        headerHeight: 88,
+        footerHeight: 0, // For disclaimers/branding
+        kpiCount: 5, // Customizable KPI count
+        showFooter: false,
+        showTrustBar: true, // "An official website of the United States government"
+        trustBarHeight: 32,
+        showLogo: true, // HHS Logo area
+        logoAreaWidth: 200, // Width reserved for logo in header
+        showTitle: true, // Dashboard title/header text area
+        titleHeight: 60
+    });
+
+    const [items, setItems] = useState([]);
+    const [toast, setToast] = useState(null);
+    const [showGrid, setShowGrid] = useState(false);
+    const [showImportGuide, setShowImportGuide] = useState(false);
+
+    // --- Canvas Size Presets ---
+    const applyCanvasPreset = (preset) => {
+        setCanvasPreset(preset);
+        switch(preset) {
+            case '16:9':
+                setConfig(prev => ({ ...prev, width: 1280, height: 720 }));
+                break;
+            case '4:3':
+                setConfig(prev => ({ ...prev, width: 1024, height: 768 }));
+                break;
+            case 'mobile':
+                setConfig(prev => ({ ...prev, width: 375, height: 812 }));
+                break;
+            case 'custom':
+                // Keep current dimensions
+                break;
+        }
+    };
+
+    // --- Layout Generator Engine ---
+    const generateLayout = useCallback(() => {
+        const { width, height, gap, padding, headerHeight, footerHeight, kpiCount, showFooter, showTrustBar, trustBarHeight, showLogo, logoAreaWidth, showTitle, titleHeight } = config;
+        const effW = width - (padding * 2);
+        let effH = height - (padding * 2);
+        let yOffset = 0;
+        
+        // Trust Bar (if enabled) - Always at very top
+        if (showTrustBar) {
+            effH -= trustBarHeight + gap;
+            yOffset = trustBarHeight + gap;
+        }
+        
+        // Footer adjustment
+        if (showFooter && footerHeight > 0) {
+            effH = effH - footerHeight - gap;
+        }
+        
+        let newItems = [];
+
+        // Trust Bar (if enabled)
+        if (showTrustBar) {
+            newItems.push({ 
+                x: 0, 
+                y: 0, 
+                w: width, 
+                h: trustBarHeight, 
+                type: 'trustbar', 
+                fill: HHS_COLORS.base.lightest 
+            });
+        }
+
+        const navH = headerHeight; 
+        const footerH = showFooter ? footerHeight : 0;
+
+        if (layoutMode === 'federal') {
+            // HHS Standard: Top Dark Bar (Nav), White Content Area
+            const headerY = yOffset;
+            newItems.push({ x: 0, y: headerY, w: width, h: navH, type: 'header', fill: HHS_COLORS.primary.darker });
+            
+            // Logo area (left side of header)
+            if (showLogo) {
+                newItems.push({ 
+                    x: padding, 
+                    y: headerY + (navH - 60) / 2, 
+                    w: logoAreaWidth, 
+                    h: 60, 
+                    type: 'logo', 
+                    fill: 'transparent' 
+                });
+            }
+            
+            // Title area (right side of header, if enabled)
+            if (showTitle) {
+                const titleX = showLogo ? padding + logoAreaWidth + gap : padding;
+                const titleW = width - titleX - padding;
+                newItems.push({ 
+                    x: titleX, 
+                    y: headerY + (navH - titleHeight) / 2, 
+                    w: titleW, 
+                    h: titleHeight, 
+                    type: 'title', 
+                    fill: 'transparent' 
+                });
+            }
+            
+            const contentStartY = headerY + navH + (padding/2);
+            const contentH = height - contentStartY - (showFooter ? footerH + gap : 0) - padding;
+            
+            // Left Card (e.g., filters/slicers)
+            newItems.push({ x: padding, y: contentStartY, w: 280, h: contentH - padding, type: 'sidebar' });
+            // Right Card (Main Content)
+            newItems.push({ x: padding + 280 + gap, y: contentStartY, w: effW - 280 - gap, h: contentH - padding, type: 'content' });
+
+        } else if (layoutMode === 'sidebar') {
+            // Classic Dashboard Sidebar
+            let contentY = padding + yOffset;
+            
+            // Title area (if enabled)
+            if (showTitle) {
+                newItems.push({ 
+                    x: padding, 
+                    y: contentY, 
+                    w: effW, 
+                    h: titleHeight, 
+                    type: 'title', 
+                    fill: 'transparent' 
+                });
+                contentY += titleHeight + gap;
+            }
+            
+            const sideW = 260;
+            const mainW = effW - sideW - gap;
+            const availableH = effH - (showTitle ? titleHeight + gap : 0);
+            
+            newItems.push({ x: padding, y: contentY, w: sideW, h: availableH, type: 'nav' });
+            
+            const kpiH = 110;
+            const rowH = availableH - kpiH - gap;
+            
+            newItems.push({ x: padding + sideW + gap, y: contentY, w: mainW, h: kpiH, type: 'kpi-strip' });
+            newItems.push({ x: padding + sideW + gap, y: contentY + kpiH + gap, w: mainW, h: rowH, type: 'main' });
+
+        } else if (layoutMode === 'grid') {
+            // 2x2 Balanced Grid
+            let contentY = padding + yOffset;
+            
+            // Title area (if enabled)
+            if (showTitle) {
+                newItems.push({ 
+                    x: padding, 
+                    y: contentY, 
+                    w: effW, 
+                    h: titleHeight, 
+                    type: 'title', 
+                    fill: 'transparent' 
+                });
+                contentY += titleHeight + gap;
+            }
+            
+            const colW = (effW - gap) / 2;
+            const availableH = effH - (showTitle ? titleHeight + gap : 0);
+            const rowH = (availableH - gap) / 2;
+            
+            newItems.push({ x: padding, y: contentY, w: colW, h: rowH, type: 'card' });
+            newItems.push({ x: padding + colW + gap, y: contentY, w: colW, h: rowH, type: 'card' });
+            newItems.push({ x: padding, y: contentY + rowH + gap, w: colW, h: rowH, type: 'card' });
+            newItems.push({ x: padding + colW + gap, y: contentY + rowH + gap, w: colW, h: rowH, type: 'card' });
+        } 
+        else if (layoutMode === 'kpi') {
+            // Top KPI Row (customizable count)
+            let contentY = padding + yOffset;
+            
+            // Title area (if enabled)
+            if (showTitle) {
+                newItems.push({ 
+                    x: padding, 
+                    y: contentY, 
+                    w: effW, 
+                    h: titleHeight, 
+                    type: 'title', 
+                    fill: 'transparent' 
+                });
+                contentY += titleHeight + gap;
+            }
+            
+            const kpiH = 100;
+            const kpiW = (effW - (gap * (kpiCount - 1))) / kpiCount;
+            const availableH = effH - (showTitle ? titleHeight + gap : 0);
+            
+            for(let i=0; i<kpiCount; i++) {
+                newItems.push({ x: padding + (i * (kpiW + gap)), y: contentY, w: kpiW, h: kpiH, type: 'kpi' });
+            }
+            
+            // Big bottom card
+            newItems.push({ x: padding, y: contentY + kpiH + gap, w: effW, h: availableH - kpiH - gap, type: 'main' });
+        }
+        else if (layoutMode === 'three-col') {
+            // 3-column layout (common for executive dashboards)
+            let contentY = padding + yOffset;
+            
+            // Title area (if enabled)
+            if (showTitle) {
+                newItems.push({ 
+                    x: padding, 
+                    y: contentY, 
+                    w: effW, 
+                    h: titleHeight, 
+                    type: 'title', 
+                    fill: 'transparent' 
+                });
+                contentY += titleHeight + gap;
+            }
+            
+            const colW = (effW - (gap * 2)) / 3;
+            
+            // Top KPI row (customizable count)
+            const kpiH = 90;
+            const kpiW = (effW - (gap * (kpiCount - 1))) / kpiCount;
+            const availableH = effH - (showTitle ? titleHeight + gap : 0);
+            
+            for(let i=0; i<kpiCount; i++) {
+                newItems.push({ x: padding + (i * (kpiW + gap)), y: contentY, w: kpiW, h: kpiH, type: 'kpi' });
+            }
+            
+            // Three columns below
+            const contentH = availableH - kpiH - gap;
+            newItems.push({ x: padding, y: contentY + kpiH + gap, w: colW, h: contentH, type: 'card' });
+            newItems.push({ x: padding + colW + gap, y: contentY + kpiH + gap, w: colW, h: contentH, type: 'card' });
+            newItems.push({ x: padding + (colW + gap) * 2, y: contentY + kpiH + gap, w: colW, h: contentH, type: 'card' });
+        }
+        else if (layoutMode === 'asymmetric') {
+            // Large main chart + smaller supporting visuals
+            let contentY = padding + yOffset;
+            
+            // Title area (if enabled)
+            if (showTitle) {
+                newItems.push({ 
+                    x: padding, 
+                    y: contentY, 
+                    w: effW, 
+                    h: titleHeight, 
+                    type: 'title', 
+                    fill: 'transparent' 
+                });
+                contentY += titleHeight + gap;
+            }
+            
+            const mainW = (effW * 0.65) - (gap / 2);
+            const sideW = (effW * 0.35) - (gap / 2);
+            
+            // Top KPIs (customizable count)
+            const kpiH = 100;
+            const kpiW = (effW - (gap * (kpiCount - 1))) / kpiCount;
+            const availableH = effH - (showTitle ? titleHeight + gap : 0);
+            
+            for(let i=0; i<kpiCount; i++) {
+                newItems.push({ x: padding + (i * (kpiW + gap)), y: contentY, w: kpiW, h: kpiH, type: 'kpi' });
+            }
+            
+            const contentH = availableH - kpiH - gap;
+            const sideH = (contentH - gap) / 2;
+            
+            // Large main chart (left)
+            newItems.push({ x: padding, y: contentY + kpiH + gap, w: mainW, h: contentH, type: 'main' });
+            
+            // Two smaller cards (right)
+            newItems.push({ x: padding + mainW + gap, y: contentY + kpiH + gap, w: sideW, h: sideH, type: 'card' });
+            newItems.push({ x: padding + mainW + gap, y: contentY + kpiH + gap + sideH + gap, w: sideW, h: sideH, type: 'card' });
+        }
+        else if (layoutMode === 'mobile') {
+            // Mobile-optimized vertical stack
+            let contentY = padding + yOffset;
+            
+            // Title area (if enabled) - smaller for mobile
+            if (showTitle) {
+                newItems.push({ 
+                    x: padding, 
+                    y: contentY, 
+                    w: effW, 
+                    h: titleHeight * 0.8, 
+                    type: 'title', 
+                    fill: 'transparent' 
+                });
+                contentY += (titleHeight * 0.8) + gap;
+            }
+            
+            const availableH = effH - (showTitle ? (titleHeight * 0.8) + gap : 0);
+            const cardH = (availableH - (gap * 2)) / 3;
+            
+            newItems.push({ x: padding, y: contentY, w: effW, h: cardH, type: 'kpi' });
+            newItems.push({ x: padding, y: contentY + cardH + gap, w: effW, h: cardH, type: 'card' });
+            newItems.push({ x: padding, y: contentY + (cardH + gap) * 2, w: effW, h: cardH, type: 'card' });
+        }
+
+        // Add footer if enabled
+        if (showFooter && footerHeight > 0) {
+            newItems.push({ 
+                x: 0, 
+                y: height - footerHeight, 
+                w: width, 
+                h: footerHeight, 
+                type: 'footer', 
+                fill: HHS_COLORS.base.light 
+            });
+        }
+
+        setItems(newItems);
+    }, [layoutMode, config]);
+
+    useEffect(() => {
+        generateLayout();
+    }, [generateLayout]);
+
+    const handleConfigChange = (key, val) => {
+        setConfig(prev => ({ ...prev, [key]: val }));
+    };
+
+    // --- HHS Preset Handler ---
+    const applyHHSPreset = (type) => {
+        if (type === 'official') {
+            setConfig(prev => ({
+                ...prev,
+                bgHex: HHS_COLORS.base.lighter, // #f1f3f6
+                cardHex: '#ffffff',
+                accentHex: HHS_COLORS.primary.DEFAULT, // #005ea2
+                radius: 4, // Official gov is often squarer
+                gap: 20,
+                padding: 24
+            }));
+            setThemeMode('standard');
+        } else if (type === 'dark_mode') {
+            setConfig(prev => ({
+                ...prev,
+                bgHex: HHS_COLORS.base.darkest, // #1c1d1f
+                cardHex: HHS_COLORS.base.dark, // #565c65
+                accentHex: HHS_COLORS.primary.vivid, // #00bde3
+                radius: 8
+            }));
+            setThemeMode('standard');
+        } else if (type === 'print') {
+            setConfig(prev => ({
+                ...prev,
+                bgHex: '#ffffff',
+                cardHex: '#ffffff',
+                accentHex: HHS_COLORS.base.dark,
+                strokeWidth: 2,
+                radius: 0,
+                gap: 10
+            }));
+            setThemeMode('standard');
+        }
+    };
+
+    // --- SVG Generation ---
+    const getSVGString = () => {
+        const { bgHex, cardHex, accentHex, radius, strokeWidth, width, height, noise } = config;
+
+        let defs = '';
+        let rects = '';
+        
+        // 1. Definitions (Filters)
+        if (themeMode === 'executive') {
+            // Professional Shadow
+             defs += `
+             <filter id="shadow-exec" x="-50%" y="-50%" width="200%" height="200%">
+                <feDropShadow dx="0" dy="2" stdDeviation="6" flood-color="#001a33" flood-opacity="0.12"/>
+             </filter>`;
+        } else if (themeMode === 'frosted') {
+             // Note: Real backdrop-blur in SVG is tricky without CSS, we simulate with opacity/white overlay
+        }
+
+        if (noise) {
+            defs += `<filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0" /><feComponentTransfer><feFuncA type="linear" slope="0.05" /></feComponentTransfer></filter>`;
+        }
+
+        // 2. Background
+        rects += `<rect width="100%" height="100%" fill="${bgHex}" />`;
+        if (noise) rects += `<rect width="100%" height="100%" filter="url(#noise)" opacity="1" pointer-events="none"/>`;
+
+        // 3. Items
+        items.forEach(item => {
+            const isHeader = item.type === 'header';
+            const isFooter = item.type === 'footer';
+            const isTrustBar = item.type === 'trustbar';
+            const isLogo = item.type === 'logo';
+            const isTitle = item.type === 'title';
+            
+            // Determine fill based on type
+            let fill;
+            if (isTrustBar) {
+                fill = item.fill || HHS_COLORS.base.lightest;
+            } else if (isHeader) {
+                fill = item.fill || HHS_COLORS.primary.darker;
+            } else if (isFooter) {
+                fill = item.fill || HHS_COLORS.base.light;
+            } else if (isLogo || isTitle) {
+                fill = 'transparent'; // These are placeholder areas
+            } else {
+                fill = themeMode === 'frosted' ? `${cardHex}CC` : cardHex;
+            }
+            
+            const stroke = strokeWidth > 0 && !isHeader && !isFooter && !isTrustBar && !isLogo && !isTitle ? accentHex : 'none';
+            const filter = themeMode === 'executive' && !isHeader && !isFooter && !isTrustBar && !isLogo && !isTitle ? 'url(#shadow-exec)' : 'none';
+            
+            // Special handling for header/footer/trustbar rounding
+            const finalRadius = (isHeader || isFooter || isTrustBar || isLogo || isTitle) ? 0 : radius;
+
+            // Only render visible elements (not transparent placeholders)
+            if (!isLogo && !isTitle) {
+                rects += `<rect 
+                    x="${item.x}" 
+                    y="${item.y}" 
+                    width="${item.w}" 
+                    height="${item.h}" 
+                    rx="${finalRadius}" 
+                    fill="${fill}"
+                    stroke="${stroke}"
+                    stroke-width="${(isHeader || isFooter || isTrustBar) ? 0 : strokeWidth}"
+                    filter="${filter}"
+                />`;
+            }
+            
+            // Trust bar - add subtle bottom border
+            if (isTrustBar) {
+                rects += `<rect x="0" y="${item.h - 1}" width="${item.w}" height="1" fill="${HHS_COLORS.base.light}" opacity="0.3" />`;
+            }
+            
+            // Header - add yellow accent line at bottom
+            if (isHeader) {
+                rects += `<rect x="0" y="${item.y + item.h - 4}" width="${item.w}" height="4" fill="${HHS_COLORS.secondary.DEFAULT}" />`;
+            }
+            
+            // Footer - add subtle top border
+            if (isFooter) {
+                rects += `<rect x="0" y="${item.y}" width="${item.w}" height="2" fill="${HHS_COLORS.base.light}" opacity="0.5" />`;
+            }
+            
+            // Logo area - add subtle dashed border to show placement
+            if (isLogo) {
+                rects += `<rect 
+                    x="${item.x}" 
+                    y="${item.y}" 
+                    width="${item.w}" 
+                    height="${item.h}" 
+                    fill="none"
+                    stroke="${HHS_COLORS.primary.DEFAULT}"
+                    stroke-width="1"
+                    stroke-dasharray="4,4"
+                    opacity="0.3"
+                />`;
+            }
+            
+            // Title area - add subtle dashed border to show placement
+            if (isTitle) {
+                rects += `<rect 
+                    x="${item.x}" 
+                    y="${item.y}" 
+                    width="${item.w}" 
+                    height="${item.h}" 
+                    fill="none"
+                    stroke="${HHS_COLORS.base.dark}"
+                    stroke-width="1"
+                    stroke-dasharray="2,2"
+                    opacity="0.2"
+                />`;
+            }
+        });
+
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
+            <defs>${defs}</defs>
+            ${rects}
+        </svg>`;
+    };
+
+    const copySVGToClipboard = async () => {
+        const svgString = getSVGString();
+        try {
+            await navigator.clipboard.writeText(svgString);
+            showToast("SVG Copied to Clipboard!");
+        } catch (err) {
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = svgString;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            showToast("SVG Copied to Clipboard!");
+        }
+    };
+
+    const downloadSVG = () => {
+        const svgString = getSVGString();
+        const blob = new Blob([svgString], { type: 'image/svg+xml' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `HHS-Background-${layoutMode}.svg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        showToast("SVG Exported! Ready for Power BI.");
+    };
+
+    const downloadPNG = async () => {
+        const svgString = getSVGString();
+        const svgBlob = new Blob([svgString], { type: 'image/svg+xml' });
+        const url = URL.createObjectURL(svgBlob);
+        
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = config.width;
+            canvas.height = config.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            
+            canvas.toBlob((blob) => {
+                const pngUrl = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = pngUrl;
+                link.download = `HHS-Background-${layoutMode}.png`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(pngUrl);
+                URL.revokeObjectURL(url);
+                showToast("PNG Exported!");
+            }, 'image/png');
+        };
+        img.src = url;
+    };
+
+    const saveTemplate = () => {
+        const template = {
+            layoutMode,
+            themeMode,
+            canvasPreset,
+            config,
+            timestamp: new Date().toISOString()
+        };
+        const templates = JSON.parse(localStorage.getItem('svgGeneratorTemplates') || '[]');
+        templates.push(template);
+        localStorage.setItem('svgGeneratorTemplates', JSON.stringify(templates));
+        showToast("Template Saved!");
+    };
+
+    const loadTemplate = (template) => {
+        setLayoutMode(template.layoutMode);
+        setThemeMode(template.themeMode);
+        setCanvasPreset(template.canvasPreset);
+        setConfig(template.config);
+        showToast("Template Loaded!");
+    };
+
+    const getSavedTemplates = () => {
+        return JSON.parse(localStorage.getItem('svgGeneratorTemplates') || '[]');
+    };
+
+    const showToast = (msg) => {
+        setToast(msg);
+        setTimeout(() => setToast(null), 3000);
+    };
+
+    return (
+        <div className="flex h-[calc(100vh-4rem)] w-[calc(100%+2rem)] overflow-hidden bg-[#1c1d1f] text-[#f1f3f6] -m-4 lg:-m-10 lg:w-[calc(100%+5rem)] lg:h-[calc(100vh-6rem)]">
+            {/* --- LEFT SIDEBAR --- */}
+            <div className="w-80 flex-shrink-0 border-r border-[#3d4551] bg-[#162e51] flex flex-col h-full overflow-y-auto font-sans">
+                {/* Header */}
+                <div className="p-6 border-b border-[#1a4480] bg-[#005ea2]">
+                    <h1 className="text-xl font-bold font-serif text-white flex items-center gap-2">
+                        <Shield className="w-6 h-6 text-[#face00]" /> HHS.gov Gen
+                    </h1>
+                    <p className="text-xs text-[#97d4ea] mt-1 opacity-90 font-sans">Official Brand Background Tool</p>
+                </div>
+
+                {/* Quick Presets */}
+                <div className="p-5 border-b border-[#3d4551]">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-3 flex items-center gap-2">
+                        <CheckCircle className="w-3 h-3"/> Quick Actions
+                    </h3>
+                    <div className="grid grid-cols-1 gap-2">
+                        <button onClick={() => applyHHSPreset('official')} className="text-left px-3 py-2 rounded bg-[#005ea2] hover:bg-[#00bde3] text-white text-sm transition-colors border border-[#1a4480] flex items-center justify-between">
+                            <span>Reset to HHS Official</span>
+                            <div className="flex gap-1"><div className="w-2 h-2 rounded-full bg-[#face00]"></div><div className="w-2 h-2 rounded-full bg-white"></div></div>
+                        </button>
+                        <button onClick={() => applyHHSPreset('dark_mode')} className="text-left px-3 py-2 rounded bg-[#3d4551] hover:bg-[#565c65] text-white text-sm transition-colors border border-[#1c1d1f] flex items-center justify-between">
+                            <span>High Contrast / Dark</span>
+                             <div className="flex gap-1"><div className="w-2 h-2 rounded-full bg-[#00bde3]"></div></div>
+                        </button>
+                    </div>
+                </div>
+
+                {/* Templates */}
+                <div className="p-5 border-b border-[#3d4551]">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-3 flex items-center gap-2">
+                        <Save className="w-3 h-3"/> Templates
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2">
+                        <button onClick={saveTemplate} className="px-3 py-2 rounded bg-[#1a4480] hover:bg-[#005ea2] text-white text-xs font-semibold transition-colors border border-transparent hover:border-[#face00] flex items-center justify-center gap-1">
+                            <Save className="w-3 h-3" /> Save
+                        </button>
+                        {getSavedTemplates().length > 0 && (
+                            <div className="relative group">
+                                <button className="w-full px-3 py-2 rounded bg-[#1a4480] hover:bg-[#005ea2] text-white text-xs font-semibold transition-colors border border-transparent hover:border-[#face00] flex items-center justify-center gap-1">
+                                    <FolderOpen className="w-3 h-3" /> Load
+                                </button>
+                                <div className="absolute left-0 top-full mt-1 w-48 bg-[#162e51] border border-[#3d4551] rounded shadow-xl z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+                                    {getSavedTemplates().slice(-5).reverse().map((template, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => loadTemplate(template)}
+                                            className="w-full text-left px-3 py-2 text-xs text-white hover:bg-[#1a4480] transition-colors border-b border-[#3d4551] last:border-0"
+                                        >
+                                            {new Date(template.timestamp).toLocaleDateString()} - {template.layoutMode}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Canvas Size */}
+                <div className="p-5 border-b border-[#3d4551]">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-3 flex items-center gap-2">
+                        <Maximize2 className="w-3 h-3"/> Canvas Size
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2">
+                        {[
+                            { key: '16:9', label: '16:9 (HD)' },
+                            { key: '4:3', label: '4:3 (Standard)' },
+                            { key: 'mobile', label: 'Mobile' },
+                            { key: 'custom', label: 'Custom' }
+                        ].map(p => (
+                            <button 
+                                key={p.key}
+                                onClick={() => applyCanvasPreset(p.key)}
+                                className={`p-2 rounded border text-xs font-semibold transition-all ${canvasPreset === p.key ? 'bg-[#face00] border-[#e5a000] text-[#162e51]' : 'bg-[#1a4480] border-transparent hover:border-[#face00] text-white'}`}
+                            >
+                                {p.label}
+                            </button>
+                        ))}
+                    </div>
+                    {canvasPreset === 'custom' && (
+                        <div className="mt-3 space-y-2">
+                            <div>
+                                <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                    <span>Width</span>
+                                    <span>{config.width}px</span>
+                                </div>
+                                <input type="range" min="320" max="2560" step="10" value={config.width} onChange={(e) => handleConfigChange('width', Number(e.target.value))} className="w-full" />
+                            </div>
+                            <div>
+                                <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                    <span>Height</span>
+                                    <span>{config.height}px</span>
+                                </div>
+                                <input type="range" min="240" max="1440" step="10" value={config.height} onChange={(e) => handleConfigChange('height', Number(e.target.value))} className="w-full" />
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Layout Mode */}
+                <div className="p-5 border-b border-[#3d4551]">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-3 flex items-center gap-2">
+                        <Layout className="w-3 h-3"/> Layout Structure
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2">
+                        {[
+                            { key: 'federal', label: 'Federal', icon: Shield },
+                            { key: 'sidebar', label: 'Sidebar', icon: Layout },
+                            { key: 'grid', label: 'Grid 2x2', icon: Grid3x3 },
+                            { key: 'kpi', label: 'KPI Top', icon: CheckCircle },
+                            { key: 'three-col', label: '3 Column', icon: Columns3 },
+                            { key: 'asymmetric', label: 'Asymmetric', icon: Maximize2 },
+                            { key: 'mobile', label: 'Mobile', icon: Smartphone }
+                        ].map(m => {
+                            const Icon = m.icon;
+                            return (
+                                <button 
+                                    key={m.key}
+                                    onClick={() => setLayoutMode(m.key)}
+                                    className={`p-2 rounded border text-xs capitalize font-semibold transition-all flex items-center justify-center gap-1 ${layoutMode === m.key ? 'bg-[#face00] border-[#e5a000] text-[#162e51]' : 'bg-[#1a4480] border-transparent hover:border-[#face00] text-white'}`}
+                                >
+                                    <Icon className="w-3 h-3" />
+                                    {m.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Metrics */}
+                <div className="p-5 border-b border-[#3d4551] space-y-6">
+                     <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-2 flex items-center gap-2">
+                        <Settings className="w-3 h-3"/> Metrics (px)
+                    </h3>
+                    
+                    <div className="space-y-4">
+                        <div>
+                            <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                <span>Card Spacing</span>
+                                <span>{config.gap}</span>
+                            </div>
+                            <input type="range" min="0" max="48" value={config.gap} onChange={(e) => handleConfigChange('gap', Number(e.target.value))} className="input-range w-full" />
+                        </div>
+                        
+                        <div>
+                            <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                <span>Page Padding</span>
+                                <span>{config.padding}</span>
+                            </div>
+                            <input type="range" min="0" max="80" value={config.padding} onChange={(e) => handleConfigChange('padding', Number(e.target.value))} className="input-range w-full" />
+                        </div>
+                        
+                        <div>
+                            <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                <span>Corner Radius</span>
+                                <span>{config.radius}</span>
+                            </div>
+                            <input type="range" min="0" max="32" value={config.radius} onChange={(e) => handleConfigChange('radius', Number(e.target.value))} className="input-range w-full" />
+                        </div>
+
+                        <div>
+                            <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                <span>Stroke / Border</span>
+                                <span>{config.strokeWidth}</span>
+                            </div>
+                            <input type="range" min="0" max="4" step="0.5" value={config.strokeWidth} onChange={(e) => handleConfigChange('strokeWidth', Number(e.target.value))} className="input-range w-full" />
+                        </div>
+
+                        {(layoutMode === 'kpi' || layoutMode === 'three-col' || layoutMode === 'asymmetric') && (
+                            <div>
+                                <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                    <span>KPI Count</span>
+                                    <span>{config.kpiCount}</span>
+                                </div>
+                                <input type="range" min="2" max="8" value={config.kpiCount} onChange={(e) => handleConfigChange('kpiCount', Number(e.target.value))} className="input-range w-full" />
+                            </div>
+                        )}
+
+                        <div>
+                            <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
+                                <span>Show Footer</span>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" checked={config.showFooter} onChange={(e) => handleConfigChange('showFooter', e.target.checked)} className="sr-only peer" />
+                                    <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
+                                </label>
+                            </div>
+                            {config.showFooter && (
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                        <span>Footer Height</span>
+                                        <span>{config.footerHeight}px</span>
+                                    </div>
+                                    <input type="range" min="20" max="120" value={config.footerHeight} onChange={(e) => handleConfigChange('footerHeight', Number(e.target.value))} className="input-range w-full" />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Branding Elements */}
+                <div className="p-5 border-b border-[#3d4551] space-y-4">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-2 flex items-center gap-2">
+                        <Shield className="w-3 h-3"/> HHS Branding
+                    </h3>
+                    
+                    <div className="space-y-4">
+                        {/* Trust Bar */}
+                        <div>
+                            <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
+                                <span>Trust Bar</span>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" checked={config.showTrustBar} onChange={(e) => handleConfigChange('showTrustBar', e.target.checked)} className="sr-only peer" />
+                                    <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
+                                </label>
+                            </div>
+                            {config.showTrustBar && (
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                        <span>Trust Bar Height</span>
+                                        <span>{config.trustBarHeight}px</span>
+                                    </div>
+                                    <input type="range" min="24" max="48" value={config.trustBarHeight} onChange={(e) => handleConfigChange('trustBarHeight', Number(e.target.value))} className="input-range w-full" />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Logo Area */}
+                        <div>
+                            <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
+                                <span>Logo Area</span>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" checked={config.showLogo} onChange={(e) => handleConfigChange('showLogo', e.target.checked)} className="sr-only peer" />
+                                    <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
+                                </label>
+                            </div>
+                            {config.showLogo && layoutMode === 'federal' && (
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                        <span>Logo Width</span>
+                                        <span>{config.logoAreaWidth}px</span>
+                                    </div>
+                                    <input type="range" min="120" max="400" value={config.logoAreaWidth} onChange={(e) => handleConfigChange('logoAreaWidth', Number(e.target.value))} className="input-range w-full" />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Title Area */}
+                        <div>
+                            <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
+                                <span>Title Area</span>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" checked={config.showTitle} onChange={(e) => handleConfigChange('showTitle', e.target.checked)} className="sr-only peer" />
+                                    <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
+                                </label>
+                            </div>
+                            {config.showTitle && (
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                        <span>Title Height</span>
+                                        <span>{config.titleHeight}px</span>
+                                    </div>
+                                    <input type="range" min="40" max="100" value={config.titleHeight} onChange={(e) => handleConfigChange('titleHeight', Number(e.target.value))} className="input-range w-full" />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Color Tweaks */}
+                <div className="p-5 space-y-4">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-2 flex items-center gap-2">
+                        <Palette className="w-3 h-3"/> Custom Override
+                    </h3>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-1">
+                            <span className="text-[10px] uppercase opacity-70">Canvas BG</span>
+                            <input type="color" value={config.bgHex} onChange={(e) => handleConfigChange('bgHex', e.target.value)} className="w-full h-8 rounded cursor-pointer bg-transparent" />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <span className="text-[10px] uppercase opacity-70">Card BG</span>
+                            <input type="color" value={config.cardHex} onChange={(e) => handleConfigChange('cardHex', e.target.value)} className="w-full h-8 rounded cursor-pointer bg-transparent" />
+                        </div>
+                    </div>
+                    
+                    <div className="pt-4 border-t border-[#3d4551]">
+                        <span className="text-[10px] uppercase opacity-70 block mb-2">Visual Style</span>
+                         <div className="flex gap-2">
+                            {['standard', 'executive', 'frosted'].map(t => (
+                                <button 
+                                    key={t} 
+                                    onClick={() => setThemeMode(t)}
+                                    className={`flex-1 py-1 px-2 text-[10px] uppercase rounded border ${themeMode === t ? 'bg-[#face00] text-[#162e51] font-bold border-[#face00]' : 'border-[#97d4ea] text-[#97d4ea]'}`}
+                                >
+                                    {t}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* --- RIGHT PREVIEW --- */}
+            <div className="flex-1 flex flex-col bg-[#565c65] relative">
+                {/* Toolbar */}
+                <div className="h-14 border-b border-[#3d4551] bg-[#1c1d1f] flex items-center justify-between px-6 shadow-md z-10">
+                    <div className="flex items-center gap-4">
+                         <div className="text-sm font-bold text-white font-serif">Preview</div>
+                         <div className="text-xs text-[#97d4ea] bg-[#162e51] px-2 py-1 rounded">Fit: {config.width} x {config.height}</div>
+                         <button
+                            onClick={() => setShowGrid(!showGrid)}
+                            className={`px-3 py-1 rounded text-xs font-semibold transition-colors flex items-center gap-1 ${
+                                showGrid ? 'bg-[#face00] text-[#162e51]' : 'bg-[#3d4551] text-white hover:bg-[#565c65]'
+                            }`}
+                            title="Toggle grid overlay"
+                        >
+                            <Grid className="w-3 h-3" /> Grid
+                        </button>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setShowImportGuide(true)}
+                            className="p-2 rounded bg-[#3d4551] hover:bg-[#565c65] text-white transition-colors"
+                            title="Power BI Import Guide"
+                        >
+                            <HelpCircle className="w-4 h-4" />
+                        </button>
+                        <button 
+                            onClick={copySVGToClipboard}
+                            className="bg-[#1a4480] hover:bg-[#005ea2] text-white px-3 py-2 rounded-md font-semibold text-sm flex items-center gap-2 transition-all border border-transparent hover:border-[#face00]"
+                            title="Copy SVG to clipboard"
+                        >
+                            <Copy className="w-4 h-4" />
+                        </button>
+                        <div className="relative group">
+                            <button 
+                                onClick={downloadSVG}
+                                className="bg-[#005ea2] hover:bg-[#00bde3] text-white px-5 py-2 rounded-md font-bold text-sm flex items-center gap-2 shadow-lg transition-all border border-[#1a4480]"
+                            >
+                                <Download className="w-4 h-4" /> Export
+                            </button>
+                            <div className="absolute right-0 top-full mt-1 w-32 bg-[#162e51] border border-[#3d4551] rounded shadow-xl z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+                                <button
+                                    onClick={downloadSVG}
+                                    className="w-full text-left px-3 py-2 text-xs text-white hover:bg-[#1a4480] transition-colors flex items-center gap-2 border-b border-[#3d4551]"
+                                >
+                                    <Download className="w-3 h-3" /> SVG
+                                </button>
+                                <button
+                                    onClick={downloadPNG}
+                                    className="w-full text-left px-3 py-2 text-xs text-white hover:bg-[#1a4480] transition-colors flex items-center gap-2"
+                                >
+                                    <ImageIcon className="w-3 h-3" /> PNG
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Canvas Container - Padded and Centered */}
+                <div className="flex-1 overflow-hidden p-6 md:p-12 flex items-center justify-center bg-repeat" style={{backgroundImage: 'radial-gradient(#3d4551 1px, transparent 1px)', backgroundSize: '20px 20px'}}>
+                    
+                    {/* THE FIX: aspect-video ensures the div keeps 16:9 ratio.
+                        w-full ensures it stretches to fit the panel.
+                        max-w/max-h limits it so it doesn't overflow.
+                    */}
+                    <div 
+                        className="w-full max-w-[1280px] bg-white shadow-2xl rounded-sm overflow-hidden ring-4 ring-[#00000020] relative"
+                        style={{ 
+                            aspectRatio: `${config.width} / ${config.height}`,
+                            maxHeight: '80vh'
+                        }}
+                    >
+                        <div 
+                            className="w-full h-full"
+                            dangerouslySetInnerHTML={{ 
+                                __html: getSVGString()
+                                    .replace('width="1280"', 'width="100%"')
+                                    .replace('height="720"', 'height="100%"') 
+                            }} 
+                        />
+                        {showGrid && (
+                            <div 
+                                className="absolute inset-0 pointer-events-none"
+                                style={{
+                                    backgroundImage: `
+                                        linear-gradient(to right, rgba(0, 0, 0, 0.1) 1px, transparent 1px),
+                                        linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 1px, transparent 1px)
+                                    `,
+                                    backgroundSize: '20px 20px'
+                                }}
+                            />
+                        )}
+                    </div>
+
+                </div>
+                
+                {/* Bottom Help Text */}
+                <div className="absolute bottom-4 right-4 text-[10px] text-[#dfe1e2] bg-[#1c1d1f] p-2 rounded opacity-70 pointer-events-none">
+                    Tip: In Power BI, set transparency to 0% and Image Fit to "Fit"
+                </div>
+
+                {/* Toast Notification */}
+                {toast && (
+                    <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-[#00a398] text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-2 animate-bounce font-bold z-50">
+                        <CheckCircle className="w-5 h-5"/>
+                        {toast}
+                    </div>
+                )}
+
+                {/* Power BI Import Guide Modal */}
+                {showImportGuide && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-[#162e51] border border-[#3d4551] rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                            <div className="p-6 border-b border-[#3d4551] flex items-center justify-between">
+                                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                    <HelpCircle className="w-6 h-6 text-[#face00]" />
+                                    Power BI Import Guide
+                                </h3>
+                                <button
+                                    onClick={() => setShowImportGuide(false)}
+                                    className="text-[#97d4ea] hover:text-white transition-colors"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                            <div className="p-6 space-y-4 text-[#dfe1e2] text-sm">
+                                <div>
+                                    <h4 className="font-bold text-white mb-2">Step 1: Export Your Background</h4>
+                                    <p>Click "Export" and choose SVG (recommended) or PNG format. SVG is vector-based and scales perfectly.</p>
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-white mb-2">Step 2: Add to Power BI</h4>
+                                    <ol className="list-decimal list-inside space-y-1 ml-2">
+                                        <li>Open your Power BI report</li>
+                                        <li>Go to the page where you want the background</li>
+                                        <li>In the Visualizations pane, click "Insert" → "Image"</li>
+                                        <li>Select your exported SVG/PNG file</li>
+                                    </ol>
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-white mb-2">Step 3: Configure Image Settings</h4>
+                                    <ul className="list-disc list-inside space-y-1 ml-2">
+                                        <li><strong>Image fit:</strong> Set to "Fit" (not "Fill" or "Center")</li>
+                                        <li><strong>Transparency:</strong> Set to 0% (fully opaque)</li>
+                                        <li><strong>Position:</strong> Send to back (right-click → "Send to back")</li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-white mb-2">Step 4: Align Your Visuals</h4>
+                                    <p>Use the grid overlay (toggle in preview) to help align your Power BI visuals with the background layout. Match your visuals to the card areas shown in the background.</p>
+                                </div>
+                                <div className="bg-[#1a4480] p-4 rounded border border-[#3d4551]">
+                                    <p className="text-[#face00] font-semibold mb-1">💡 Pro Tip:</p>
+                                    <p>For best results, set your page size in Power BI to match the canvas dimensions ({config.width} x {config.height}px). Go to View → Page View → Page Size → Custom.</p>
+                                </div>
+                            </div>
+                            <div className="p-6 border-t border-[#3d4551] flex justify-end">
+                                <button
+                                    onClick={() => setShowImportGuide(false)}
+                                    className="px-4 py-2 bg-[#005ea2] hover:bg-[#00bde3] text-white rounded font-semibold transition-colors"
+                                >
+                                    Got it!
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+export default SVGGenerator;
+
