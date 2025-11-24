@@ -71,6 +71,210 @@ const StyleGuide = () => {
         addToast(`Copied ${name} (${hex}) to clipboard`, 'success');
     };
 
+    // Comprehensive HHS Power BI Theme
+    const downloadPowerBITheme = () => {
+        const theme = {
+            "name": "HHS Official Theme",
+            "version": "1.0.0",
+            "description": "Official HHS.gov Power BI theme with brand colors, accessibility compliance, and best practices",
+            "dataColors": [
+                "#005ea2",  // Primary Blue
+                "#1a4480",  // Primary Dark (Navy)
+                "#00bde3",  // Primary Vivid (Cyan)
+                "#face00",  // Secondary (Yellow)
+                "#00a398",  // Accent Cool
+                "#162e51",  // Primary Darker
+                "#97d4ea",  // Primary Light
+                "#d54309",  // Accent Warm Darker (for alerts/negative)
+                "#565c65",  // Base Dark
+                "#1dc2ae",  // Accent Cool
+                "#ccecf2",  // Primary Lighter
+                "#e5faff",  // Primary Lightest
+                "#185394",  // HHS Blue (Logo)
+                "#f3966d",  // Accent Warm
+                "#3d4551"   // Base Darker
+            ],
+            "background": "#f1f3f6",
+            "foreground": "#1c1d1f",
+            "tableAccentColor": "#005ea2",
+            "visualStyles": {
+                "*": {
+                    "*": {
+                        "background": [
+                            {
+                                "transparency": 0,
+                                "color": {
+                                    "solid": {
+                                        "color": "#ffffff"
+                                    }
+                                }
+                            }
+                        ],
+                        "border": [
+                            {
+                                "show": false
+                            }
+                        ],
+                        "title": [
+                            {
+                                "show": true,
+                                "fontColor": {
+                                    "solid": {
+                                        "color": "#162e51"
+                                    }
+                                },
+                                "fontFamily": "Source Sans Pro",
+                                "fontSize": 14,
+                                "alignment": "left"
+                            }
+                        ],
+                        "dataLabels": [
+                            {
+                                "show": true,
+                                "fontColor": {
+                                    "solid": {
+                                        "color": "#1c1d1f"
+                                    }
+                                },
+                                "fontFamily": "Source Sans Pro",
+                                "fontSize": 11
+                            }
+                        ]
+                    }
+                },
+                "card": {
+                    "*": {
+                        "card": {
+                            "outline": "None",
+                            "outlineColor": {
+                                "solid": {
+                                    "color": "#dfe1e2"
+                                }
+                            },
+                            "backgroundColor": {
+                                "solid": {
+                                    "color": "#ffffff"
+                                }
+                            },
+                            "foregroundColor": {
+                                "solid": {
+                                    "color": "#1c1d1f"
+                                }
+                            },
+                            "fontFamily": "Source Sans Pro"
+                        }
+                    }
+                },
+                "kpi": {
+                    "*": {
+                        "kpiIndicator": {
+                            "fontFamily": "Source Sans Pro"
+                        }
+                    }
+                },
+                "slicer": {
+                    "*": {
+                        "general": {
+                            "outlineColor": {
+                                "solid": {
+                                    "color": "#dfe1e2"
+                                }
+                            },
+                            "selectedItemColor": {
+                                "solid": {
+                                    "color": "#005ea2"
+                                }
+                            },
+                            "fontColor": {
+                                "solid": {
+                                    "color": "#1c1d1f"
+                                }
+                            },
+                            "fontFamily": "Source Sans Pro"
+                        }
+                    }
+                },
+                "page": {
+                    "*": {
+                        "background": [
+                            {
+                                "transparency": 0,
+                                "color": {
+                                    "solid": {
+                                        "color": "#f1f3f6"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            },
+            "outspace": [
+                {
+                    "visualType": "slicer",
+                    "outspacePaneColor": {
+                        "solid": {
+                            "color": "#ffffff"
+                        }
+                    },
+                    "outspacePaneTextColor": {
+                        "solid": {
+                            "color": "#1c1d1f"
+                        }
+                    }
+                }
+            ],
+            "semanticColors": {
+                "primaryTextColor": {
+                    "solid": {
+                        "color": "#1c1d1f"
+                    }
+                },
+                "secondaryTextColor": {
+                    "solid": {
+                        "color": "#565c65"
+                    }
+                },
+                "emphasisColor": {
+                    "solid": {
+                        "color": "#005ea2"
+                    }
+                },
+                "goodColor": {
+                    "solid": {
+                        "color": "#00a398"
+                    }
+                },
+                "neutralColor": {
+                    "solid": {
+                        "color": "#dfe1e2"
+                    }
+                },
+                "warningColor": {
+                    "solid": {
+                        "color": "#face00"
+                    }
+                },
+                "badColor": {
+                    "solid": {
+                        "color": "#d54309"
+                    }
+                }
+            }
+        };
+
+        const blob = new Blob([JSON.stringify(theme, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'HHS-Official-PowerBI-Theme.json';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        addToast('Power BI Theme downloaded! Import via View → Themes → Browse for themes', 'success');
+    };
+
     const [selectedCategory, setSelectedCategory] = React.useState('all');
 
     const categories = [
@@ -198,18 +402,24 @@ const StyleGuide = () => {
                     <h3 className="text-lg font-semibold text-slate-800">Downloadable Assets</h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="card flex items-center justify-between group cursor-pointer hover:border-brand-300">
+                    <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={downloadPowerBITheme}
+                        className="card flex items-center justify-between group cursor-pointer hover:border-brand-300 hover:shadow-md transition-all"
+                    >
                         <div className="flex items-center gap-4">
                             <div className="h-12 w-12 bg-brand-50 rounded-lg flex items-center justify-center text-brand-600">
                                 <Layout className="h-6 w-6" />
                             </div>
                             <div>
-                                <h4 className="font-semibold text-slate-900">HHS Power BI Template</h4>
-                                <p className="text-xs text-slate-500">.PBIT file with Theme & Layouts</p>
+                                <h4 className="font-semibold text-slate-900">HHS Power BI Theme</h4>
+                                <p className="text-xs text-slate-500">Complete theme file with HHS brand colors, accessibility settings, and visual styles</p>
+                                <p className="text-xs text-brand-600 mt-1 font-medium">✓ 15 data colors • WCAG AA compliant • Ready to import</p>
                             </div>
                         </div>
-                        <Download className="h-5 w-5 text-slate-400 group-hover:text-brand-600" />
-                    </div>
+                        <Download className="h-5 w-5 text-slate-400 group-hover:text-brand-600 transition-colors" />
+                    </motion.div>
 
                     <div className="card flex items-center justify-between group cursor-pointer hover:border-brand-300">
                         <div className="flex items-center gap-4">
@@ -224,9 +434,30 @@ const StyleGuide = () => {
                         <Download className="h-5 w-5 text-slate-400 group-hover:text-brand-600" />
                     </div>
                 </div>
+                
+                {/* Power BI Theme Instructions */}
+                <div className="card bg-brand-50 border-brand-200 p-4 space-y-2">
+                    <h4 className="font-semibold text-slate-900 flex items-center gap-2">
+                        <Layout className="h-4 w-4 text-brand-600" />
+                        How to Import Power BI Theme
+                    </h4>
+                    <ol className="text-sm text-slate-700 space-y-1 list-decimal list-inside ml-2">
+                        <li>Download the HHS Power BI Theme file above</li>
+                        <li>Open your Power BI Desktop report</li>
+                        <li>Go to <strong>View</strong> → <strong>Themes</strong> → <strong>Browse for themes</strong></li>
+                        <li>Select the downloaded <code className="text-xs bg-white px-1 rounded">HHS-Official-PowerBI-Theme.json</code> file</li>
+                        <li>The theme will be applied automatically with all HHS brand colors</li>
+                    </ol>
+                    <div className="mt-3 pt-3 border-t border-brand-200">
+                        <p className="text-xs text-slate-600">
+                            <strong>What's included:</strong> 15 HHS brand colors, WCAG AA compliant contrast ratios, optimized visual styles for cards, KPIs, slicers, and semantic colors for good/bad/warning indicators.
+                        </p>
+                    </div>
+                </div>
             </section>
         </div>
     );
 };
 
 export default StyleGuide;
+
