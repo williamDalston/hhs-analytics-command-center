@@ -81,7 +81,9 @@ const LOCAL_MESSAGE_PREFIX = 'portal_messages_';
 const LOCAL_FILE_PREFIX = 'portal_files_';
 const SYNC_INTERVAL_MS = 3000; // 3 seconds
 const MAX_MESSAGE_LENGTH = 10000; // 10KB max message size
-const MAX_FILE_SIZE_LOCAL = 5 * 1024 * 1024; // 5MB
+const MAX_FILE_SIZE_LOCAL = 5 * 1024 * 1024; // 5MB for local storage
+const MAX_FILE_SIZE_CLOUD = 200 * 1024 * 1024; // 200MB recommended max for cloud (Supabase free tier: 1GB total)
+const LARGE_FILE_WARNING = 50 * 1024 * 1024; // 50MB - warn user about large files
 const PORTAL_TOKEN = 'password';
 
 const getLocalMessageStorageKey = (token) => {
@@ -576,15 +578,48 @@ const SecureFilePortal = () => {
     setUploading(true);
     try {
       for (const file of filesToProcess) {
-        const buffer = await file.arrayBuffer();
-        const { encrypted } = await encryptData(buffer, encryptionKey);
-        const base64Data = btoa(String.fromCharCode(...encrypted));
+        // Check file size limits
+        if (!useCloudStorage && file.size > MAX_FILE_SIZE_LOCAL) {
+          addToast(`File ${file.name} is too large for local mode (max ${MAX_FILE_SIZE_LOCAL / 1024 / 1024}MB). Please enable Cloud mode (Supabase).`, 'error');
+          continue;
+        }
 
-          if (useCloudStorage && supabase) {
-            // 1. Upload encrypted blob to Storage Bucket
-            const storagePath = `${accessToken}/${Date.now()}-${file.name}`;
-            const blob = new Blob([encrypted]); // 'encrypted' is Uint8Array including IV
-            
+        if (useCloudStorage && file.size > MAX_FILE_SIZE_CLOUD) {
+          const confirmLarge = window.confirm(
+            `File ${file.name} is very large (${(file.size / 1024 / 1024).toFixed(1)}MB). ` +
+            `Large files may take time to encrypt and upload, and could exceed browser memory limits. ` +
+            `Continue anyway?`
+          );
+          if (!confirmLarge) continue;
+        }
+
+        // Warn about large files
+        if (file.size > LARGE_FILE_WARNING) {
+          addToast(`Processing large file: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB). This may take a moment...`, 'info');
+        }
+
+        // Load file into memory and encrypt
+        let buffer;
+        try {
+          buffer = await file.arrayBuffer();
+        } catch (err) {
+          throw new Error(`Failed to read file: ${err.message}. File may be too large for browser memory.`);
+        }
+
+        let encrypted;
+        try {
+          const result = await encryptData(buffer, encryptionKey);
+          encrypted = result.encrypted;
+        } catch (err) {
+          throw new Error(`Encryption failed: ${err.message}. File may be too large.`);
+        }
+
+        if (useCloudStorage && supabase) {
+          // 1. Upload encrypted blob to Storage Bucket
+          const storagePath = `${accessToken}/${Date.now()}-${file.name}`;
+          const blob = new Blob([encrypted]); // 'encrypted' is Uint8Array including IV
+          
+          try {
             const { error: uploadError } = await supabase.storage
               .from('portal-uploads')
               .upload(storagePath, blob, {
@@ -593,7 +628,11 @@ const SecureFilePortal = () => {
               });
 
             if (uploadError) {
-                throw new Error(`Storage upload failed: ${uploadError.message}`);
+              // Check if it's a size limit error
+              if (uploadError.message.includes('size') || uploadError.message.includes('limit')) {
+                throw new Error(`File too large for Supabase storage. Free tier limit: 1GB total. File size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
+              }
+              throw new Error(`Storage upload failed: ${uploadError.message}`);
             }
 
             // 2. Store metadata in DB (repurposing encrypted_data to store Path)
@@ -606,35 +645,39 @@ const SecureFilePortal = () => {
               iv: 'included_in_blob',
               uploaded_by: 'User'
             });
-          } else {
-            if (file.size > MAX_FILE_SIZE_LOCAL) {
-                addToast(`File ${file.name} is too large for local mode (max ${MAX_FILE_SIZE_LOCAL / 1024 / 1024}MB). Use Cloud mode.`, 'error');
-                continue; 
-            }
-            const base64Data = btoa(String.fromCharCode(...encrypted));
-            const localFile = {
-              id: `${Date.now()}-${file.name}-${Math.random().toString(36).slice(2)}`,
-              name: file.name,
-              type: file.type,
-              size: file.size,
-              encrypted: base64Data,
-              uploadedAt: new Date().toISOString(),
-              uploadedBy: 'User'
-            };
-            const existingFiles = readLocalFiles(accessToken);
-            const updatedFiles = [localFile, ...existingFiles];
-            writeLocalFiles(accessToken, updatedFiles);
-            setFiles(updatedFiles);
+
+            addToast(`${file.name} uploaded successfully (${(file.size / 1024 / 1024).toFixed(1)}MB)`, 'success');
+          } catch (uploadErr) {
+            throw new Error(`Upload failed for ${file.name}: ${uploadErr.message}`);
           }
+        } else {
+          // Local mode - already checked size limit above
+          const base64Data = btoa(String.fromCharCode(...encrypted));
+          const localFile = {
+            id: `${Date.now()}-${file.name}-${Math.random().toString(36).slice(2)}`,
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            encrypted: base64Data,
+            uploadedAt: new Date().toISOString(),
+            uploadedBy: 'User'
+          };
+          const existingFiles = readLocalFiles(accessToken);
+          const updatedFiles = [localFile, ...existingFiles];
+          writeLocalFiles(accessToken, updatedFiles);
+          setFiles(updatedFiles);
+          addToast(`${file.name} saved locally (${(file.size / 1024 / 1024).toFixed(1)}MB)`, 'success');
         }
-        if (useCloudStorage && supabase) {
-          await loadData();
-        }
-        addToast('Files uploaded securely', 'success');
-      } catch (err) {
-        setError('Upload failed: ' + err.message);
-        console.error(err);
-      } finally {
+      }
+      
+      if (useCloudStorage && supabase) {
+        await loadData();
+      }
+    } catch (err) {
+      setError('Upload failed: ' + err.message);
+      addToast(err.message, 'error');
+      console.error('File upload error:', err);
+    } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
@@ -1175,6 +1218,20 @@ const SecureFilePortal = () => {
                <span className="text-sm text-slate-500 max-w-xs text-center">
                  Files are encrypted client-side with AES-GCM before leaving your browser
                </span>
+               <div className="mt-3 text-xs text-slate-400 max-w-md text-center space-y-1">
+                 {useCloudStorage ? (
+                   <>
+                     <p><strong>Cloud Mode:</strong> Supports large files up to ~200MB</p>
+                     <p className="text-slate-400">Power BI files (.pbix) work best with Cloud mode enabled</p>
+                     <p className="text-slate-300">Free tier: 1GB total storage</p>
+                   </>
+                 ) : (
+                   <>
+                     <p><strong>Local Mode:</strong> Max 5MB per file</p>
+                     <p className="text-slate-400">Enable Cloud mode (Supabase) for larger Power BI files</p>
+                   </>
+                 )}
+               </div>
              </label>
            </div>
 

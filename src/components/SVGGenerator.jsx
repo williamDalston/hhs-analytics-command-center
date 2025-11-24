@@ -77,6 +77,7 @@ const SVGGenerator = () => {
         gridColumns: 2, // Number of columns for grid layout
         kpiVisualCount: 1, // Number of visual areas in KPI layout main area
         kpiColumns: 1, // Columns for KPI layout main area
+        kpiMainChartFullWidth: true, // If true, first visual is full-width, rest are in grid below
         threeColVisualCount: 1, // Number of visual areas per column in three-col layout
         asymmetricSideCount: 2, // Number of side cards in asymmetric layout
         mobileVisualCount: 3 // Number of visual cards in mobile layout
@@ -116,7 +117,7 @@ const SVGGenerator = () => {
 
     // --- Layout Generator Engine ---
     const generateLayout = useCallback(() => {
-        const { width, height, gap, padding, headerHeight, footerHeight, kpiCount, showFooter, showTrustBar, trustBarHeight, showLogo, logoAreaWidth, logoIsSquare, showTitle, titleHeight, titlePosition, showSlicerZone, slicerZoneHeight, federalRows, federalColumns, federalSidebarWidth, showFederalSidebar, sidebarLayoutWidth, sidebarVisualCount, sidebarColumns, gridRows, gridColumns, kpiVisualCount, kpiColumns, threeColVisualCount, asymmetricSideCount, mobileVisualCount } = config;
+        const { width, height, gap, padding, headerHeight, footerHeight, kpiCount, showFooter, showTrustBar, trustBarHeight, showLogo, logoAreaWidth, logoIsSquare, showTitle, titleHeight, titlePosition, showSlicerZone, slicerZoneHeight, federalRows, federalColumns, federalSidebarWidth, showFederalSidebar, sidebarLayoutWidth, sidebarVisualCount, sidebarColumns, gridRows, gridColumns, kpiVisualCount, kpiColumns, kpiMainChartFullWidth, threeColVisualCount, asymmetricSideCount, mobileVisualCount } = config;
         const effW = width - (padding * 2);
         let effH = height - (padding * 2);
         let yOffset = 0;
@@ -375,23 +376,60 @@ const SVGGenerator = () => {
                 newItems.push({ x: padding + (i * (kpiW + gap)), y: contentY, w: kpiW, h: kpiH, type: 'kpi' });
             }
             
-            // Grid of visuals below KPIs
+            // Visuals below KPIs
             const mainContentH = availableH - kpiH - gap;
-            const cols = Math.max(1, Math.min(kpiColumns, kpiVisualCount));
-            const rows = Math.max(1, Math.ceil(kpiVisualCount / cols));
-            const cardW = cols > 0 ? Math.max(50, (effW - (gap * (cols - 1))) / cols) : effW;
-            const cardH = rows > 0 ? Math.max(50, (mainContentH - (gap * (rows - 1))) / rows) : mainContentH;
+            let visualY = contentY + kpiH + gap;
             
-            for (let i = 0; i < kpiVisualCount; i++) {
-                const row = Math.floor(i / cols);
-                const col = i % cols;
+            if (kpiMainChartFullWidth && kpiVisualCount > 0) {
+                // First visual is full-width (main chart)
+                const mainChartH = kpiVisualCount > 1 ? mainContentH * 0.6 : mainContentH; // 60% if there are more visuals below
                 newItems.push({
-                    x: padding + (col * (cardW + gap)),
-                    y: contentY + kpiH + gap + (row * (cardH + gap)),
-                    w: cardW,
-                    h: cardH,
-                    type: 'card'
+                    x: padding,
+                    y: visualY,
+                    w: effW,
+                    h: mainChartH,
+                    type: 'main'
                 });
+                
+                // Remaining visuals in grid below the main chart
+                if (kpiVisualCount > 1) {
+                    const remainingVisuals = kpiVisualCount - 1;
+                    const remainingH = mainContentH - mainChartH - gap;
+                    const cols = Math.max(1, Math.min(kpiColumns, remainingVisuals));
+                    const rows = Math.max(1, Math.ceil(remainingVisuals / cols));
+                    const cardW = cols > 0 ? Math.max(50, (effW - (gap * (cols - 1))) / cols) : effW;
+                    const cardH = rows > 0 ? Math.max(50, (remainingH - (gap * (rows - 1))) / rows) : remainingH;
+                    
+                    for (let i = 0; i < remainingVisuals; i++) {
+                        const row = Math.floor(i / cols);
+                        const col = i % cols;
+                        newItems.push({
+                            x: padding + (col * (cardW + gap)),
+                            y: visualY + mainChartH + gap + (row * (cardH + gap)),
+                            w: cardW,
+                            h: cardH,
+                            type: 'card'
+                        });
+                    }
+                }
+            } else {
+                // Original grid layout (all visuals in grid)
+                const cols = Math.max(1, Math.min(kpiColumns, kpiVisualCount));
+                const rows = Math.max(1, Math.ceil(kpiVisualCount / cols));
+                const cardW = cols > 0 ? Math.max(50, (effW - (gap * (cols - 1))) / cols) : effW;
+                const cardH = rows > 0 ? Math.max(50, (mainContentH - (gap * (rows - 1))) / rows) : mainContentH;
+                
+                for (let i = 0; i < kpiVisualCount; i++) {
+                    const row = Math.floor(i / cols);
+                    const col = i % cols;
+                    newItems.push({
+                        x: padding + (col * (cardW + gap)),
+                        y: visualY + (row * (cardH + gap)),
+                        w: cardW,
+                        h: cardH,
+                        type: 'card'
+                    });
+                }
             }
         }
         else if (layoutMode === 'three-col') {
@@ -691,9 +729,9 @@ const SVGGenerator = () => {
                 rects += `<rect x="0" y="${item.h - 1}" width="${item.w}" height="1" fill="${HHS_COLORS.base.light}" opacity="0.3" />`;
             }
             
-            // Header - add yellow accent line at bottom (if enabled)
+            // Header - add yellow accent line at bottom (if enabled) - 3px height per wireframe spec
             if (isHeader && config.showHeaderAccent) {
-                rects += `<rect x="0" y="${item.y + item.h - 4}" width="${item.w}" height="4" fill="${HHS_COLORS.secondary.DEFAULT}" />`;
+                rects += `<rect x="0" y="${item.y + item.h - 3}" width="${item.w}" height="3" fill="${HHS_COLORS.secondary.DEFAULT}" />`;
             }
             
             // Footer - add subtle top border
@@ -1357,6 +1395,7 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                                 gridColumns: 2,
                                 kpiVisualCount: 1,
                                 kpiColumns: 1,
+                                kpiMainChartFullWidth: true,
                                 threeColVisualCount: 1,
                                 asymmetricSideCount: 2,
                                 mobileVisualCount: 3
@@ -1606,7 +1645,21 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                                         <span>{config.kpiColumns}</span>
                                     </div>
                                     <input type="range" min="1" max="3" value={config.kpiColumns} onChange={(e) => handleConfigChange('kpiColumns', Number(e.target.value))} className="input-range w-full" />
-                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Grid columns for main area</p>
+                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Grid columns for visuals below main chart</p>
+                                </div>
+                                <div className="flex items-center justify-between p-2 bg-[#1a4480]/30 rounded border border-[#3d4551]">
+                                    <div className="flex-1">
+                                        <div className="text-xs font-semibold text-[#dfe1e2] mb-1">Main Chart Full-Width</div>
+                                        <p className="text-[10px] text-[#97d4ea] opacity-70">
+                                            {config.kpiMainChartFullWidth 
+                                                ? 'First visual is full-width, rest in grid below' 
+                                                : 'All visuals in grid layout'}
+                                        </p>
+                                    </div>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" checked={config.kpiMainChartFullWidth} onChange={(e) => handleConfigChange('kpiMainChartFullWidth', e.target.checked)} className="sr-only peer" />
+                                        <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
+                                    </label>
                                 </div>
                             </>
                         )}
