@@ -145,6 +145,7 @@ const SecureFilePortal = () => {
   const [files, setFiles] = useState([]);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const messageContentRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   
   // Encryption Tool State
@@ -345,11 +346,59 @@ const SecureFilePortal = () => {
   };
 
 
+  const handlePaste = useCallback((e) => {
+    e.preventDefault();
+    const clipboardData = e.clipboardData || window.clipboardData;
+    const htmlData = clipboardData.getData('text/html');
+    const textData = clipboardData.getData('text/plain');
+    
+    if (htmlData && (htmlData.includes('<table') || htmlData.includes('<TABLE'))) {
+      // Preserve HTML table formatting
+      const selection = window.getSelection();
+      if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        range.deleteContents();
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = htmlData;
+        const fragment = document.createDocumentFragment();
+        while (tempDiv.firstChild) {
+          fragment.appendChild(tempDiv.firstChild);
+        }
+        range.insertNode(fragment);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        // Update state
+        if (messageContentRef.current) {
+          setNewMessage(messageContentRef.current.innerHTML);
+        }
+      }
+    } else {
+      // Plain text paste
+      const selection = window.getSelection();
+      if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        range.deleteContents();
+        const textNode = document.createTextNode(textData);
+        range.insertNode(textNode);
+        range.setStartAfter(textNode);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        // Update state
+        if (messageContentRef.current) {
+          setNewMessage(messageContentRef.current.innerHTML);
+        }
+      }
+    }
+  }, []);
+
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !encryptionKey) return;
+    const messageContent = messageContentRef.current 
+      ? messageContentRef.current.innerHTML.trim() 
+      : newMessage.trim();
+    if (!messageContent || !encryptionKey) return;
 
     const msg = {
-      text: newMessage,
+      text: messageContent,
       author: 'User', 
       timestamp: new Date().toISOString()
     };
@@ -358,7 +407,7 @@ const SecureFilePortal = () => {
       if (useCloudStorage && supabase) {
         await supabase.from('portal_messages').insert({
           token: accessToken,
-          message_text: newMessage, 
+          message_text: messageContent, 
           author: 'User'
         });
         await loadData(); // Refresh immediately
@@ -370,6 +419,9 @@ const SecureFilePortal = () => {
         setMessages(updated);
       }
       setNewMessage('');
+      if (messageContentRef.current) {
+        messageContentRef.current.innerHTML = '';
+      }
       if (messageInputRef.current) messageInputRef.current.focus();
     } catch (err) {
       addToast('Failed to send message', 'error');
@@ -696,6 +748,26 @@ const SecureFilePortal = () => {
           </div>
           
           <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
+            <style>{`
+              .message-content table {
+                border-collapse: collapse;
+                margin: 8px 0;
+                width: 100%;
+                font-size: 0.875rem;
+              }
+              .message-content table td, .message-content table th {
+                border: 1px solid #cbd5e1;
+                padding: 6px 10px;
+                text-align: left;
+              }
+              .message-content table th {
+                background-color: #f1f5f9;
+                font-weight: 600;
+              }
+              .message-content table tr:nth-child(even) {
+                background-color: #f8fafc;
+              }
+            `}</style>
             {messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-slate-400">
                 <div className="bg-slate-100 p-4 rounded-full mb-4">
@@ -715,18 +787,44 @@ const SecureFilePortal = () => {
                   className="group flex flex-col items-end"
                 >
                   <div className="max-w-[80%] bg-white border border-slate-200 p-3 rounded-2xl rounded-tr-sm shadow-sm hover:shadow-md transition-shadow relative">
-                     <p className="text-slate-800 whitespace-pre-wrap">{msg.text}</p>
+                     <div 
+                       className="message-content text-slate-800"
+                       dangerouslySetInnerHTML={{ 
+                         __html: msg.text.includes('<table') || msg.text.includes('<TABLE') 
+                           ? msg.text 
+                           : msg.text.replace(/\n/g, '<br>')
+                       }}
+                       style={{
+                         wordBreak: 'break-word'
+                       }}
+                     />
                         <div className="flex items-center justify-between gap-4 mt-2">
                         <span className="text-[10px] text-slate-400">
                           {new Date(msg.timestamp).toLocaleTimeString()}
                         </span>
-                        <button 
-                          onClick={() => handleDeleteMessage(msg.id)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 rounded text-red-400 hover:text-red-600"
-                          title="Delete message"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button 
+                            onClick={() => {
+                              // Extract plain text from HTML for copying
+                              const tempDiv = document.createElement('div');
+                              tempDiv.innerHTML = msg.text;
+                              const plainText = tempDiv.textContent || tempDiv.innerText || msg.text;
+                              navigator.clipboard.writeText(plainText);
+                              addToast('Message copied!', 'success');
+                            }}
+                            className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600"
+                            title="Copy message"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteMessage(msg.id)}
+                            className="p-1 hover:bg-red-50 rounded text-red-400 hover:text-red-600"
+                            title="Delete message"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
                      </div>
                   </div>
                 </motion.div>
@@ -737,20 +835,55 @@ const SecureFilePortal = () => {
 
           <div className="p-4 bg-white border-t border-slate-100">
             <div className="flex gap-2">
-              <textarea
-                ref={messageInputRef}
-                value={newMessage}
-                onChange={e => setNewMessage(e.target.value)}
-                onKeyDown={e => {
-                   if (e.key === 'Enter' && !e.shiftKey) {
-                     e.preventDefault();
-                     handleSendMessage();
-                   }
-                }}
-                placeholder="Type a secure message..."
-                className="input-field flex-1 resize-none"
-                rows={2}
-              />
+              <div className="flex-1 relative">
+                <div
+                  ref={messageContentRef}
+                  contentEditable
+                  onInput={(e) => {
+                    const content = e.currentTarget.innerHTML;
+                    setNewMessage(content);
+                  }}
+                  onPaste={handlePaste}
+                  onKeyDown={e => {
+                     if (e.key === 'Enter' && !e.shiftKey) {
+                       e.preventDefault();
+                       handleSendMessage();
+                     }
+                  }}
+                  data-placeholder="Type a secure message... (supports tables and formatting)"
+                  className="input-field min-h-[60px] max-h-[200px] overflow-y-auto resize-none"
+                  style={{
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    outline: 'none'
+                  }}
+                />
+                <style>{`
+                  [contenteditable][data-placeholder]:empty:before {
+                    content: attr(data-placeholder);
+                    color: #94a3b8;
+                    pointer-events: none;
+                  }
+                  [contenteditable] table {
+                    border-collapse: collapse;
+                    margin: 8px 0;
+                    width: 100%;
+                    font-size: 0.875rem;
+                  }
+                  [contenteditable] table td, [contenteditable] table th {
+                    border: 1px solid #cbd5e1;
+                    padding: 4px 8px;
+                    text-align: left;
+                  }
+                  [contenteditable] table th {
+                    background-color: #f1f5f9;
+                    font-weight: 600;
+                  }
+                  [contenteditable] table tr:nth-child(even) {
+                    background-color: #f8fafc;
+                  }
+                `}</style>
+              </div>
               <button 
                 onClick={handleSendMessage}
                 disabled={!newMessage.trim()}
@@ -760,7 +893,7 @@ const SecureFilePortal = () => {
               </button>
             </div>
             <p className="text-xs text-center text-slate-400 mt-2 flex items-center justify-center gap-1">
-              <Lock className="h-3 w-3" /> Encrypted & Synced Instantly
+              <Lock className="h-3 w-3" /> Encrypted & Synced Instantly • Paste tables to preserve formatting
             </p>
           </div>
         </div>
