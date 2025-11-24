@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Calendar, User, FileText, Briefcase, AlertCircle, CheckCircle2, Users, LayoutList, AlertTriangle, Activity, ClipboardList, CheckSquare, Square, X, Cloud, HardDrive, Upload } from 'lucide-react';
+import { Plus, Trash2, Calendar, User, FileText, Briefcase, AlertCircle, CheckCircle2, Users, LayoutList, AlertTriangle, Activity, ClipboardList, CheckSquare, Square, X, Cloud, HardDrive, Upload, Copy, CheckCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
 import { getSupabaseClient } from '../config/supabase';
@@ -18,6 +18,7 @@ const ProjectTracker = () => {
     const [bulkImportText, setBulkImportText] = useState('');
     const [selectedProjects, setSelectedProjects] = useState([]);
     const [isSelectionMode, setIsSelectionMode] = useState(false);
+    const [bulkGuideCopied, setBulkGuideCopied] = useState(false);
     const [newProject, setNewProject] = useState({
         name: '',
         stakeholder: '',
@@ -178,6 +179,174 @@ const ProjectTracker = () => {
             setSelectedProjects([]);
         } else {
             setSelectedProjects(projects.map(p => p.id));
+        }
+    };
+
+    // --- Bulk Import Guide Content ---
+    const bulkImportGuideContent = `# Project Bulk Import Format
+
+Paste all your projects, decisions, blockers, stakeholders, deadlines, status, priority, and requirements using this format.
+
+## Format Structure
+
+Use this exact format - copy and paste your data following the structure below:
+
+\`\`\`
+## PROJECTS
+
+### Project 1: [Project Name]
+**Stakeholder:** [Name]
+**Deadline:** YYYY-MM-DD (or leave blank)
+**Status:** Planning | Data Modeling | Visualizing | Review | Done
+**Priority:** Normal | High | Critical
+**Requirements:** 
+[Your requirements text here - can be multiple lines]
+
+### Project 2: [Project Name]
+**Stakeholder:** [Name]
+**Deadline:** YYYY-MM-DD
+**Status:** In Progress
+**Priority:** High
+**Requirements:** 
+[Your requirements text]
+
+---
+
+## DECISIONS
+
+### Decision: [Decision Title]
+**Date:** YYYY-MM-DD (or leave blank for today)
+**Status:** Active | Resolved | Mitigated
+**Description:** 
+[Description of the decision]
+
+### Decision: [Another Decision]
+**Date:** 2024-01-15
+**Status:** Resolved
+**Description:** 
+[Description]
+
+---
+
+## BLOCKERS
+
+### Blocker: [Blocker Title]
+**Date:** YYYY-MM-DD (or leave blank for today)
+**Status:** Active | Resolved | Mitigated
+**Description:** 
+[Description of the blocker]
+
+### Blocker: [Another Blocker]
+**Date:** 2024-01-20
+**Status:** Active
+**Description:** 
+[Description]
+\`\`\`
+
+## Example
+
+\`\`\`
+## PROJECTS
+
+### Project 1: ASPA Analytics Dashboard
+**Stakeholder:** Lakshman / Venkata
+**Deadline:** 2024-12-01
+**Status:** In Progress
+**Priority:** High
+**Requirements:** 
+HHS branded theme. Metrics: Impressions, Engagements, Click-through rates.
+Need to include date slicer and filter by campaign type.
+
+### Project 2: Jira Delivery Dashboard
+**Stakeholder:** David Urer
+**Deadline:** 2024-12-15
+**Status:** Planning
+**Priority:** Critical
+**Requirements:** 
+Throughput and cycle time views. Need to connect to Jira API.
+Include sprint burndown charts.
+
+### Project 3: Campaign Performance Report
+**Stakeholder:** Sarah Johnson
+**Deadline:** 2024-11-30
+**Status:** Review
+**Priority:** Normal
+**Requirements:** 
+Monthly campaign performance metrics with drill-through capabilities.
+
+---
+
+## DECISIONS
+
+### Decision: Use HashRouter
+**Date:** 2024-11-22
+**Status:** Resolved
+**Description:** 
+Switched to HashRouter for GitHub Pages compatibility. This allows the app to work without server-side routing configuration.
+
+### Decision: Data Refresh Schedule
+**Date:** 2024-11-25
+**Status:** Active
+**Description:** 
+Decided to refresh data daily at 2 AM EST. Need to confirm with stakeholders.
+
+---
+
+## BLOCKERS
+
+### Blocker: Jira API Access
+**Date:** 2024-11-20
+**Status:** Active
+**Description:** 
+Waiting on IT approval for PAT token. Cannot proceed with Jira dashboard until access is granted.
+
+### Blocker: Data Source Permissions
+**Date:** 2024-11-18
+**Status:** Resolved
+**Description:** 
+Resolved - received necessary permissions from data team.
+\`\`\`
+
+## Quick Reference
+
+- **Section Headers:** Use \`## PROJECTS\`, \`## DECISIONS\`, \`## BLOCKERS\`
+- **Project Headers:** Use \`### Project 1: [Name]\` or \`### Project: [Name]\`
+- **Decision/Blocker Headers:** Use \`### Decision: [Title]\` or \`### Blocker: [Title]\`
+- **Fields:** Use \`**Field Name:**\` format (e.g., \`**Stakeholder:**\`, \`**Deadline:**\`)
+- **Separators:** Use \`---\` to separate sections
+- **Dates:** Use YYYY-MM-DD format (e.g., 2024-12-01) or leave blank
+- **Status Values:**
+  - Projects: \`Planning\`, \`Data Modeling\`, \`Visualizing\`, \`Review\`, \`Done\`, \`In Progress\`
+  - Decisions/Blockers: \`Active\`, \`Resolved\`, \`Mitigated\`
+- **Priority Values:** \`Normal\`, \`High\`, \`Critical\`
+- **Multi-line text:** Requirements and descriptions can span multiple lines
+
+## Tips
+
+- You can paste this directly from Excel, Google Sheets, or any text editor
+- Leave date fields blank to use today's date
+- Requirements and descriptions can be as long as needed
+- You can include as many projects, decisions, and blockers as you want
+- The format is case-sensitive for section headers (\`##\`, \`###\`)`;
+
+    // Copy Bulk Import Guide to Clipboard
+    const copyBulkImportGuide = async () => {
+        try {
+            await navigator.clipboard.writeText(bulkImportGuideContent);
+            setBulkGuideCopied(true);
+            addToast('✓ Bulk Import Guide copied to clipboard!', 'success');
+            setTimeout(() => setBulkGuideCopied(false), 3000);
+        } catch (err) {
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = bulkImportGuideContent;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            setBulkGuideCopied(true);
+            addToast('✓ Bulk Import Guide copied to clipboard!', 'success');
+            setTimeout(() => setBulkGuideCopied(false), 3000);
         }
     };
 
@@ -611,18 +780,38 @@ NEXT STEPS:
                                         <X className="h-5 w-5" />
                                     </button>
                                 </div>
-                                <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
-                                    Paste all your projects, decisions, and blockers. See{' '}
-                                    <a 
-                                        href="/PROJECT_BULK_IMPORT_FORMAT.md" 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="text-brand-600 hover:text-brand-700 underline"
+                                <div className="flex items-center justify-between mb-3">
+                                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                                        Paste all your projects, decisions, and blockers. Copy the format guide below.
+                                    </p>
+                                    <button
+                                        onClick={copyBulkImportGuide}
+                                        className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs font-semibold transition-all ${
+                                            bulkGuideCopied
+                                                ? 'bg-green-500 text-white'
+                                                : 'bg-brand-500 hover:bg-brand-600 text-white'
+                                        }`}
+                                        title="Copy bulk import format guide to clipboard"
                                     >
-                                        format guide
-                                    </a>
-                                    {' '}for the exact format.
-                                </p>
+                                        {bulkGuideCopied ? (
+                                            <>
+                                                <CheckCircle className="h-4 w-4" />
+                                                Copied!
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Copy className="h-4 w-4" />
+                                                Copy Guide
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                                <div className="mb-3 p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded text-xs font-mono text-slate-600 dark:text-slate-400 max-h-48 overflow-y-auto">
+                                    <div className="whitespace-pre-wrap">{bulkImportGuideContent.substring(0, 500)}...</div>
+                                    <p className="text-xs text-slate-500 dark:text-slate-500 mt-2 italic">
+                                        Click "Copy Guide" above to copy the full format guide
+                                    </p>
+                                </div>
                             </div>
                             <textarea
                                 value={bulkImportText}

@@ -2047,6 +2047,16 @@ Your generated wireframe must:
 
     // --- Apply Wireframe Page ---
     const applyWireframePage = (page, wireframeData) => {
+        if (!page) {
+            showToast('Invalid page data');
+            return;
+        }
+        
+        if (!wireframeData || !wireframeData.commonElements) {
+            showToast('Invalid wireframe data');
+            return;
+        }
+        
         const common = wireframeData.commonElements;
         const layoutName = page.layout;
         
@@ -2131,7 +2141,9 @@ Your generated wireframe must:
         }
         
         setConfig(newConfig);
-        showToast(`Applied Page ${page.number}: ${page.name} (${layoutName})`);
+        const pageNum = page.number || '?';
+        const pageName = page.name || 'Unnamed';
+        showToast(`Applied Page ${pageNum}: ${pageName} (${layoutName})`);
     };
 
     // Copy Power BI settings to clipboard
@@ -2462,6 +2474,10 @@ Example:
                                                             // Export all pages sequentially
                                                             for (let idx = 0; idx < wireframeData.pages.length; idx++) {
                                                                 const page = wireframeData.pages[idx];
+                                                                if (!page) {
+                                                                    console.warn(`Page at index ${idx} is undefined, skipping...`);
+                                                                    continue;
+                                                                }
                                                                 showToast(`Exporting page ${idx + 1} of ${wireframeData.pages.length}...`);
                                                                 
                                                                 // Apply the page configuration
@@ -2477,8 +2493,9 @@ Example:
                                                                 const link = document.createElement('a');
                                                                 link.href = url;
                                                                 const timestamp = new Date().toISOString().split('T')[0];
-                                                                const safeName = page.name.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '-');
-                                                                link.download = `HHS-Page-${page.number}-${safeName}-${timestamp}.svg`;
+                                                                const safeName = (page.name || 'Page').replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '-');
+                                                                const pageNum = page.number || (idx + 1);
+                                                                link.download = `HHS-Page-${pageNum}-${safeName}-${timestamp}.svg`;
                                                                 document.body.appendChild(link);
                                                                 link.click();
                                                                 document.body.removeChild(link);
