@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Upload, Download, Lock, Unlock, FileText, Image, File, X, Shield, Eye, EyeOff, Send, AlertCircle, Cloud, HardDrive, Key, Copy, Trash2, RefreshCw, Link as LinkIcon, Shuffle } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Upload, Download, Lock, Unlock, FileText, Image, File, X, Shield, Eye, EyeOff, Send, AlertCircle, Cloud, HardDrive, Key, Copy, Trash2, RefreshCw, Link as LinkIcon, Shuffle, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getSupabaseClient } from '../config/supabase';
 import { useToast } from '../context/ToastContext';
+import { sanitizeHTML, isHTMLContent } from '../utils/htmlSanitizer';
 
 // --- Crypto Utilities ---
 const deriveKeyFromToken = async (token) => {
@@ -75,8 +76,13 @@ const generateRandomToken = () => {
   return result;
 };
 
+// Constants
 const LOCAL_MESSAGE_PREFIX = 'portal_messages_';
 const LOCAL_FILE_PREFIX = 'portal_files_';
+const SYNC_INTERVAL_MS = 3000; // 3 seconds
+const MAX_MESSAGE_LENGTH = 10000; // 10KB max message size
+const MAX_FILE_SIZE_LOCAL = 5 * 1024 * 1024; // 5MB
+const PORTAL_TOKEN = 'password';
 
 const getLocalMessageStorageKey = (token) => {
   if (!token) return '';
@@ -147,6 +153,8 @@ const SecureFilePortal = () => {
   const [newMessage, setNewMessage] = useState('');
   const messageContentRef = useRef(null);
   const [uploading, setUploading] = useState(false);
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState(null);
   
   // Encryption Tool State
   const [textToEncrypt, setTextToEncrypt] = useState('');
@@ -160,7 +168,6 @@ const SecureFilePortal = () => {
   const fileInputRef = useRef(null);
   const syncIntervalRef = useRef(null);
   const messagesEndRef = useRef(null);
-  const messageInputRef = useRef(null);
   
   const supabase = getSupabaseClient();
 
@@ -168,59 +175,75 @@ const SecureFilePortal = () => {
     const token = tokenOverride || accessToken;
     if (!token) return;
 
-    if (!useCloudStorage || !supabase) {
-      const localMessages = readLocalMessages(token);
-      const validMessages = Array.isArray(localMessages) ? localMessages.filter(m => m && m.text) : [];
-      setMessages(validMessages);
-      const localFiles = readLocalFiles(token);
-      setFiles(Array.isArray(localFiles) ? localFiles : []);
-      return;
+    try {
+      if (!useCloudStorage || !supabase) {
+        const localMessages = readLocalMessages(token);
+        const validMessages = Array.isArray(localMessages) 
+          ? localMessages.filter(m => m && m.text && typeof m.text === 'string') 
+          : [];
+        setMessages(validMessages);
+        const localFiles = readLocalFiles(token);
+        setFiles(Array.isArray(localFiles) ? localFiles : []);
+        setLastSyncTime(new Date());
+        return;
+      }
+
+      // Load files and messages in parallel for better performance
+      const [fileResult, messageResult] = await Promise.allSettled([
+        supabase
+          .from('portal_files')
+          .select('*')
+          .eq('token', token)
+          .order('uploaded_at', { ascending: false }),
+        supabase
+          .from('portal_messages')
+          .select('*')
+          .eq('token', token)
+          .order('created_at', { ascending: true })
+      ]);
+
+      // Handle files
+      if (fileResult.status === 'fulfilled' && !fileResult.value.error && fileResult.value.data) {
+        const mappedFiles = fileResult.value.data.map(f => ({
+          id: f.id,
+          name: f.file_name || 'Unknown',
+          type: f.file_type || 'application/octet-stream',
+          size: f.file_size || 0,
+          encrypted: f.encrypted_data || '',
+          uploadedAt: f.uploaded_at || new Date().toISOString(),
+          uploadedBy: f.uploaded_by || 'User'
+        }));
+        setFiles(mappedFiles);
+      } else if (fileResult.status === 'rejected' || fileResult.value?.error) {
+        console.error('Failed to load files', fileResult.value?.error || fileResult.reason);
+      }
+
+      // Handle messages
+      if (messageResult.status === 'fulfilled' && !messageResult.value.error) {
+        const mappedMsgs = (messageResult.value.data || [])
+          .filter(m => m && m.message_text && typeof m.message_text === 'string')
+          .map(m => ({
+            id: m.id,
+            text: m.message_text || '',
+            author: m.author || 'User',
+            timestamp: m.created_at || new Date().toISOString()
+          }));
+        setMessages(mappedMsgs);
+      } else {
+        console.error('Failed to load messages', messageResult.value?.error || messageResult.reason);
+        setMessages([]);
+      }
+      
+      setLastSyncTime(new Date());
+    } catch (error) {
+      console.error('Error loading data', error);
+      addToast('Failed to load data. Please refresh.', 'error');
     }
-
-    const { data: fileData, error: fileError } = await supabase
-      .from('portal_files')
-      .select('*')
-      .eq('token', token)
-      .order('uploaded_at', { ascending: false });
-
-    if (fileError) {
-      console.error('Failed to load files', fileError);
-    } else if (fileData) {
-      const mappedFiles = fileData.map(f => ({
-        id: f.id,
-        name: f.file_name,
-        type: f.file_type,
-        size: f.file_size,
-        encrypted: f.encrypted_data,
-        uploadedAt: f.uploaded_at,
-        uploadedBy: f.uploaded_by
-      }));
-      setFiles(mappedFiles);
-    }
-
-    const { data: msgData, error: messageError } = await supabase
-      .from('portal_messages')
-      .select('*')
-      .eq('token', token)
-      .order('created_at', { ascending: true });
-
-    if (messageError) {
-      console.error('Failed to load messages', messageError);
-      setMessages([]);
-    } else {
-      const mappedMsgs = (msgData || []).map(m => ({
-        id: m.id,
-        text: m.message_text || '',
-        author: m.author || 'User',
-        timestamp: m.created_at || new Date().toISOString()
-      }));
-      setMessages(mappedMsgs);
-    }
-  }, [accessToken, supabase, useCloudStorage]);
+  }, [accessToken, supabase, useCloudStorage, addToast]);
 
   const handleAuthenticate = useCallback(async (tokenToUse) => {
     // Always use lowercase "password" as the token - no sharing needed
-    const token = 'password';
+    const token = PORTAL_TOKEN;
     if (!token || token.length < 8) {
       setError('Token must be at least 8 characters');
       return;
@@ -233,20 +256,31 @@ const SecureFilePortal = () => {
       setIsAuthenticated(true);
       setError('');
       if (typeof window !== 'undefined') {
-        localStorage.setItem('portal_access_token', token);
+        try {
+          localStorage.setItem('portal_access_token', token);
+        } catch (e) {
+          console.warn('Failed to save token to localStorage', e);
+        }
       }
       await loadData(token);
     } catch (err) {
       setError('Authentication failed');
       console.error('Authentication failed', err);
+      addToast('Failed to authenticate. Please refresh the page.', 'error');
     }
-  }, [loadData]);
+  }, [loadData, addToast]);
 
-  // Scroll to bottom of messages
+  // Scroll to bottom of messages (debounced for performance)
   useEffect(() => {
-    if (activeTab === 'messages' && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
+    if (activeTab !== 'messages' || !messagesEndRef.current) return;
+    
+    const timeoutId = setTimeout(() => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
   }, [messages, activeTab]);
 
   // Auto-focus message input when tab changes
@@ -286,24 +320,28 @@ const SecureFilePortal = () => {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     // Always use "password" token and auto-connect
-    const token = 'password';
+    const token = PORTAL_TOKEN;
     setAccessToken(token);
     handleAuthenticate(token);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
 
-  // Auto-sync
+  // Auto-sync with optimized interval
   useEffect(() => {
     if (!isAuthenticated || !accessToken) return;
+    
     // Load immediately
     loadData();
+    
     // Then set up interval
     syncIntervalRef.current = setInterval(() => {
       loadData();
-    }, 3000); // 3s sync for faster updates
+    }, SYNC_INTERVAL_MS);
+    
     return () => {
       if (syncIntervalRef.current) {
         clearInterval(syncIntervalRef.current);
+        syncIntervalRef.current = null;
       }
     };
   }, [isAuthenticated, accessToken, loadData]);
@@ -403,14 +441,16 @@ const SecureFilePortal = () => {
   }, []);
 
   const handleSendMessage = async () => {
+    if (sendingMessage || !encryptionKey) return;
+    
     // Get content from contentEditable div
     let messageContent = '';
     if (messageContentRef.current) {
       const text = messageContentRef.current.textContent || messageContentRef.current.innerText || '';
       const html = messageContentRef.current.innerHTML || '';
       // Use HTML if it contains formatting (tables, etc.), otherwise use plain text
-      messageContent = (html.includes('<table') || html.includes('<TABLE') || html.includes('<br>') || html.includes('<p>'))
-        ? html.trim()
+      messageContent = isHTMLContent(html)
+        ? sanitizeHTML(html.trim()) // Sanitize HTML before storing
         : text.trim();
     } else {
       messageContent = newMessage.trim();
@@ -421,18 +461,28 @@ const SecureFilePortal = () => {
       ? (messageContentRef.current.textContent || messageContentRef.current.innerText || '').trim()
       : newMessage.trim();
     
-    // Also check for empty HTML tags like <div><br></div> or <p></p>
+    // Check for empty HTML tags
     const isEmpty = !textOnly || 
       (messageContentRef.current && (
-        messageContentRef.current.innerHTML === '' || 
+        !messageContentRef.current.innerHTML || 
         messageContentRef.current.innerHTML === '<br>' ||
-        messageContentRef.current.innerHTML === '<div><br></div>' ||
-        messageContentRef.current.innerHTML === '<p></p>' ||
-        messageContentRef.current.innerHTML === '<div></div>'
+        /^<div><br><\/div>$/i.test(messageContentRef.current.innerHTML) ||
+        /^<p><\/p>$/i.test(messageContentRef.current.innerHTML) ||
+        /^<div><\/div>$/i.test(messageContentRef.current.innerHTML)
       ));
     
-    if (isEmpty || !encryptionKey) return;
+    if (isEmpty) {
+      addToast('Message cannot be empty', 'error');
+      return;
+    }
 
+    // Check message length
+    if (messageContent.length > MAX_MESSAGE_LENGTH) {
+      addToast(`Message is too long (max ${MAX_MESSAGE_LENGTH} characters)`, 'error');
+      return;
+    }
+
+    setSendingMessage(true);
     const msg = {
       text: messageContent,
       author: 'User', 
@@ -441,12 +491,20 @@ const SecureFilePortal = () => {
 
     try {
       if (useCloudStorage && supabase) {
-        await supabase.from('portal_messages').insert({
+        const { error } = await supabase.from('portal_messages').insert({
           token: accessToken,
           message_text: messageContent, 
           author: 'User'
         });
-        await loadData(); // Refresh immediately
+        
+        if (error) throw error;
+        
+        // Optimistically update UI
+        const optimisticMsg = { ...msg, id: `temp-${Date.now()}` };
+        setMessages(prev => [...prev, optimisticMsg]);
+        
+        // Refresh to get real ID
+        await loadData();
       } else {
         const localMsg = { ...msg, id: Date.now() };
         const existing = readLocalMessages(accessToken);
@@ -454,10 +512,14 @@ const SecureFilePortal = () => {
         writeLocalMessages(accessToken, updated);
         setMessages(updated);
       }
+      
+      // Clear input
       setNewMessage('');
       if (messageContentRef.current) {
         messageContentRef.current.innerHTML = '';
+        messageContentRef.current.textContent = '';
       }
+      
       // Refocus after sending
       setTimeout(() => {
         if (messageContentRef.current) {
@@ -465,8 +527,14 @@ const SecureFilePortal = () => {
         }
       }, 100);
     } catch (err) {
-      addToast('Failed to send message', 'error');
+      addToast('Failed to send message. Please try again.', 'error');
       console.error('Failed to send message', err);
+      // Remove optimistic update on error
+      if (useCloudStorage) {
+        setMessages(prev => prev.filter(m => !m.id?.toString().startsWith('temp-')));
+      }
+    } finally {
+      setSendingMessage(false);
     }
   };
 
@@ -485,15 +553,23 @@ const SecureFilePortal = () => {
   };
 
   const handleClearChat = async () => {
-    if (confirm('Are you sure you want to clear all messages?')) {
+    if (!window.confirm('Are you sure you want to clear all messages? This cannot be undone.')) {
+      return;
+    }
+    
+    try {
       if (useCloudStorage && supabase) {
-        await supabase.from('portal_messages').delete().eq('token', accessToken);
+        const { error } = await supabase.from('portal_messages').delete().eq('token', accessToken);
+        if (error) throw error;
         await loadData();
       } else {
         writeLocalMessages(accessToken, []);
         setMessages([]);
       }
       addToast('Chat cleared', 'success');
+    } catch (err) {
+      console.error('Failed to clear chat', err);
+      addToast('Failed to clear chat', 'error');
     }
   };
 
@@ -534,8 +610,8 @@ const SecureFilePortal = () => {
               uploaded_by: 'User'
             });
           } else {
-            if (file.size > 5 * 1024 * 1024) {
-                addToast(`File ${file.name} is too large for local mode (max 5MB). Use Cloud mode.`, 'error');
+            if (file.size > MAX_FILE_SIZE_LOCAL) {
+                addToast(`File ${file.name} is too large for local mode (max ${MAX_FILE_SIZE_LOCAL / 1024 / 1024}MB). Use Cloud mode.`, 'error');
                 continue; 
             }
             const base64Data = btoa(String.fromCharCode(...encrypted));
@@ -672,10 +748,15 @@ const SecureFilePortal = () => {
     }
   };
 
-  const handleCopyInviteLink = () => {
-    const url = `${window.location.origin}${window.location.pathname}#/portal`;
-    navigator.clipboard.writeText(url);
-    addToast('Portal link copied! Anyone can open it to join.', 'success');
+  const handleCopyInviteLink = async () => {
+    try {
+      const url = `${window.location.origin}${window.location.pathname}#/portal`;
+      await navigator.clipboard.writeText(url);
+      addToast('Portal link copied! Anyone can open it to join.', 'success');
+    } catch (err) {
+      console.error('Failed to copy link', err);
+      addToast('Failed to copy link', 'error');
+    }
   };
 
   // --- Renders ---
@@ -831,14 +912,16 @@ const SecureFilePortal = () => {
                      <div 
                        className="message-content text-slate-800"
                        dangerouslySetInnerHTML={{ 
-                         __html: (msg.text && (msg.text.includes('<table') || msg.text.includes('<TABLE')))
-                           ? msg.text 
-                           : (msg.text || '').replace(/\n/g, '<br>')
+                         __html: isHTMLContent(msg.text)
+                           ? sanitizeHTML(msg.text) // Sanitize HTML for security
+                           : (msg.text || '').replace(/\n/g, '<br>').replace(/</g, '&lt;').replace(/>/g, '&gt;')
                        }}
                        style={{
                          wordBreak: 'break-word',
                          whiteSpace: 'pre-wrap'
                        }}
+                       role="article"
+                       aria-label={`Message from ${msg.author}`}
                      />
                         <div className="flex items-center justify-between gap-4 mt-2">
                         <span className="text-[10px] text-slate-400">
@@ -846,16 +929,22 @@ const SecureFilePortal = () => {
                         </span>
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button 
-                            onClick={() => {
-                              // Extract plain text from HTML for copying
-                              const tempDiv = document.createElement('div');
-                              tempDiv.innerHTML = msg.text;
-                              const plainText = tempDiv.textContent || tempDiv.innerText || msg.text;
-                              navigator.clipboard.writeText(plainText);
-                              addToast('Message copied!', 'success');
+                            onClick={async () => {
+                              try {
+                                // Extract plain text from HTML for copying
+                                const tempDiv = document.createElement('div');
+                                tempDiv.innerHTML = msg.text || '';
+                                const plainText = tempDiv.textContent || tempDiv.innerText || msg.text || '';
+                                await navigator.clipboard.writeText(plainText);
+                                addToast('Message copied!', 'success');
+                              } catch (err) {
+                                console.error('Failed to copy message', err);
+                                addToast('Failed to copy message', 'error');
+                              }
                             }}
-                            className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600"
+                            className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600 transition-colors"
                             title="Copy message"
+                            aria-label="Copy message to clipboard"
                           >
                             <Copy className="h-3 w-3" />
                           </button>
@@ -930,15 +1019,33 @@ const SecureFilePortal = () => {
               </div>
               <button 
                 onClick={handleSendMessage}
-                disabled={!encryptionKey}
-                className="btn-primary self-end disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!encryptionKey || sendingMessage}
+                className="btn-primary self-end disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                aria-label="Send message"
               >
-                <Send className="h-5 w-5" />
+                {sendingMessage ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span className="hidden sm:inline">Sending...</span>
+                  </>
+                ) : (
+                  <Send className="h-5 w-5" />
+                )}
               </button>
             </div>
-            <p className="text-xs text-center text-slate-400 mt-2 flex items-center justify-center gap-1">
-              <Lock className="h-3 w-3" /> Encrypted & Synced Instantly • Paste tables to preserve formatting
-            </p>
+            <div className="text-xs text-center text-slate-400 mt-2 flex items-center justify-center gap-2 flex-wrap">
+              <span className="flex items-center gap-1">
+                <Lock className="h-3 w-3" /> Encrypted & Synced Instantly
+              </span>
+              <span>•</span>
+              <span>Paste tables to preserve formatting</span>
+              {lastSyncTime && (
+                <>
+                  <span>•</span>
+                  <span>Last sync: {lastSyncTime.toLocaleTimeString()}</span>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
