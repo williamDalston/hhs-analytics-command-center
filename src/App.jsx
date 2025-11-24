@@ -1,6 +1,6 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Code, Ruler, Flag, Layers, Shield, Sparkles, FileText, Upload, X, MessageSquare, Share2, Moon, Sun, Menu, ChevronLeft, Image, Zap, BookOpen, TrendingUp, GitCompare, CheckSquare } from 'lucide-react';
+import { LayoutDashboard, Code, Ruler, Flag, Layers, Shield, Sparkles, FileText, Upload, X, MessageSquare, Share2, Moon, Sun, Menu, ChevronLeft, Image, Zap, BookOpen, TrendingUp, GitCompare, CheckSquare, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
@@ -228,9 +228,41 @@ const PageTransition = ({ children }) => {
   );
 };
 
-const SidebarItem = ({ icon: Icon, label, path, shortcut }) => {
+const SidebarItem = ({ icon: Icon, label, path, shortcut, external }) => {
   const location = useLocation();
-  const isActive = location.pathname === path;
+  const isActive = !external && location.pathname === path;
+
+  const linkContent = (
+    <>
+      {isActive && (
+        <motion.div
+          layoutId="activeSidebar"
+          className="absolute left-0 top-0 bottom-0 w-1 bg-brand-400 rounded-r-full"
+          initial={false}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        />
+      )}
+      <Icon className={`h-5 w-5 transition-transform duration-300 ${isActive ? 'scale-110 text-brand-300' : 'group-hover:scale-110'}`} />
+      <span className="font-medium tracking-wide">{label}</span>
+      {external && (
+        <Share2 className="h-3 w-3 ml-auto opacity-60" />
+      )}
+    </>
+  );
+
+  if (external) {
+    return (
+      <a
+        href={path}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="relative flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 group overflow-hidden text-brand-100 hover:bg-white/5 dark:hover:bg-white/5 hover:text-white"
+        aria-label={`${label} (opens in new tab)`}
+      >
+        {linkContent}
+      </a>
+    );
+  }
 
   return (
     <Link
@@ -242,16 +274,7 @@ const SidebarItem = ({ icon: Icon, label, path, shortcut }) => {
       aria-label={`${label}${shortcut ? ` (${shortcut})` : ''}`}
       aria-current={isActive ? 'page' : undefined}
     >
-      {isActive && (
-        <motion.div
-          layoutId="activeSidebar"
-          className="absolute left-0 top-0 bottom-0 w-1 bg-brand-400 rounded-r-full"
-          initial={false}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        />
-      )}
-      <Icon className={`h-5 w-5 transition-transform duration-300 ${isActive ? 'scale-110 text-brand-300' : 'group-hover:scale-110'}`} />
-      <span className="font-medium tracking-wide">{label}</span>
+      {linkContent}
     </Link>
   );
 };
@@ -334,6 +357,9 @@ const Sidebar = ({ onDataManagerOpen }) => {
         <SidebarItem icon={Image} label="SVG Generator" path="/svg-generator" shortcut="⌘7" />
         <SidebarItem icon={BookOpen} label="Quick Reference" path="/quick-reference" shortcut="⌘9" />
         <SidebarItem icon={TrendingUp} label="Performance Guide" path="/performance" shortcut="⌘0" />
+        
+        <div className="text-xs font-semibold text-brand-300/80 uppercase tracking-widest mt-8 mb-4 pl-2">External Tools</div>
+        <SidebarItem icon={Globe} label="Social Media Scraper" path="https://williamdalston.github.io/social-media-scraper/" external />
       </nav>
 
 
