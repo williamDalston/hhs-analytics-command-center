@@ -50,14 +50,23 @@ const SVGGenerator = () => {
         footerHeight: 0, // For disclaimers/branding
         kpiCount: 5, // Customizable KPI count
         showFooter: false,
-        showTrustBar: true, // "An official website of the United States government"
+        showTrustBar: false, // "An official website of the United States government" - default OFF
         trustBarHeight: 32,
         showLogo: true, // HHS Logo area
         logoAreaWidth: 200, // Width reserved for logo in header
-        showTitle: true, // Dashboard title/header text area
+        showTitle: false, // Dashboard title/header text area - default OFF (users add titles in Power BI)
         titleHeight: 60,
-        federalVisualCount: 4, // Number of visual areas in federal layout
-        federalColumns: 2, // Number of columns for visual grid in federal layout
+        titlePosition: 'top', // 'top' or 'header' - where title appears
+        showSlicerZone: false, // Explicit slicer/filter zone indicator at top
+        slicerZoneHeight: 60, // Height of slicer zone if shown at top
+        showVisualCountWarning: true, // Warn if too many visuals (>10 recommended)
+        gridSpacing: 20, // Grid overlay spacing
+        gridOpacity: 0.1, // Grid overlay opacity
+        federalRows: 2, // Number of rows for federal layout grid
+        federalColumns: 2, // Number of columns for federal layout grid
+        federalSidebarWidth: 280, // Width of sidebar in federal layout
+        showFederalSidebar: true, // Show/hide sidebar in federal layout
+        sidebarLayoutWidth: 260, // Width of sidebar in sidebar layout
         sidebarVisualCount: 1, // Number of visual areas in sidebar layout main area
         sidebarColumns: 1, // Columns for sidebar layout main area
         gridRows: 2, // Number of rows for grid layout
@@ -87,6 +96,12 @@ const SVGGenerator = () => {
             case 'mobile':
                 setConfig(prev => ({ ...prev, width: 375, height: 812 }));
                 break;
+            case 'ultrawide':
+                setConfig(prev => ({ ...prev, width: 1920, height: 1080 }));
+                break;
+            case 'portrait':
+                setConfig(prev => ({ ...prev, width: 720, height: 1280 }));
+                break;
             case 'custom':
                 // Keep current dimensions
                 break;
@@ -95,7 +110,7 @@ const SVGGenerator = () => {
 
     // --- Layout Generator Engine ---
     const generateLayout = useCallback(() => {
-        const { width, height, gap, padding, headerHeight, footerHeight, kpiCount, showFooter, showTrustBar, trustBarHeight, showLogo, logoAreaWidth, showTitle, titleHeight, federalVisualCount, federalColumns, sidebarVisualCount, sidebarColumns, gridRows, gridColumns, kpiVisualCount, kpiColumns, threeColVisualCount, asymmetricSideCount, mobileVisualCount } = config;
+        const { width, height, gap, padding, headerHeight, footerHeight, kpiCount, showFooter, showTrustBar, trustBarHeight, showLogo, logoAreaWidth, showTitle, titleHeight, titlePosition, showSlicerZone, slicerZoneHeight, federalRows, federalColumns, federalSidebarWidth, showFederalSidebar, sidebarLayoutWidth, sidebarVisualCount, sidebarColumns, gridRows, gridColumns, kpiVisualCount, kpiColumns, threeColVisualCount, asymmetricSideCount, mobileVisualCount } = config;
         const effW = width - (padding * 2);
         let effH = height - (padding * 2);
         let yOffset = 0;
@@ -145,8 +160,8 @@ const SVGGenerator = () => {
                 });
             }
             
-            // Title area (right side of header, if enabled)
-            if (showTitle) {
+            // Title area (right side of header, if enabled and position is 'header')
+            if (showTitle && titlePosition === 'header') {
                 const titleX = showLogo ? padding + logoAreaWidth + gap : padding;
                 const titleW = width - titleX - padding;
                 newItems.push({ 
@@ -159,39 +174,63 @@ const SVGGenerator = () => {
                 });
             }
             
-            const contentStartY = headerY + navH + (padding/2);
+            // Slicer zone at top (if enabled) - for horizontal filter bar
+            if (showSlicerZone && slicerZoneHeight > 0) {
+                const slicerY = headerY + navH + (padding/2);
+                newItems.push({
+                    x: padding,
+                    y: slicerY,
+                    w: effW,
+                    h: slicerZoneHeight,
+                    type: 'slicerzone',
+                    fill: 'transparent'
+                });
+            }
+            
+            let contentStartY = headerY + navH + (padding/2);
+            // Adjust for slicer zone if shown
+            if (showSlicerZone && slicerZoneHeight > 0) {
+                contentStartY += slicerZoneHeight + gap;
+            }
             const contentH = height - contentStartY - (showFooter ? footerH + gap : 0) - padding;
             
-            // Left Card (e.g., filters/slicers)
-            const sidebarW = 280;
-            newItems.push({ x: padding, y: contentStartY, w: sidebarW, h: contentH - padding, type: 'sidebar' });
+            let mainContentX = padding;
+            let mainContentW = effW;
             
-            // Right side: Grid of visual areas
-            const mainContentX = padding + sidebarW + gap;
-            const mainContentW = effW - sidebarW - gap;
-            const cols = Math.min(federalColumns, federalVisualCount);
-            const rows = Math.ceil(federalVisualCount / cols);
-            const cardW = (mainContentW - (gap * (cols - 1))) / cols;
-            const cardH = (contentH - padding - (gap * (rows - 1))) / rows;
+            // Left Card (e.g., filters/slicers) - optional
+            if (showFederalSidebar && federalSidebarWidth > 0) {
+                const sidebarW = Math.min(federalSidebarWidth, effW * 0.4); // Cap at 40% of width
+                newItems.push({ x: padding, y: contentStartY, w: sidebarW, h: contentH - padding, type: 'sidebar' });
+                mainContentX = padding + sidebarW + gap;
+                mainContentW = effW - sidebarW - gap;
+            }
             
-            for (let i = 0; i < federalVisualCount; i++) {
-                const row = Math.floor(i / cols);
-                const col = i % cols;
-                newItems.push({
-                    x: mainContentX + (col * (cardW + gap)),
-                    y: contentStartY + (row * (cardH + gap)),
-                    w: cardW,
-                    h: cardH,
-                    type: 'card'
-                });
+            // Right side: Grid of visual areas (if rows and columns > 0)
+            if (federalRows > 0 && federalColumns > 0 && mainContentW > 0 && contentH > 0) {
+                const rows = Math.max(1, federalRows);
+                const cols = Math.max(1, federalColumns);
+                const cardW = Math.max(50, (mainContentW - (gap * (cols - 1))) / cols); // Min 50px width
+                const cardH = Math.max(50, (contentH - padding - (gap * (rows - 1))) / rows); // Min 50px height
+                
+                for (let row = 0; row < rows; row++) {
+                    for (let col = 0; col < cols; col++) {
+                        newItems.push({
+                            x: mainContentX + (col * (cardW + gap)),
+                            y: contentStartY + (row * (cardH + gap)),
+                            w: cardW,
+                            h: cardH,
+                            type: 'card'
+                        });
+                    }
+                }
             }
 
         } else if (layoutMode === 'sidebar') {
             // Classic Dashboard Sidebar
             let contentY = padding + yOffset;
             
-            // Title area (if enabled)
-            if (showTitle) {
+            // Title area (if enabled and position is 'top')
+            if (showTitle && titlePosition === 'top') {
                 newItems.push({ 
                     x: padding, 
                     y: contentY, 
@@ -203,9 +242,22 @@ const SVGGenerator = () => {
                 contentY += titleHeight + gap;
             }
             
-            const sideW = 260;
+            // Slicer zone at top (if enabled)
+            if (showSlicerZone && slicerZoneHeight > 0) {
+                newItems.push({
+                    x: padding,
+                    y: contentY,
+                    w: effW,
+                    h: slicerZoneHeight,
+                    type: 'slicerzone',
+                    fill: 'transparent'
+                });
+                contentY += slicerZoneHeight + gap;
+            }
+            
+            const sideW = Math.min(sidebarLayoutWidth, effW * 0.35); // Cap at 35% of width
             const mainW = effW - sideW - gap;
-            const availableH = effH - (showTitle ? titleHeight + gap : 0);
+            const availableH = effH - (showTitle && titlePosition === 'top' ? titleHeight + gap : 0) - (showSlicerZone && slicerZoneHeight > 0 ? slicerZoneHeight + gap : 0);
             
             newItems.push({ x: padding, y: contentY, w: sideW, h: availableH, type: 'nav' });
             
@@ -215,10 +267,10 @@ const SVGGenerator = () => {
             newItems.push({ x: padding + sideW + gap, y: contentY, w: mainW, h: kpiH, type: 'kpi-strip' });
             
             // Grid of visuals in main area
-            const cols = Math.min(sidebarColumns, sidebarVisualCount);
-            const rows = Math.ceil(sidebarVisualCount / cols);
-            const cardW = (mainW - (gap * (cols - 1))) / cols;
-            const cardH = (mainContentH - (gap * (rows - 1))) / rows;
+            const cols = Math.max(1, Math.min(sidebarColumns, sidebarVisualCount));
+            const rows = Math.max(1, Math.ceil(sidebarVisualCount / cols));
+            const cardW = cols > 0 ? Math.max(50, (mainW - (gap * (cols - 1))) / cols) : mainW;
+            const cardH = rows > 0 ? Math.max(50, (mainContentH - (gap * (rows - 1))) / rows) : mainContentH;
             
             for (let i = 0; i < sidebarVisualCount; i++) {
                 const row = Math.floor(i / cols);
@@ -236,8 +288,8 @@ const SVGGenerator = () => {
             // Customizable Grid
             let contentY = padding + yOffset;
             
-            // Title area (if enabled)
-            if (showTitle) {
+            // Title area (if enabled and position is 'top')
+            if (showTitle && titlePosition === 'top') {
                 newItems.push({ 
                     x: padding, 
                     y: contentY, 
@@ -249,7 +301,20 @@ const SVGGenerator = () => {
                 contentY += titleHeight + gap;
             }
             
-            const availableH = effH - (showTitle ? titleHeight + gap : 0);
+            // Slicer zone at top (if enabled)
+            if (showSlicerZone && slicerZoneHeight > 0) {
+                newItems.push({
+                    x: padding,
+                    y: contentY,
+                    w: effW,
+                    h: slicerZoneHeight,
+                    type: 'slicerzone',
+                    fill: 'transparent'
+                });
+                contentY += slicerZoneHeight + gap;
+            }
+            
+            const availableH = effH - (showTitle && titlePosition === 'top' ? titleHeight + gap : 0) - (showSlicerZone && slicerZoneHeight > 0 ? slicerZoneHeight + gap : 0);
             const colW = (effW - (gap * (gridColumns - 1))) / gridColumns;
             const rowH = (availableH - (gap * (gridRows - 1))) / gridRows;
             
@@ -269,8 +334,8 @@ const SVGGenerator = () => {
             // Top KPI Row (customizable count)
             let contentY = padding + yOffset;
             
-            // Title area (if enabled)
-            if (showTitle) {
+            // Title area (if enabled and position is 'top')
+            if (showTitle && titlePosition === 'top') {
                 newItems.push({ 
                     x: padding, 
                     y: contentY, 
@@ -282,9 +347,22 @@ const SVGGenerator = () => {
                 contentY += titleHeight + gap;
             }
             
+            // Slicer zone at top (if enabled)
+            if (showSlicerZone && slicerZoneHeight > 0) {
+                newItems.push({
+                    x: padding,
+                    y: contentY,
+                    w: effW,
+                    h: slicerZoneHeight,
+                    type: 'slicerzone',
+                    fill: 'transparent'
+                });
+                contentY += slicerZoneHeight + gap;
+            }
+            
             const kpiH = 100;
             const kpiW = (effW - (gap * (kpiCount - 1))) / kpiCount;
-            const availableH = effH - (showTitle ? titleHeight + gap : 0);
+            const availableH = effH - (showTitle && titlePosition === 'top' ? titleHeight + gap : 0) - (showSlicerZone && slicerZoneHeight > 0 ? slicerZoneHeight + gap : 0);
             
             for(let i=0; i<kpiCount; i++) {
                 newItems.push({ x: padding + (i * (kpiW + gap)), y: contentY, w: kpiW, h: kpiH, type: 'kpi' });
@@ -292,10 +370,10 @@ const SVGGenerator = () => {
             
             // Grid of visuals below KPIs
             const mainContentH = availableH - kpiH - gap;
-            const cols = Math.min(kpiColumns, kpiVisualCount);
-            const rows = Math.ceil(kpiVisualCount / cols);
-            const cardW = (effW - (gap * (cols - 1))) / cols;
-            const cardH = (mainContentH - (gap * (rows - 1))) / rows;
+            const cols = Math.max(1, Math.min(kpiColumns, kpiVisualCount));
+            const rows = Math.max(1, Math.ceil(kpiVisualCount / cols));
+            const cardW = cols > 0 ? Math.max(50, (effW - (gap * (cols - 1))) / cols) : effW;
+            const cardH = rows > 0 ? Math.max(50, (mainContentH - (gap * (rows - 1))) / rows) : mainContentH;
             
             for (let i = 0; i < kpiVisualCount; i++) {
                 const row = Math.floor(i / cols);
@@ -313,8 +391,8 @@ const SVGGenerator = () => {
             // 3-column layout (common for executive dashboards)
             let contentY = padding + yOffset;
             
-            // Title area (if enabled)
-            if (showTitle) {
+            // Title area (if enabled and position is 'top')
+            if (showTitle && titlePosition === 'top') {
                 newItems.push({ 
                     x: padding, 
                     y: contentY, 
@@ -326,12 +404,25 @@ const SVGGenerator = () => {
                 contentY += titleHeight + gap;
             }
             
+            // Slicer zone at top (if enabled)
+            if (showSlicerZone && slicerZoneHeight > 0) {
+                newItems.push({
+                    x: padding,
+                    y: contentY,
+                    w: effW,
+                    h: slicerZoneHeight,
+                    type: 'slicerzone',
+                    fill: 'transparent'
+                });
+                contentY += slicerZoneHeight + gap;
+            }
+            
             const colW = (effW - (gap * 2)) / 3;
             
             // Top KPI row (customizable count)
             const kpiH = 90;
             const kpiW = (effW - (gap * (kpiCount - 1))) / kpiCount;
-            const availableH = effH - (showTitle ? titleHeight + gap : 0);
+            const availableH = effH - (showTitle && titlePosition === 'top' ? titleHeight + gap : 0) - (showSlicerZone && slicerZoneHeight > 0 ? slicerZoneHeight + gap : 0);
             
             for(let i=0; i<kpiCount; i++) {
                 newItems.push({ x: padding + (i * (kpiW + gap)), y: contentY, w: kpiW, h: kpiH, type: 'kpi' });
@@ -339,8 +430,8 @@ const SVGGenerator = () => {
             
             // Three columns below - each column can have multiple visuals
             const contentH = availableH - kpiH - gap;
-            const visualsPerCol = threeColVisualCount;
-            const visualH = (contentH - (gap * (visualsPerCol - 1))) / visualsPerCol;
+            const visualsPerCol = Math.max(1, threeColVisualCount);
+            const visualH = visualsPerCol > 0 ? Math.max(50, (contentH - (gap * (visualsPerCol - 1))) / visualsPerCol) : contentH;
             
             for (let col = 0; col < 3; col++) {
                 for (let row = 0; row < visualsPerCol; row++) {
@@ -358,8 +449,8 @@ const SVGGenerator = () => {
             // Large main chart + smaller supporting visuals
             let contentY = padding + yOffset;
             
-            // Title area (if enabled)
-            if (showTitle) {
+            // Title area (if enabled and position is 'top')
+            if (showTitle && titlePosition === 'top') {
                 newItems.push({ 
                     x: padding, 
                     y: contentY, 
@@ -371,13 +462,26 @@ const SVGGenerator = () => {
                 contentY += titleHeight + gap;
             }
             
+            // Slicer zone at top (if enabled)
+            if (showSlicerZone && slicerZoneHeight > 0) {
+                newItems.push({
+                    x: padding,
+                    y: contentY,
+                    w: effW,
+                    h: slicerZoneHeight,
+                    type: 'slicerzone',
+                    fill: 'transparent'
+                });
+                contentY += slicerZoneHeight + gap;
+            }
+            
             const mainW = (effW * 0.65) - (gap / 2);
             const sideW = (effW * 0.35) - (gap / 2);
             
             // Top KPIs (customizable count)
             const kpiH = 100;
             const kpiW = (effW - (gap * (kpiCount - 1))) / kpiCount;
-            const availableH = effH - (showTitle ? titleHeight + gap : 0);
+            const availableH = effH - (showTitle && titlePosition === 'top' ? titleHeight + gap : 0) - (showSlicerZone && slicerZoneHeight > 0 ? slicerZoneHeight + gap : 0);
             
             for(let i=0; i<kpiCount; i++) {
                 newItems.push({ x: padding + (i * (kpiW + gap)), y: contentY, w: kpiW, h: kpiH, type: 'kpi' });
@@ -390,7 +494,7 @@ const SVGGenerator = () => {
             
             // Side cards (right) - customizable count
             const sideCardCount = Math.max(1, asymmetricSideCount);
-            const sideCardH = (contentH - (gap * (sideCardCount - 1))) / sideCardCount;
+            const sideCardH = sideCardCount > 0 ? Math.max(50, (contentH - (gap * (sideCardCount - 1))) / sideCardCount) : contentH;
             
             for (let i = 0; i < sideCardCount; i++) {
                 newItems.push({ 
@@ -406,8 +510,8 @@ const SVGGenerator = () => {
             // Mobile-optimized vertical stack
             let contentY = padding + yOffset;
             
-            // Title area (if enabled) - smaller for mobile
-            if (showTitle) {
+            // Title area (if enabled and position is 'top') - smaller for mobile
+            if (showTitle && titlePosition === 'top') {
                 newItems.push({ 
                     x: padding, 
                     y: contentY, 
@@ -419,8 +523,21 @@ const SVGGenerator = () => {
                 contentY += (titleHeight * 0.8) + gap;
             }
             
-            const availableH = effH - (showTitle ? (titleHeight * 0.8) + gap : 0);
-            const cardH = (availableH - (gap * (mobileVisualCount - 1))) / mobileVisualCount;
+            // Slicer zone at top (if enabled) - smaller for mobile
+            if (showSlicerZone && slicerZoneHeight > 0) {
+                newItems.push({
+                    x: padding,
+                    y: contentY,
+                    w: effW,
+                    h: slicerZoneHeight * 0.8,
+                    type: 'slicerzone',
+                    fill: 'transparent'
+                });
+                contentY += (slicerZoneHeight * 0.8) + gap;
+            }
+            
+            const availableH = effH - (showTitle && titlePosition === 'top' ? (titleHeight * 0.8) + gap : 0) - (showSlicerZone && slicerZoneHeight > 0 ? (slicerZoneHeight * 0.8) + gap : 0);
+            const cardH = mobileVisualCount > 0 ? Math.max(50, (availableH - (gap * (mobileVisualCount - 1))) / mobileVisualCount) : availableH;
             
             for (let i = 0; i < mobileVisualCount; i++) {
                 newItems.push({ 
@@ -525,6 +642,7 @@ const SVGGenerator = () => {
             const isTrustBar = item.type === 'trustbar';
             const isLogo = item.type === 'logo';
             const isTitle = item.type === 'title';
+            const isSlicerZone = item.type === 'slicerzone';
             
             // Determine fill based on type
             let fill;
@@ -547,7 +665,7 @@ const SVGGenerator = () => {
             const finalRadius = (isHeader || isFooter || isTrustBar || isLogo || isTitle) ? 0 : radius;
 
             // Only render visible elements (not transparent placeholders)
-            if (!isLogo && !isTitle) {
+            if (!isLogo && !isTitle && !isSlicerZone) {
                 rects += `<rect 
                     x="${item.x}" 
                     y="${item.y}" 
@@ -576,8 +694,18 @@ const SVGGenerator = () => {
                 rects += `<rect x="0" y="${item.y}" width="${item.w}" height="2" fill="${HHS_COLORS.base.light}" opacity="0.5" />`;
             }
             
-            // Logo area - add subtle dashed border to show placement
+            // Logo area - add subtle background and border to show placement
             if (isLogo) {
+                // Subtle background
+                rects += `<rect 
+                    x="${item.x}" 
+                    y="${item.y}" 
+                    width="${item.w}" 
+                    height="${item.h}" 
+                    fill="${HHS_COLORS.primary.DEFAULT}"
+                    opacity="0.05"
+                />`;
+                // Border
                 rects += `<rect 
                     x="${item.x}" 
                     y="${item.y}" 
@@ -585,13 +713,13 @@ const SVGGenerator = () => {
                     height="${item.h}" 
                     fill="none"
                     stroke="${HHS_COLORS.primary.DEFAULT}"
-                    stroke-width="1"
-                    stroke-dasharray="4,4"
-                    opacity="0.3"
+                    stroke-width="2"
+                    stroke-dasharray="6,4"
+                    opacity="0.4"
                 />`;
             }
             
-            // Title area - add subtle dashed border to show placement
+            // Title area - add subtle dashed border to show placement (only if enabled)
             if (isTitle) {
                 rects += `<rect 
                     x="${item.x}" 
@@ -601,11 +729,45 @@ const SVGGenerator = () => {
                     fill="none"
                     stroke="${HHS_COLORS.base.dark}"
                     stroke-width="1"
-                    stroke-dasharray="2,2"
-                    opacity="0.2"
+                    stroke-dasharray="3,3"
+                    opacity="0.25"
+                />`;
+            }
+            
+            // Slicer zone - add subtle background and border to show filter placement
+            if (isSlicerZone) {
+                // Subtle background
+                rects += `<rect 
+                    x="${item.x}" 
+                    y="${item.y}" 
+                    width="${item.w}" 
+                    height="${item.h}" 
+                    fill="${HHS_COLORS.primary.DEFAULT}"
+                    opacity="0.03"
+                />`;
+                // Border
+                rects += `<rect 
+                    x="${item.x}" 
+                    y="${item.y}" 
+                    width="${item.w}" 
+                    height="${item.h}" 
+                    fill="none"
+                    stroke="${HHS_COLORS.primary.DEFAULT}"
+                    stroke-width="2"
+                    stroke-dasharray="8,4"
+                    opacity="0.3"
                 />`;
             }
         });
+        
+        // Add visual count warning if enabled and count > 10
+        const visualCount = items.filter(item => 
+            ['card', 'kpi', 'main', 'content', 'sidebar', 'nav', 'kpi-strip'].includes(item.type)
+        ).length;
+        
+        if (config.showVisualCountWarning && visualCount > 10) {
+            rects += `<text x="${width - 20}" y="${height - 20}" font-family="Arial" font-size="12" fill="#d54309" opacity="0.7" text-anchor="end">⚠ ${visualCount} visuals (recommend &lt;10)</text>`;
+        }
 
         return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
             <defs>${defs}</defs>
@@ -645,58 +807,99 @@ const SVGGenerator = () => {
     };
 
     const downloadPNG = async () => {
-        const svgString = getSVGString();
-        const svgBlob = new Blob([svgString], { type: 'image/svg+xml' });
-        const url = URL.createObjectURL(svgBlob);
-        
-        const img = new Image();
-        img.onload = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = config.width;
-            canvas.height = config.height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0);
+        try {
+            const svgString = getSVGString();
+            const svgBlob = new Blob([svgString], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(svgBlob);
             
-            canvas.toBlob((blob) => {
-                const pngUrl = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = pngUrl;
-                link.download = `HHS-Background-${layoutMode}.png`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(pngUrl);
+            const img = new Image();
+            
+            img.onerror = () => {
                 URL.revokeObjectURL(url);
-                showToast("PNG Exported!");
-            }, 'image/png');
-        };
-        img.src = url;
+                showToast("Error: Could not load image for PNG export");
+            };
+            
+            img.onload = () => {
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = config.width;
+                    canvas.height = config.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    
+                    canvas.toBlob((blob) => {
+                        if (!blob) {
+                            URL.revokeObjectURL(url);
+                            showToast("Error: Could not create PNG");
+                            return;
+                        }
+                        const pngUrl = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = pngUrl;
+                        link.download = `HHS-Background-${layoutMode}.png`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(pngUrl);
+                        URL.revokeObjectURL(url);
+                        showToast("PNG Exported!");
+                    }, 'image/png');
+                } catch (error) {
+                    URL.revokeObjectURL(url);
+                    showToast("Error: Failed to create PNG");
+                    console.error('PNG export error:', error);
+                }
+            };
+            img.src = url;
+        } catch (error) {
+            showToast("Error: PNG export failed");
+            console.error('PNG export error:', error);
+        }
     };
 
     const saveTemplate = () => {
-        const template = {
-            layoutMode,
-            themeMode,
-            canvasPreset,
-            config,
-            timestamp: new Date().toISOString()
-        };
-        const templates = JSON.parse(localStorage.getItem('svgGeneratorTemplates') || '[]');
-        templates.push(template);
-        localStorage.setItem('svgGeneratorTemplates', JSON.stringify(templates));
-        showToast("Template Saved!");
+        try {
+            const template = {
+                layoutMode,
+                themeMode,
+                canvasPreset,
+                config,
+                timestamp: new Date().toISOString()
+            };
+            const templates = JSON.parse(localStorage.getItem('svgGeneratorTemplates') || '[]');
+            templates.push(template);
+            localStorage.setItem('svgGeneratorTemplates', JSON.stringify(templates));
+            showToast("Template Saved!");
+        } catch (error) {
+            showToast("Error: Could not save template");
+            console.error('Template save error:', error);
+        }
     };
 
     const loadTemplate = (template) => {
-        setLayoutMode(template.layoutMode);
-        setThemeMode(template.themeMode);
-        setCanvasPreset(template.canvasPreset);
-        setConfig(template.config);
-        showToast("Template Loaded!");
+        try {
+            if (!template || !template.config) {
+                showToast("Error: Invalid template");
+                return;
+            }
+            setLayoutMode(template.layoutMode || 'federal');
+            setThemeMode(template.themeMode || 'standard');
+            setCanvasPreset(template.canvasPreset || '16:9');
+            setConfig(template.config);
+            showToast("Template Loaded!");
+        } catch (error) {
+            showToast("Error: Could not load template");
+            console.error('Template load error:', error);
+        }
     };
 
     const getSavedTemplates = () => {
-        return JSON.parse(localStorage.getItem('svgGeneratorTemplates') || '[]');
+        try {
+            return JSON.parse(localStorage.getItem('svgGeneratorTemplates') || '[]');
+        } catch (error) {
+            console.error('Error loading templates:', error);
+            return [];
+        }
     };
 
     const showToast = (msg) => {
@@ -722,13 +925,72 @@ const SVGGenerator = () => {
                         <CheckCircle className="w-3 h-3"/> Quick Actions
                     </h3>
                     <div className="grid grid-cols-1 gap-2">
-                        <button onClick={() => applyHHSPreset('official')} className="text-left px-3 py-2 rounded bg-[#005ea2] hover:bg-[#00bde3] text-white text-sm transition-colors border border-[#1a4480] flex items-center justify-between">
+                        <button 
+                            onClick={() => applyHHSPreset('official')} 
+                            className="text-left px-3 py-2 rounded bg-[#005ea2] hover:bg-[#00bde3] text-white text-sm transition-colors border border-[#1a4480] flex items-center justify-between"
+                            aria-label="Reset to HHS Official colors"
+                        >
                             <span>Reset to HHS Official</span>
                             <div className="flex gap-1"><div className="w-2 h-2 rounded-full bg-[#face00]"></div><div className="w-2 h-2 rounded-full bg-white"></div></div>
                         </button>
-                        <button onClick={() => applyHHSPreset('dark_mode')} className="text-left px-3 py-2 rounded bg-[#3d4551] hover:bg-[#565c65] text-white text-sm transition-colors border border-[#1c1d1f] flex items-center justify-between">
+                        <button 
+                            onClick={() => applyHHSPreset('dark_mode')} 
+                            className="text-left px-3 py-2 rounded bg-[#3d4551] hover:bg-[#565c65] text-white text-sm transition-colors border border-[#1c1d1f] flex items-center justify-between"
+                            aria-label="Apply high contrast dark mode colors"
+                        >
                             <span>High Contrast / Dark</span>
                              <div className="flex gap-1"><div className="w-2 h-2 rounded-full bg-[#00bde3]"></div></div>
+                        </button>
+                        <button onClick={() => {
+                            setConfig({
+                                width: 1280,
+                                height: 720,
+                                bgHex: HHS_COLORS.base.lighter,
+                                cardHex: '#ffffff',
+                                accentHex: HHS_COLORS.primary.DEFAULT,
+                                gap: 16,
+                                padding: 20,
+                                radius: 8,
+                                strokeWidth: 0,
+                                opacity: 1,
+                                noise: false,
+                                headerHeight: 88,
+                                footerHeight: 0,
+                                kpiCount: 5,
+                                showFooter: false,
+                                showTrustBar: false,
+                                trustBarHeight: 32,
+                                showLogo: true,
+                                logoAreaWidth: 200,
+                                showTitle: false,
+                                titleHeight: 60,
+                                titlePosition: 'top',
+                                showSlicerZone: false,
+                                slicerZoneHeight: 60,
+                                showVisualCountWarning: true,
+                                gridSpacing: 20,
+                                gridOpacity: 0.1,
+                                federalRows: 2,
+                                federalColumns: 2,
+                                federalSidebarWidth: 280,
+                                showFederalSidebar: true,
+                                sidebarLayoutWidth: 260,
+                                sidebarVisualCount: 1,
+                                sidebarColumns: 1,
+                                gridRows: 2,
+                                gridColumns: 2,
+                                kpiVisualCount: 1,
+                                kpiColumns: 1,
+                                threeColVisualCount: 1,
+                                asymmetricSideCount: 2,
+                                mobileVisualCount: 3
+                            });
+                            setCanvasPreset('16:9');
+                            setThemeMode('standard');
+                            showToast("Reset to defaults");
+                        }} className="text-left px-3 py-2 rounded bg-[#3d4551] hover:bg-[#565c65] text-white text-sm transition-colors border border-[#1c1d1f] flex items-center justify-between">
+                            <span>Reset All to Defaults</span>
+                            <div className="flex gap-1"><div className="w-2 h-2 rounded-full bg-[#97d4ea]"></div></div>
                         </button>
                     </div>
                 </div>
@@ -739,7 +1001,11 @@ const SVGGenerator = () => {
                         <Save className="w-3 h-3"/> Templates
                     </h3>
                     <div className="grid grid-cols-2 gap-2">
-                        <button onClick={saveTemplate} className="px-3 py-2 rounded bg-[#1a4480] hover:bg-[#005ea2] text-white text-xs font-semibold transition-colors border border-transparent hover:border-[#face00] flex items-center justify-center gap-1">
+                        <button 
+                            onClick={saveTemplate} 
+                            className="px-3 py-2 rounded bg-[#1a4480] hover:bg-[#005ea2] text-white text-xs font-semibold transition-colors border border-transparent hover:border-[#face00] flex items-center justify-center gap-1"
+                            aria-label="Save current configuration as template"
+                        >
                             <Save className="w-3 h-3" /> Save
                         </button>
                         {getSavedTemplates().length > 0 && (
@@ -772,6 +1038,8 @@ const SVGGenerator = () => {
                         {[
                             { key: '16:9', label: '16:9 (HD)' },
                             { key: '4:3', label: '4:3 (Standard)' },
+                            { key: 'ultrawide', label: 'Ultrawide' },
+                            { key: 'portrait', label: 'Portrait' },
                             { key: 'mobile', label: 'Mobile' },
                             { key: 'custom', label: 'Custom' }
                         ].map(p => (
@@ -834,78 +1102,70 @@ const SVGGenerator = () => {
                     </div>
                 </div>
 
-                {/* Metrics */}
-                <div className="p-5 border-b border-[#3d4551] space-y-6">
-                     <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-2 flex items-center gap-2">
-                        <Settings className="w-3 h-3"/> Metrics (px)
+                {/* Layout-Specific Configuration */}
+                <div className="p-5 border-b border-[#3d4551] space-y-4">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-2 flex items-center gap-2">
+                        <Grid3x3 className="w-3 h-3"/> Layout Configuration
                     </h3>
                     
                     <div className="space-y-4">
-                        <div>
-                            <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                <span>Card Spacing</span>
-                                <span>{config.gap}</span>
-                            </div>
-                            <input type="range" min="0" max="48" value={config.gap} onChange={(e) => handleConfigChange('gap', Number(e.target.value))} className="input-range w-full" />
-                        </div>
-                        
-                        <div>
-                            <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                <span>Page Padding</span>
-                                <span>{config.padding}</span>
-                            </div>
-                            <input type="range" min="0" max="80" value={config.padding} onChange={(e) => handleConfigChange('padding', Number(e.target.value))} className="input-range w-full" />
-                        </div>
-                        
-                        <div>
-                            <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                <span>Corner Radius</span>
-                                <span>{config.radius}</span>
-                            </div>
-                            <input type="range" min="0" max="32" value={config.radius} onChange={(e) => handleConfigChange('radius', Number(e.target.value))} className="input-range w-full" />
-                        </div>
-
-                        <div>
-                            <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                <span>Stroke / Border</span>
-                                <span>{config.strokeWidth}</span>
-                            </div>
-                            <input type="range" min="0" max="4" step="0.5" value={config.strokeWidth} onChange={(e) => handleConfigChange('strokeWidth', Number(e.target.value))} className="input-range w-full" />
-                        </div>
-
-                        {(layoutMode === 'kpi' || layoutMode === 'three-col' || layoutMode === 'asymmetric') && (
-                            <div>
-                                <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                    <span>KPI Count</span>
-                                    <span>{config.kpiCount}</span>
-                                </div>
-                                <input type="range" min="2" max="8" value={config.kpiCount} onChange={(e) => handleConfigChange('kpiCount', Number(e.target.value))} className="input-range w-full" />
-                            </div>
-                        )}
-
                         {layoutMode === 'federal' && (
                             <>
                                 <div>
                                     <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                        <span>Visual Areas</span>
-                                        <span>{config.federalVisualCount}</span>
+                                        <span>Header Height</span>
+                                        <span>{config.headerHeight}px</span>
                                     </div>
-                                    <input type="range" min="1" max="12" value={config.federalVisualCount} onChange={(e) => handleConfigChange('federalVisualCount', Number(e.target.value))} className="input-range w-full" />
-                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of visual cards in main content area</p>
+                                    <input type="range" min="60" max="120" value={config.headerHeight} onChange={(e) => handleConfigChange('headerHeight', Number(e.target.value))} className="input-range w-full" />
+                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Height of top navigation bar</p>
+                                </div>
+                                <div>
+                                    <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
+                                        <span>Show Sidebar</span>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" checked={config.showFederalSidebar} onChange={(e) => handleConfigChange('showFederalSidebar', e.target.checked)} className="sr-only peer" />
+                                            <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
+                                        </label>
+                                    </div>
+                                    {config.showFederalSidebar && (
+                                        <div className="mb-3">
+                                            <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                                <span>Sidebar Width</span>
+                                                <span>{config.federalSidebarWidth}px</span>
+                                            </div>
+                                            <input type="range" min="180" max="400" value={config.federalSidebarWidth} onChange={(e) => handleConfigChange('federalSidebarWidth', Number(e.target.value))} className="input-range w-full" />
+                                        </div>
+                                    )}
                                 </div>
                                 <div>
                                     <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                        <span>Columns</span>
+                                        <span>Grid Rows</span>
+                                        <span>{config.federalRows}</span>
+                                    </div>
+                                    <input type="range" min="0" max="4" value={config.federalRows} onChange={(e) => handleConfigChange('federalRows', Number(e.target.value))} className="input-range w-full" />
+                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of rows in grid (0 = no grid)</p>
+                                </div>
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                        <span>Grid Columns</span>
                                         <span>{config.federalColumns}</span>
                                     </div>
-                                    <input type="range" min="1" max="4" value={config.federalColumns} onChange={(e) => handleConfigChange('federalColumns', Number(e.target.value))} className="input-range w-full" />
-                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Grid columns (rows auto-calculated)</p>
+                                    <input type="range" min="0" max="4" value={config.federalColumns} onChange={(e) => handleConfigChange('federalColumns', Number(e.target.value))} className="input-range w-full" />
+                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of columns in grid (0 = no grid)</p>
                                 </div>
                             </>
                         )}
 
                         {layoutMode === 'sidebar' && (
                             <>
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                        <span>Sidebar Width</span>
+                                        <span>{config.sidebarLayoutWidth}px</span>
+                                    </div>
+                                    <input type="range" min="180" max="400" value={config.sidebarLayoutWidth} onChange={(e) => handleConfigChange('sidebarLayoutWidth', Number(e.target.value))} className="input-range w-full" />
+                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Width of left navigation sidebar</p>
+                                </div>
                                 <div>
                                     <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
                                         <span>Visual Areas</span>
@@ -950,6 +1210,14 @@ const SVGGenerator = () => {
                             <>
                                 <div>
                                     <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                        <span>KPI Count</span>
+                                        <span>{config.kpiCount}</span>
+                                    </div>
+                                    <input type="range" min="2" max="8" value={config.kpiCount} onChange={(e) => handleConfigChange('kpiCount', Number(e.target.value))} className="input-range w-full" />
+                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of KPI cards in top row</p>
+                                </div>
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
                                         <span>Visual Areas</span>
                                         <span>{config.kpiVisualCount}</span>
                                     </div>
@@ -968,25 +1236,45 @@ const SVGGenerator = () => {
                         )}
 
                         {layoutMode === 'three-col' && (
-                            <div>
-                                <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                    <span>Visuals per Column</span>
-                                    <span>{config.threeColVisualCount}</span>
+                            <>
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                        <span>KPI Count</span>
+                                        <span>{config.kpiCount}</span>
+                                    </div>
+                                    <input type="range" min="2" max="8" value={config.kpiCount} onChange={(e) => handleConfigChange('kpiCount', Number(e.target.value))} className="input-range w-full" />
+                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of KPI cards in top row</p>
                                 </div>
-                                <input type="range" min="1" max="4" value={config.threeColVisualCount} onChange={(e) => handleConfigChange('threeColVisualCount', Number(e.target.value))} className="input-range w-full" />
-                                <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of visual cards stacked in each column</p>
-                            </div>
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                        <span>Visuals per Column</span>
+                                        <span>{config.threeColVisualCount}</span>
+                                    </div>
+                                    <input type="range" min="1" max="4" value={config.threeColVisualCount} onChange={(e) => handleConfigChange('threeColVisualCount', Number(e.target.value))} className="input-range w-full" />
+                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of visual cards stacked in each column</p>
+                                </div>
+                            </>
                         )}
 
                         {layoutMode === 'asymmetric' && (
-                            <div>
-                                <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                    <span>Side Cards</span>
-                                    <span>{config.asymmetricSideCount}</span>
+                            <>
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                        <span>KPI Count</span>
+                                        <span>{config.kpiCount}</span>
+                                    </div>
+                                    <input type="range" min="2" max="8" value={config.kpiCount} onChange={(e) => handleConfigChange('kpiCount', Number(e.target.value))} className="input-range w-full" />
+                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of KPI cards in top row</p>
                                 </div>
-                                <input type="range" min="1" max="4" value={config.asymmetricSideCount} onChange={(e) => handleConfigChange('asymmetricSideCount', Number(e.target.value))} className="input-range w-full" />
-                                <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of side cards stacked on the right</p>
-                            </div>
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                        <span>Side Cards</span>
+                                        <span>{config.asymmetricSideCount}</span>
+                                    </div>
+                                    <input type="range" min="1" max="4" value={config.asymmetricSideCount} onChange={(e) => handleConfigChange('asymmetricSideCount', Number(e.target.value))} className="input-range w-full" />
+                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of side cards stacked on the right</p>
+                                </div>
+                            </>
                         )}
 
                         {layoutMode === 'mobile' && (
@@ -999,6 +1287,75 @@ const SVGGenerator = () => {
                                 <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of cards in vertical stack</p>
                             </div>
                         )}
+                    </div>
+                </div>
+
+                {/* Metrics */}
+                <div className="p-5 border-b border-[#3d4551] space-y-6">
+                     <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-2 flex items-center gap-2">
+                        <Settings className="w-3 h-3"/> Spacing & Style
+                    </h3>
+                    
+                    <div className="space-y-4">
+                        <div>
+                            <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                <span>Card Spacing</span>
+                                <span>{config.gap}</span>
+                            </div>
+                            <input type="range" min="0" max="48" value={config.gap} onChange={(e) => handleConfigChange('gap', Number(e.target.value))} className="input-range w-full" />
+                        </div>
+                        
+                        <div>
+                            <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                <span>Page Padding</span>
+                                <span>{config.padding}</span>
+                            </div>
+                            <input type="range" min="0" max="80" value={config.padding} onChange={(e) => handleConfigChange('padding', Number(e.target.value))} className="input-range w-full" />
+                        </div>
+                        
+                        <div>
+                            <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                <span>Corner Radius</span>
+                                <span>{config.radius}</span>
+                            </div>
+                            <input type="range" min="0" max="32" value={config.radius} onChange={(e) => handleConfigChange('radius', Number(e.target.value))} className="input-range w-full" />
+                        </div>
+
+                        <div>
+                            <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                <span>Stroke / Border</span>
+                                <span>{config.strokeWidth}</span>
+                            </div>
+                            <input type="range" min="0" max="4" step="0.5" value={config.strokeWidth} onChange={(e) => handleConfigChange('strokeWidth', Number(e.target.value))} className="input-range w-full" />
+                        </div>
+
+                        <div className="pt-2 border-t border-[#3d4551]">
+                            <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
+                                <span>Grid Overlay</span>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} className="sr-only peer" />
+                                    <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
+                                </label>
+                            </div>
+                            {showGrid && (
+                                <>
+                                    <div>
+                                        <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                            <span>Grid Spacing</span>
+                                            <span>{config.gridSpacing}px</span>
+                                        </div>
+                                        <input type="range" min="10" max="50" step="5" value={config.gridSpacing} onChange={(e) => handleConfigChange('gridSpacing', Number(e.target.value))} className="input-range w-full" />
+                                    </div>
+                                    <div>
+                                        <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                            <span>Grid Opacity</span>
+                                            <span>{Math.round(config.gridOpacity * 100)}%</span>
+                                        </div>
+                                        <input type="range" min="0.05" max="0.3" step="0.05" value={config.gridOpacity} onChange={(e) => handleConfigChange('gridOpacity', Number(e.target.value))} className="input-range w-full" />
+                                    </div>
+                                </>
+                            )}
+                        </div>
 
                         <div>
                             <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
@@ -1064,6 +1421,7 @@ const SVGGenerator = () => {
                                         <span>{config.logoAreaWidth}px</span>
                                     </div>
                                     <input type="range" min="120" max="400" value={config.logoAreaWidth} onChange={(e) => handleConfigChange('logoAreaWidth', Number(e.target.value))} className="input-range w-full" />
+                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Shows where to place HHS logo in header</p>
                                 </div>
                             )}
                         </div>
@@ -1078,14 +1436,69 @@ const SVGGenerator = () => {
                                 </label>
                             </div>
                             {config.showTitle && (
+                                <>
+                                    <div className="mb-2">
+                                        <span className="text-[10px] uppercase opacity-70 block mb-2">Position</span>
+                                        <div className="flex gap-2">
+                                            {['top', 'header'].map(pos => (
+                                                <button 
+                                                    key={pos} 
+                                                    onClick={() => handleConfigChange('titlePosition', pos)}
+                                                    className={`flex-1 py-1 px-2 text-[10px] uppercase rounded border ${config.titlePosition === pos ? 'bg-[#face00] text-[#162e51] font-bold border-[#face00]' : 'border-[#97d4ea] text-[#97d4ea]'}`}
+                                                >
+                                                    {pos}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">
+                                            {config.titlePosition === 'header' ? 'In header bar (Federal layout only)' : 'At top of content area'}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                            <span>Title Height</span>
+                                            <span>{config.titleHeight}px</span>
+                                        </div>
+                                        <input type="range" min="40" max="100" value={config.titleHeight} onChange={(e) => handleConfigChange('titleHeight', Number(e.target.value))} className="input-range w-full" />
+                                    </div>
+                                </>
+                            )}
+                            {!config.showTitle && (
+                                <p className="text-[10px] text-[#97d4ea] opacity-70">Tip: You can add title visuals directly in Power BI</p>
+                            )}
+                        </div>
+
+                        {/* Slicer Zone */}
+                        <div>
+                            <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
+                                <span>Slicer Zone</span>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" checked={config.showSlicerZone} onChange={(e) => handleConfigChange('showSlicerZone', e.target.checked)} className="sr-only peer" />
+                                    <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
+                                </label>
+                            </div>
+                            {config.showSlicerZone && (
                                 <div>
                                     <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                        <span>Title Height</span>
-                                        <span>{config.titleHeight}px</span>
+                                        <span>Slicer Zone Height</span>
+                                        <span>{config.slicerZoneHeight}px</span>
                                     </div>
-                                    <input type="range" min="40" max="100" value={config.titleHeight} onChange={(e) => handleConfigChange('titleHeight', Number(e.target.value))} className="input-range w-full" />
+                                    <input type="range" min="40" max="120" value={config.slicerZoneHeight} onChange={(e) => handleConfigChange('slicerZoneHeight', Number(e.target.value))} className="input-range w-full" />
+                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Horizontal filter bar area (Power BI best practice)</p>
                                 </div>
                             )}
+                        </div>
+
+                        {/* Best Practices */}
+                        <div className="pt-2 border-t border-[#3d4551]">
+                            <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
+                                <span>Visual Count Warning</span>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" checked={config.showVisualCountWarning} onChange={(e) => handleConfigChange('showVisualCountWarning', e.target.checked)} className="sr-only peer" />
+                                    <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
+                                </label>
+                            </div>
+                            <p className="text-[10px] text-[#97d4ea] opacity-70">Warns if layout has &gt;10 visuals (Power BI best practice: &lt;10 per page)</p>
                         </div>
                     </div>
                 </div>
@@ -1167,12 +1580,14 @@ const SVGGenerator = () => {
                                 <button
                                     onClick={downloadSVG}
                                     className="w-full text-left px-3 py-2 text-xs text-white hover:bg-[#1a4480] transition-colors flex items-center gap-2 border-b border-[#3d4551]"
+                                    aria-label="Download as SVG"
                                 >
                                     <Download className="w-3 h-3" /> SVG
                                 </button>
                                 <button
                                     onClick={downloadPNG}
                                     className="w-full text-left px-3 py-2 text-xs text-white hover:bg-[#1a4480] transition-colors flex items-center gap-2"
+                                    aria-label="Download as PNG"
                                 >
                                     <ImageIcon className="w-3 h-3" /> PNG
                                 </button>
@@ -1199,8 +1614,8 @@ const SVGGenerator = () => {
                             className="w-full h-full"
                             dangerouslySetInnerHTML={{ 
                                 __html: getSVGString()
-                                    .replace('width="1280"', 'width="100%"')
-                                    .replace('height="720"', 'height="100%"') 
+                                    .replace(`width="${config.width}"`, 'width="100%"')
+                                    .replace(`height="${config.height}"`, 'height="100%"') 
                             }} 
                         />
                         {showGrid && (
@@ -1208,10 +1623,10 @@ const SVGGenerator = () => {
                                 className="absolute inset-0 pointer-events-none"
                                 style={{
                                     backgroundImage: `
-                                        linear-gradient(to right, rgba(0, 0, 0, 0.1) 1px, transparent 1px),
-                                        linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 1px, transparent 1px)
+                                        linear-gradient(to right, rgba(0, 0, 0, ${config.gridOpacity}) 1px, transparent 1px),
+                                        linear-gradient(to bottom, rgba(0, 0, 0, ${config.gridOpacity}) 1px, transparent 1px)
                                     `,
-                                    backgroundSize: '20px 20px'
+                                    backgroundSize: `${config.gridSpacing}px ${config.gridSpacing}px`
                                 }}
                             />
                         )}
@@ -1220,9 +1635,20 @@ const SVGGenerator = () => {
                 </div>
                 
                 {/* Bottom Help Text */}
-                <div className="absolute bottom-4 right-4 text-[10px] text-[#dfe1e2] bg-[#1c1d1f] p-2 rounded opacity-70 pointer-events-none">
-                    Tip: In Power BI, set transparency to 0% and Image Fit to "Fit"
-                </div>
+                {(() => {
+                    const visualCount = items.filter(item => ['card', 'kpi', 'main', 'content', 'sidebar', 'nav', 'kpi-strip'].includes(item.type)).length;
+                    return (
+                        <div className="absolute bottom-4 right-4 text-[10px] text-[#dfe1e2] bg-[#1c1d1f] p-2 rounded opacity-70 pointer-events-none max-w-xs">
+                            <div className="font-semibold mb-1">Power BI Tips:</div>
+                            <div>• Set transparency to 0%</div>
+                            <div>• Image Fit: "Fit"</div>
+                            <div>• Send background to back</div>
+                            {visualCount > 10 && (
+                                <div className="mt-2 text-[#d54309] font-semibold">⚠ {visualCount} visuals (recommend &lt;10)</div>
+                            )}
+                        </div>
+                    );
+                })()}
 
                 {/* Toast Notification */}
                 {toast && (
@@ -1244,6 +1670,7 @@ const SVGGenerator = () => {
                                 <button
                                     onClick={() => setShowImportGuide(false)}
                                     className="text-[#97d4ea] hover:text-white transition-colors"
+                                    aria-label="Close import guide"
                                 >
                                     ✕
                                 </button>
@@ -1283,6 +1710,7 @@ const SVGGenerator = () => {
                                 <button
                                     onClick={() => setShowImportGuide(false)}
                                     className="px-4 py-2 bg-[#005ea2] hover:bg-[#00bde3] text-white rounded font-semibold transition-colors"
+                                    aria-label="Close import guide"
                                 >
                                     Got it!
                                 </button>
