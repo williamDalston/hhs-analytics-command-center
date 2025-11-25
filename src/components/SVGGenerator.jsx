@@ -683,6 +683,12 @@ const SVGGenerator = () => {
         return newItems; // Return items for use in other functions
     }, [layoutMode, config]);
 
+    // Generate layout on mount and when dependencies change
+    useEffect(() => {
+        generateLayout();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [layoutMode, config]);
+
     const handleConfigChange = (key, val) => {
         setConfig(prev => ({ ...prev, [key]: val }));
     };
