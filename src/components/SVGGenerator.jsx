@@ -1160,18 +1160,24 @@ const SVGGenerator = () => {
         }
         
         // Add visual count warning if enabled and count > 10
-        const visualCount = items.filter(item => 
-            ['card', 'kpi', 'main', 'sidebar', 'nav', 'kpi-strip'].includes(item.type)
-        ).length;
-        
-        if (config.showVisualCountWarning && visualCount > 10) {
-            rects += `<text x="${width - 20}" y="${height - 20}" font-family="Arial" font-size="12" fill="#d54309" opacity="0.7" text-anchor="end">⚠ ${visualCount} visuals (recommend &lt;10)</text>`;
+        if (items && Array.isArray(items) && items.length > 0) {
+            const visualCount = items.filter(item => 
+                ['card', 'kpi', 'main', 'sidebar', 'nav', 'kpi-strip'].includes(item.type)
+            ).length;
+            
+            if (config.showVisualCountWarning && visualCount > 10) {
+                rects += `<text x="${width - 20}" y="${height - 20}" font-family="Arial" font-size="12" fill="#d54309" opacity="0.7" text-anchor="end">⚠ ${visualCount} visuals (recommend &lt;10)</text>`;
+            }
         }
 
-        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
-            <defs>${defs}</defs>
-            ${rects}
-        </svg>`;
+        // Ensure we have a valid SVG string with XML declaration
+        const svgString = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
+    <defs>${defs}</defs>
+    ${rects}
+</svg>`;
+        
+        return svgString;
     };
 
     const copySVGToClipboard = async () => {
@@ -1193,7 +1199,16 @@ const SVGGenerator = () => {
 
     const downloadSVG = () => {
         const svgString = getSVGString();
-        const blob = new Blob([svgString], { type: 'image/svg+xml' });
+        
+        // Validate SVG string
+        if (!svgString || !svgString.trim() || !svgString.includes('<svg')) {
+            showToast("Error: Invalid SVG content. Please try generating the layout again.");
+            console.error('Invalid SVG string:', svgString);
+            return;
+        }
+        
+        // Create blob with explicit UTF-8 encoding
+        const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
