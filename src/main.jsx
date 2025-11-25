@@ -25,11 +25,16 @@ if (!rootElement) {
   document.body.innerHTML = '<div style="padding: 2rem; font-family: monospace;"><h1>Error: Root element not found</h1><p>Could not find element with id="root"</p></div>'
 } else {
   try {
-    createRoot(rootElement).render(
+    // Only use StrictMode in development to avoid double-renders in production
+    const app = import.meta.env.DEV ? (
       <StrictMode>
         <App />
-      </StrictMode>,
-    )
+      </StrictMode>
+    ) : (
+      <App />
+    );
+
+    createRoot(rootElement).render(app)
   } catch (error) {
     // Keep critical error logging
     console.error('Error rendering React app:', error.message)

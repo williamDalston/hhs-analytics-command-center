@@ -6,6 +6,8 @@ import { ToastProvider, useToast } from './context/ToastContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { SidebarProvider, useSidebar } from './context/SidebarContext';
 import ProjectTracker from './components/ProjectTracker';
+import LoadingFallback from './components/LoadingFallback';
+import ErrorBoundary from './components/ErrorBoundary';
 const DAXLibrary = lazy(() => import('./components/DAXLibrary'));
 const PowerQueryLibrary = lazy(() => import('./components/PowerQueryLibrary'));
 const StyleGuide = lazy(() => import('./components/StyleGuide'));
@@ -89,9 +91,8 @@ const CommandPalette = ({ isOpen, onClose }) => {
                   navigate(cmd.path);
                   onClose();
                 }}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors ${
-                  index === selectedIndex ? 'bg-slate-100 dark:bg-slate-700' : ''
-                }`}
+                className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors ${index === selectedIndex ? 'bg-slate-100 dark:bg-slate-700' : ''
+                  }`}
               >
                 <Icon className="h-5 w-5 text-slate-600 dark:text-slate-400" />
                 <span className="flex-1 text-slate-900 dark:text-slate-100">{cmd.label}</span>
@@ -319,98 +320,97 @@ const Sidebar = ({ onDataManagerOpen }) => {
       )}
 
       {/* Sidebar */}
-      <div className={`mobile-sidebar w-72 glass-sidebar flex-shrink-0 fixed h-full z-50 flex flex-col shadow-2xl shadow-brand-900/20 transition-transform duration-300 ease-in-out ${
-        isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-      } ${isSidebarCollapsed ? 'lg:-translate-x-full' : 'lg:translate-x-0'}`}>
-      <div className="p-8 border-b border-white/10 dark:border-slate-700/10">
-        <div className="flex items-center justify-between gap-4 text-white">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 bg-gradient-to-br from-white to-brand-100 rounded-xl flex items-center justify-center text-brand-700 font-bold text-2xl shadow-lg">
-              H
+      <div className={`mobile-sidebar w-72 glass-sidebar flex-shrink-0 fixed h-full z-50 flex flex-col shadow-2xl shadow-brand-900/20 transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+        } ${isSidebarCollapsed ? 'lg:-translate-x-full' : 'lg:translate-x-0'}`}>
+        <div className="p-8 border-b border-white/10 dark:border-slate-700/10">
+          <div className="flex items-center justify-between gap-4 text-white">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 bg-gradient-to-br from-white to-brand-100 rounded-xl flex items-center justify-center text-brand-700 font-bold text-2xl shadow-lg">
+                H
+              </div>
+              <div>
+                <h1 className="font-bold text-xl leading-none tracking-tight">HHS Analytics</h1>
+                <span className="text-xs text-brand-200 font-medium tracking-wider uppercase opacity-80 mt-1 block">Command Center</span>
+              </div>
             </div>
-            <div>
-              <h1 className="font-bold text-xl leading-none tracking-tight">HHS Analytics</h1>
-              <span className="text-xs text-brand-200 font-medium tracking-wider uppercase opacity-80 mt-1 block">Command Center</span>
-            </div>
-          </div>
-          <button
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="lg:hidden h-8 w-8 rounded-lg flex items-center justify-center text-white hover:bg-white/10 transition-colors"
-            aria-label="Close navigation menu"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-        </div>
-      </div>
-
-      <nav className="p-6 space-y-2 flex-1 overflow-y-auto" role="navigation" aria-label="Main navigation">
-        <div className="text-xs font-semibold text-brand-300/80 uppercase tracking-widest mb-4 pl-2">Menu</div>
-        <SidebarItem icon={LayoutDashboard} label="Project Tracker" path="/" shortcut="⌘1" />
-        <SidebarItem icon={Layers} label="Prototype Builder" path="/builder" shortcut="⌘2" />
-        <SidebarItem icon={Code} label="DAX Library" path="/dax" shortcut="⌘3" />
-        <SidebarItem icon={Zap} label="Power Query M" path="/power-query" shortcut="⌘8" />
-
-        <div className="text-xs font-semibold text-brand-300/80 uppercase tracking-widest mt-8 mb-4 pl-2">Tools</div>
-        <SidebarItem icon={Shield} label="Secure Portal" path="/portal" shortcut="⌘4" />
-        <SidebarItem icon={Sparkles} label="Power BI Guru" path="/guru" shortcut="⌘5" />
-        <SidebarItem icon={Ruler} label="Style Guide" path="/style-guide" shortcut="⌘6" />
-        <SidebarItem icon={Image} label="SVG Generator" path="/svg-generator" shortcut="⌘7" />
-        <SidebarItem icon={BookOpen} label="Quick Reference" path="/quick-reference" shortcut="⌘9" />
-        <SidebarItem icon={TrendingUp} label="Performance Guide" path="/performance" shortcut="⌘0" />
-        
-        <div className="text-xs font-semibold text-brand-300/80 uppercase tracking-widest mt-8 mb-4 pl-2">External Tools</div>
-        <SidebarItem icon={Globe} label="Social Media Scraper" path="https://williamdalston.github.io/social-media-scraper/" external />
-      </nav>
-
-
-      <div className="p-6 border-t border-white/10 dark:border-slate-700/10 bg-black/10 dark:bg-white/5 backdrop-blur-sm">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
             <button
-              onClick={onDataManagerOpen}
-              className="h-12 w-12 rounded-full bg-gradient-to-br from-emerald-600 to-emerald-800 flex items-center justify-center text-white font-bold border-2 border-white/20 shadow-lg hover:scale-105 transition-transform"
-              title="Data Management"
-              aria-label="Open data management"
-            >
-              💾
-            </button>
-            <div>
-              <p className="text-sm font-bold text-white tracking-wide">Power BI Developer</p>
-              <p className="text-xs text-brand-200 font-medium">WebFirst Analytics Lead</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => alert(`Keyboard Shortcuts:
-• Cmd/Ctrl+1-7: Navigate to sections
-• Cmd/Ctrl+K: Search/Command palette (coming soon)
-• ?: Show this help`)}
-              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-white text-xs"
-              title="Keyboard shortcuts"
-              aria-label="Show keyboard shortcuts"
-            >
-              ⌨️
-            </button>
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-white"
-              title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-              aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            </button>
-            <button
-              onClick={toggleSidebar}
-              className="hidden lg:block p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-white"
-              title="Collapse sidebar"
-              aria-label="Collapse sidebar"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="lg:hidden h-8 w-8 rounded-lg flex items-center justify-center text-white hover:bg-white/10 transition-colors"
+              aria-label="Close navigation menu"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
           </div>
         </div>
+
+        <nav className="p-6 space-y-2 flex-1 overflow-y-auto" role="navigation" aria-label="Main navigation">
+          <div className="text-xs font-semibold text-brand-300/80 uppercase tracking-widest mb-4 pl-2">Menu</div>
+          <SidebarItem icon={LayoutDashboard} label="Project Tracker" path="/" shortcut="⌘1" />
+          <SidebarItem icon={Layers} label="Prototype Builder" path="/builder" shortcut="⌘2" />
+          <SidebarItem icon={Code} label="DAX Library" path="/dax" shortcut="⌘3" />
+          <SidebarItem icon={Zap} label="Power Query M" path="/power-query" shortcut="⌘8" />
+
+          <div className="text-xs font-semibold text-brand-300/80 uppercase tracking-widest mt-8 mb-4 pl-2">Tools</div>
+          <SidebarItem icon={Shield} label="Secure Portal" path="/portal" shortcut="⌘4" />
+          <SidebarItem icon={Sparkles} label="Power BI Guru" path="/guru" shortcut="⌘5" />
+          <SidebarItem icon={Ruler} label="Style Guide" path="/style-guide" shortcut="⌘6" />
+          <SidebarItem icon={Image} label="SVG Generator" path="/svg-generator" shortcut="⌘7" />
+          <SidebarItem icon={BookOpen} label="Quick Reference" path="/quick-reference" shortcut="⌘9" />
+          <SidebarItem icon={TrendingUp} label="Performance Guide" path="/performance" shortcut="⌘0" />
+
+          <div className="text-xs font-semibold text-brand-300/80 uppercase tracking-widest mt-8 mb-4 pl-2">External Tools</div>
+          <SidebarItem icon={Globe} label="Social Media Scraper" path="https://williamdalston.github.io/social-media-scraper/" external />
+        </nav>
+
+
+        <div className="p-6 border-t border-white/10 dark:border-slate-700/10 bg-black/10 dark:bg-white/5 backdrop-blur-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={onDataManagerOpen}
+                className="h-12 w-12 rounded-full bg-gradient-to-br from-emerald-600 to-emerald-800 flex items-center justify-center text-white font-bold border-2 border-white/20 shadow-lg hover:scale-105 transition-transform"
+                title="Data Management"
+                aria-label="Open data management"
+              >
+                💾
+              </button>
+              <div>
+                <p className="text-sm font-bold text-white tracking-wide">Power BI Developer</p>
+                <p className="text-xs text-brand-200 font-medium">WebFirst Analytics Lead</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => alert(`Keyboard Shortcuts:
+• Cmd/Ctrl+1-7: Navigate to sections
+• Cmd/Ctrl+K: Search/Command palette (coming soon)
+• ?: Show this help`)}
+                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-white text-xs"
+                title="Keyboard shortcuts"
+                aria-label="Show keyboard shortcuts"
+              >
+                ⌨️
+              </button>
+              <button
+                onClick={toggleTheme}
+                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-white"
+                title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              </button>
+              <button
+                onClick={toggleSidebar}
+                className="hidden lg:block p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-white"
+                title="Collapse sidebar"
+                aria-label="Collapse sidebar"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
     </>
   );
 };
@@ -487,10 +487,10 @@ const QuickActions = () => {
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
         onClick={() => setIsOpen(!isOpen)}
-        className={`h-14 w-14 sm:h-16 sm:w-16 rounded-full flex items-center justify-center transition-all duration-300 shadow-2xl z-50 touch-target ${isOpen 
-          ? 'bg-slate-800 rotate-45 shadow-slate-900/20' 
+        className={`h-14 w-14 sm:h-16 sm:w-16 rounded-full flex items-center justify-center transition-all duration-300 shadow-2xl z-50 touch-target ${isOpen
+          ? 'bg-slate-800 rotate-45 shadow-slate-900/20'
           : 'bg-gradient-to-br from-brand-500 to-brand-700 shadow-brand-600/30'
-        }`}
+          }`}
         aria-label={isOpen ? 'Close quick actions' : 'Open quick actions'}
       >
         {isOpen ? <X className="h-6 w-6 sm:h-7 sm:w-7 text-white" /> : <Share2 className="h-6 w-6 sm:h-7 sm:w-7 text-white" />}
@@ -578,11 +578,7 @@ const AnimatedRoutes = ({ onCommandPaletteOpen }) => {
 
   return (
     <AnimatePresence mode="wait">
-      <Suspense fallback={
-        <div className="flex items-center justify-center min-h-[50vh]">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-500"></div>
-        </div>
-      }>
+      <Suspense fallback={<LoadingFallback />}>
         <Routes location={location} key={location.pathname}>
           <Route path="/" element={<PageTransition><ProjectTracker /></PageTransition>} />
           <Route path="/builder" element={<PageTransition><PrototypeBuilder /></PageTransition>} />
@@ -591,7 +587,7 @@ const AnimatedRoutes = ({ onCommandPaletteOpen }) => {
           <Route path="/style-guide" element={<PageTransition><StyleGuide /></PageTransition>} />
           <Route path="/portal" element={<PageTransition><SecureFilePortal /></PageTransition>} />
           <Route path="/guru" element={<PageTransition><PowerBIGuru /></PageTransition>} />
-          <Route path="/svg-generator" element={<PageTransition><SVGGenerator /></PageTransition>} />
+          <Route path="/svg-generator" element={<PageTransition><ErrorBoundary><SVGGenerator /></ErrorBoundary></PageTransition>} />
           <Route path="/quick-reference" element={<PageTransition><QuickReferenceCards /></PageTransition>} />
           <Route path="/performance" element={<PageTransition><PerformanceGuide /></PageTransition>} />
           <Route path="/dependencies" element={<PageTransition><MeasureDependencyVisualizer /></PageTransition>} />
@@ -613,7 +609,7 @@ const AppContent = () => {
       <Sidebar onDataManagerOpen={() => setIsDataManagerOpen(true)} />
       <DataManager isOpen={isDataManagerOpen} onClose={() => setIsDataManagerOpen(false)} />
       <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} />
-      
+
       {/* Show Sidebar Button (when collapsed on desktop) */}
       {isSidebarCollapsed && (
         <button
@@ -628,21 +624,21 @@ const AppContent = () => {
 
       {/* Main Content */}
       <div className={`flex-1 relative z-0 transition-all duration-300 ${isSidebarCollapsed ? 'lg:ml-0' : 'lg:ml-72'}`}>
-              {/* Trust Bar */}
-              <div className="bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border-b border-slate-200/60 dark:border-slate-700/60 pl-16 pr-4 lg:px-8 py-2 sticky top-0 z-10 transition-all">
-                <div className="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-400 max-w-5xl mx-auto">
-                  <Flag className="h-3 w-3 text-brand-600" />
-                  <span className="hidden sm:inline">An official website of the United States government</span>
-                  <span className="sm:hidden">Official U.S. Government Site</span>
-                </div>
-              </div>
-
-              <main className="p-4 lg:p-10 max-w-6xl mx-auto pb-32">
-                <AnimatedRoutes onCommandPaletteOpen={() => setIsCommandPaletteOpen(true)} />
-                <QuickActions />
-              </main>
-            </div>
+        {/* Trust Bar */}
+        <div className="bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border-b border-slate-200/60 dark:border-slate-700/60 pl-16 pr-4 lg:px-8 py-2 sticky top-0 z-10 transition-all">
+          <div className="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-400 max-w-5xl mx-auto">
+            <Flag className="h-3 w-3 text-brand-600" />
+            <span className="hidden sm:inline">An official website of the United States government</span>
+            <span className="sm:hidden">Official U.S. Government Site</span>
           </div>
+        </div>
+
+        <main className="p-4 lg:p-10 max-w-6xl mx-auto pb-32">
+          <AnimatedRoutes onCommandPaletteOpen={() => setIsCommandPaletteOpen(true)} />
+          <QuickActions />
+        </main>
+      </div>
+    </div>
   );
 };
 

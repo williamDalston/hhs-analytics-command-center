@@ -111,7 +111,7 @@ const SVGGenerator = () => {
     // --- Canvas Size Presets ---
     const applyCanvasPreset = (preset) => {
         setCanvasPreset(preset);
-        switch(preset) {
+        switch (preset) {
             case '16:9':
                 setConfig(prev => ({ ...prev, width: 1280, height: 720 }));
                 break;
@@ -139,71 +139,71 @@ const SVGGenerator = () => {
         const effW = width - (padding * 2);
         let effH = height - (padding * 2);
         let yOffset = 0;
-        
+
         // Trust Bar (if enabled) - Always at very top
         if (showTrustBar) {
             effH -= trustBarHeight + gap;
             yOffset = trustBarHeight + gap;
         }
-        
+
         // Footer adjustment
         if (showFooter && footerHeight > 0) {
             effH = effH - footerHeight - gap;
         }
-        
+
         let newItems = [];
         let cardIndex = 0; // Track index for card-type items
 
         // Trust Bar (if enabled)
         if (showTrustBar) {
-            newItems.push({ 
-                x: 0, 
-                y: 0, 
-                w: width, 
-                h: trustBarHeight, 
-                type: 'trustbar', 
-                fill: HHS_COLORS.base.lightest 
+            newItems.push({
+                x: 0,
+                y: 0,
+                w: width,
+                h: trustBarHeight,
+                type: 'trustbar',
+                fill: HHS_COLORS.base.lightest
             });
         }
 
-        const navH = headerHeight; 
+        const navH = headerHeight;
         const footerH = showFooter ? footerHeight : 0;
 
         if (layoutMode === 'federal') {
             // HHS Standard: Top Dark Bar (Nav), White Content Area
             const headerY = yOffset;
             newItems.push({ x: 0, y: headerY, w: width, h: navH, type: 'header', fill: HHS_COLORS.primary.darker });
-            
+
             // Logo area (left side of header) - HHS logo is square
             if (showLogo) {
                 const logoSize = config.logoIsSquare ? Math.min(logoAreaWidth, 60) : 60;
-                newItems.push({ 
-                    x: padding, 
-                    y: headerY + (navH - logoSize) / 2, 
-                    w: logoSize, 
-                    h: logoSize, 
-                    type: 'logo', 
-                    fill: 'transparent' 
+                newItems.push({
+                    x: padding,
+                    y: headerY + (navH - logoSize) / 2,
+                    w: logoSize,
+                    h: logoSize,
+                    type: 'logo',
+                    fill: 'transparent'
                 });
             }
-            
+
             // Title area (right side of header, if enabled and position is 'header')
             if (showTitle && titlePosition === 'header') {
                 const titleX = showLogo ? padding + logoAreaWidth + gap : padding;
                 const titleW = width - titleX - padding;
-                newItems.push({ 
-                    x: titleX, 
-                    y: headerY + (navH - titleHeight) / 2, 
-                    w: titleW, 
-                    h: titleHeight, 
-                    type: 'title', 
-                    fill: 'transparent' 
+                newItems.push({
+                    x: titleX,
+                    y: headerY + (navH - titleHeight) / 2,
+                    w: titleW,
+                    h: titleHeight,
+                    type: 'title',
+                    fill: 'transparent'
                 });
             }
-            
+
             // Slicer zone at top (if enabled) - for horizontal filter bar
             if (showSlicerZone && slicerZoneHeight > 0) {
-                const slicerY = headerY + navH + (padding/2);
+                const slicerY = headerY + navH + (padding / 2);
                 newItems.push({
                     x: padding,
                     y: slicerY,
@@ -213,17 +213,17 @@ const SVGGenerator = () => {
                     fill: 'transparent'
                 });
             }
-            
-            let contentStartY = headerY + navH + (padding/2);
+
+            let contentStartY = headerY + navH + (padding / 2);
             // Adjust for slicer zone if shown
             if (showSlicerZone && slicerZoneHeight > 0) {
                 contentStartY += slicerZoneHeight + gap;
             }
             const contentH = height - contentStartY - (showFooter ? footerH + gap : 0) - padding;
-            
+
             let mainContentX = padding;
             let mainContentW = effW;
-            
+
             // Left Card (e.g., filters/slicers) - optional
             if (showFederalSidebar && federalSidebarWidth > 0) {
                 const sidebarW = Math.min(federalSidebarWidth, effW * 0.4); // Cap at 40% of width
@@ -231,19 +231,19 @@ const SVGGenerator = () => {
                 mainContentX = padding + sidebarW + gap;
                 mainContentW = effW - sidebarW - gap;
             }
-            
+
             // Right side: Grid of visual areas (if rows and columns > 0)
             if (federalRows > 0 && federalColumns > 0 && mainContentW > 0 && contentH > 0) {
                 const rows = Math.max(1, federalRows);
                 const cardH = Math.max(50, (contentH - padding - (gap * (rows - 1))) / rows); // Min 50px height
-                
+
                 // Use per-row columns if enabled, otherwise use uniform columns
                 if (useFederalPerRowColumns && federalRowColumns && federalRowColumns.length > 0) {
                     let currentY = contentStartY;
                     for (let row = 0; row < rows; row++) {
                         const cols = Math.max(1, federalRowColumns[row] || federalColumns);
                         const cardW = Math.max(50, (mainContentW - (gap * (cols - 1))) / cols); // Min 50px width
-                        
+
                         for (let col = 0; col < cols; col++) {
                             newItems.push({
                                 x: mainContentX + (col * (cardW + gap)),
@@ -260,7 +260,7 @@ const SVGGenerator = () => {
                     // Uniform columns for all rows
                     const cols = Math.max(1, federalColumns);
                     const cardW = Math.max(50, (mainContentW - (gap * (cols - 1))) / cols); // Min 50px width
-                    
+
                     for (let row = 0; row < rows; row++) {
                         for (let col = 0; col < cols; col++) {
                             newItems.push({
@@ -279,20 +279,20 @@ const SVGGenerator = () => {
         } else if (layoutMode === 'sidebar') {
             // Classic Dashboard Sidebar
             let contentY = padding + yOffset;
-            
+
             // Title area (if enabled and position is 'top')
             if (showTitle && titlePosition === 'top') {
-                newItems.push({ 
-                    x: padding, 
-                    y: contentY, 
-                    w: effW, 
-                    h: titleHeight, 
-                    type: 'title', 
-                    fill: 'transparent' 
+                newItems.push({
+                    x: padding,
+                    y: contentY,
+                    w: effW,
+                    h: titleHeight,
+                    type: 'title',
+                    fill: 'transparent'
                 });
                 contentY += titleHeight + gap;
             }
-            
+
             // Slicer zone at top (if enabled)
             if (showSlicerZone && slicerZoneHeight > 0) {
                 newItems.push({
@@ -305,24 +305,24 @@ const SVGGenerator = () => {
                 });
                 contentY += slicerZoneHeight + gap;
             }
-            
+
             const sideW = Math.min(sidebarLayoutWidth, effW * 0.35); // Cap at 35% of width
             const mainW = effW - sideW - gap;
             const availableH = effH - (showTitle && titlePosition === 'top' ? titleHeight + gap : 0) - (showSlicerZone && slicerZoneHeight > 0 ? slicerZoneHeight + gap : 0);
-            
+
             newItems.push({ x: padding, y: contentY, w: sideW, h: availableH, type: 'nav' });
-            
+
             const kpiH = 110;
             const mainContentH = availableH - kpiH - gap;
-            
+
             newItems.push({ x: padding + sideW + gap, y: contentY, w: mainW, h: kpiH, type: 'kpi-strip' });
-            
+
             // Grid of visuals in main area
             const cols = Math.max(1, Math.min(sidebarColumns, sidebarVisualCount));
             const rows = Math.max(1, Math.ceil(sidebarVisualCount / cols));
             const cardW = cols > 0 ? Math.max(50, (mainW - (gap * (cols - 1))) / cols) : mainW;
             const cardH = rows > 0 ? Math.max(50, (mainContentH - (gap * (rows - 1))) / rows) : mainContentH;
-            
+
             for (let i = 0; i < sidebarVisualCount; i++) {
                 const row = Math.floor(i / cols);
                 const col = i % cols;
@@ -339,20 +339,20 @@ const SVGGenerator = () => {
         } else if (layoutMode === 'grid') {
             // Customizable Grid
             let contentY = padding + yOffset;
-            
+
             // Title area (if enabled and position is 'top')
             if (showTitle && titlePosition === 'top') {
-                newItems.push({ 
-                    x: padding, 
-                    y: contentY, 
-                    w: effW, 
-                    h: titleHeight, 
-                    type: 'title', 
-                    fill: 'transparent' 
+                newItems.push({
+                    x: padding,
+                    y: contentY,
+                    w: effW,
+                    h: titleHeight,
+                    type: 'title',
+                    fill: 'transparent'
                 });
                 contentY += titleHeight + gap;
             }
-            
+
             // Slicer zone at top (if enabled)
             if (showSlicerZone && slicerZoneHeight > 0) {
                 newItems.push({
@@ -365,23 +365,23 @@ const SVGGenerator = () => {
                 });
                 contentY += slicerZoneHeight + gap;
             }
-            
+
             const availableH = effH - (showTitle && titlePosition === 'top' ? titleHeight + gap : 0) - (showSlicerZone && slicerZoneHeight > 0 ? slicerZoneHeight + gap : 0);
             const rowH = (availableH - (gap * (gridRows - 1))) / gridRows;
-            
+
             // Use per-row columns if enabled, otherwise use uniform columns
             if (usePerRowColumns && gridRowColumns && gridRowColumns.length > 0) {
                 let currentY = contentY;
                 for (let row = 0; row < gridRows; row++) {
                     const cols = Math.max(1, gridRowColumns[row] || gridColumns);
                     const colW = (effW - (gap * (cols - 1))) / cols;
-                    
+
                     for (let col = 0; col < cols; col++) {
-                        newItems.push({ 
-                            x: padding + (col * (colW + gap)), 
-                            y: currentY, 
-                            w: colW, 
-                            h: rowH, 
+                        newItems.push({
+                            x: padding + (col * (colW + gap)),
+                            y: currentY,
+                            w: colW,
+                            h: rowH,
                             type: 'card',
                             index: cardIndex++
                         });
@@ -391,38 +391,38 @@ const SVGGenerator = () => {
             } else {
                 // Uniform columns for all rows
                 const colW = (effW - (gap * (gridColumns - 1))) / gridColumns;
-                
+
                 for (let row = 0; row < gridRows; row++) {
                     for (let col = 0; col < gridColumns; col++) {
-                        newItems.push({ 
-                            x: padding + (col * (colW + gap)), 
-                            y: contentY + (row * (rowH + gap)), 
-                            w: colW, 
-                            h: rowH, 
+                        newItems.push({
+                            x: padding + (col * (colW + gap)),
+                            y: contentY + (row * (rowH + gap)),
+                            w: colW,
+                            h: rowH,
                             type: 'card',
                             index: cardIndex++
                         });
                     }
                 }
             }
-        } 
+        }
         else if (layoutMode === 'kpi') {
             // Top KPI Row (customizable count)
             let contentY = padding + yOffset;
-            
+
             // Title area (if enabled and position is 'top')
             if (showTitle && titlePosition === 'top') {
-                newItems.push({ 
-                    x: padding, 
-                    y: contentY, 
-                    w: effW, 
-                    h: titleHeight, 
-                    type: 'title', 
-                    fill: 'transparent' 
+                newItems.push({
+                    x: padding,
+                    y: contentY,
+                    w: effW,
+                    h: titleHeight,
+                    type: 'title',
+                    fill: 'transparent'
                 });
                 contentY += titleHeight + gap;
             }
-            
+
             // Slicer zone at top (if enabled)
             if (showSlicerZone && slicerZoneHeight > 0) {
                 newItems.push({
@@ -435,19 +435,19 @@ const SVGGenerator = () => {
                 });
                 contentY += slicerZoneHeight + gap;
             }
-            
+
             const kpiH = 100;
             const kpiW = (effW - (gap * (kpiCount - 1))) / kpiCount;
             const availableH = effH - (showTitle && titlePosition === 'top' ? titleHeight + gap : 0) - (showSlicerZone && slicerZoneHeight > 0 ? slicerZoneHeight + gap : 0);
-            
-            for(let i=0; i<kpiCount; i++) {
+
+            for (let i = 0; i < kpiCount; i++) {
                 newItems.push({ x: padding + (i * (kpiW + gap)), y: contentY, w: kpiW, h: kpiH, type: 'kpi' });
             }
-            
+
             // Visuals below KPIs
             const mainContentH = availableH - kpiH - gap;
             let visualY = contentY + kpiH + gap;
-            
+
             if (kpiMainChartFullWidth && kpiVisualCount > 0) {
                 // First visual is full-width (main chart)
                 const mainChartH = kpiVisualCount > 1 ? mainContentH * 0.6 : mainContentH; // 60% if there are more visuals below
@@ -458,7 +458,7 @@ const SVGGenerator = () => {
                     h: mainChartH,
                     type: 'main'
                 });
-                
+
                 // Remaining visuals in grid below the main chart
                 if (kpiVisualCount > 1) {
                     const remainingVisuals = kpiVisualCount - 1;
@@ -467,7 +467,7 @@ const SVGGenerator = () => {
                     const rows = Math.max(1, Math.ceil(remainingVisuals / cols));
                     const cardW = cols > 0 ? Math.max(50, (effW - (gap * (cols - 1))) / cols) : effW;
                     const cardH = rows > 0 ? Math.max(50, (remainingH - (gap * (rows - 1))) / rows) : remainingH;
-                    
+
                     for (let i = 0; i < remainingVisuals; i++) {
                         const row = Math.floor(i / cols);
                         const col = i % cols;
@@ -487,7 +487,7 @@ const SVGGenerator = () => {
                 const rows = Math.max(1, Math.ceil(kpiVisualCount / cols));
                 const cardW = cols > 0 ? Math.max(50, (effW - (gap * (cols - 1))) / cols) : effW;
                 const cardH = rows > 0 ? Math.max(50, (mainContentH - (gap * (rows - 1))) / rows) : mainContentH;
-                
+
                 for (let i = 0; i < kpiVisualCount; i++) {
                     const row = Math.floor(i / cols);
                     const col = i % cols;
@@ -505,20 +505,20 @@ const SVGGenerator = () => {
         else if (layoutMode === 'three-col') {
             // 3-column layout (common for executive dashboards)
             let contentY = padding + yOffset;
-            
+
             // Title area (if enabled and position is 'top')
             if (showTitle && titlePosition === 'top') {
-                newItems.push({ 
-                    x: padding, 
-                    y: contentY, 
-                    w: effW, 
-                    h: titleHeight, 
-                    type: 'title', 
-                    fill: 'transparent' 
+                newItems.push({
+                    x: padding,
+                    y: contentY,
+                    w: effW,
+                    h: titleHeight,
+                    type: 'title',
+                    fill: 'transparent'
                 });
                 contentY += titleHeight + gap;
             }
-            
+
             // Slicer zone at top (if enabled)
             if (showSlicerZone && slicerZoneHeight > 0) {
                 newItems.push({
@@ -531,30 +531,30 @@ const SVGGenerator = () => {
                 });
                 contentY += slicerZoneHeight + gap;
             }
-            
+
             const colW = (effW - (gap * 2)) / 3;
-            
+
             // Top KPI row (customizable count)
             const kpiH = 90;
             const kpiW = (effW - (gap * (kpiCount - 1))) / kpiCount;
             const availableH = effH - (showTitle && titlePosition === 'top' ? titleHeight + gap : 0) - (showSlicerZone && slicerZoneHeight > 0 ? slicerZoneHeight + gap : 0);
-            
-            for(let i=0; i<kpiCount; i++) {
+
+            for (let i = 0; i < kpiCount; i++) {
                 newItems.push({ x: padding + (i * (kpiW + gap)), y: contentY, w: kpiW, h: kpiH, type: 'kpi' });
             }
-            
+
             // Three columns below - each column can have multiple visuals
             const contentH = availableH - kpiH - gap;
             const visualsPerCol = Math.max(1, threeColVisualCount);
             const visualH = visualsPerCol > 0 ? Math.max(50, (contentH - (gap * (visualsPerCol - 1))) / visualsPerCol) : contentH;
-            
+
             for (let col = 0; col < 3; col++) {
                 for (let row = 0; row < visualsPerCol; row++) {
-                    newItems.push({ 
-                        x: padding + (col * (colW + gap)), 
-                        y: contentY + kpiH + gap + (row * (visualH + gap)), 
-                        w: colW, 
-                        h: visualH, 
+                    newItems.push({
+                        x: padding + (col * (colW + gap)),
+                        y: contentY + kpiH + gap + (row * (visualH + gap)),
+                        w: colW,
+                        h: visualH,
                         type: 'card',
                         index: cardIndex++
                     });
@@ -564,20 +564,20 @@ const SVGGenerator = () => {
         else if (layoutMode === 'asymmetric') {
             // Large main chart + smaller supporting visuals
             let contentY = padding + yOffset;
-            
+
             // Title area (if enabled and position is 'top')
             if (showTitle && titlePosition === 'top') {
-                newItems.push({ 
-                    x: padding, 
-                    y: contentY, 
-                    w: effW, 
-                    h: titleHeight, 
-                    type: 'title', 
-                    fill: 'transparent' 
+                newItems.push({
+                    x: padding,
+                    y: contentY,
+                    w: effW,
+                    h: titleHeight,
+                    type: 'title',
+                    fill: 'transparent'
                 });
                 contentY += titleHeight + gap;
             }
-            
+
             // Slicer zone at top (if enabled)
             if (showSlicerZone && slicerZoneHeight > 0) {
                 newItems.push({
@@ -590,34 +590,34 @@ const SVGGenerator = () => {
                 });
                 contentY += slicerZoneHeight + gap;
             }
-            
+
             const mainW = (effW * 0.65) - (gap / 2);
             const sideW = (effW * 0.35) - (gap / 2);
-            
+
             // Top KPIs (customizable count)
             const kpiH = 100;
             const kpiW = (effW - (gap * (kpiCount - 1))) / kpiCount;
             const availableH = effH - (showTitle && titlePosition === 'top' ? titleHeight + gap : 0) - (showSlicerZone && slicerZoneHeight > 0 ? slicerZoneHeight + gap : 0);
-            
-            for(let i=0; i<kpiCount; i++) {
+
+            for (let i = 0; i < kpiCount; i++) {
                 newItems.push({ x: padding + (i * (kpiW + gap)), y: contentY, w: kpiW, h: kpiH, type: 'kpi' });
             }
-            
+
             const contentH = availableH - kpiH - gap;
-            
+
             // Large main chart (left)
             newItems.push({ x: padding, y: contentY + kpiH + gap, w: mainW, h: contentH, type: 'main' });
-            
+
             // Side cards (right) - customizable count
             const sideCardCount = Math.max(1, asymmetricSideCount);
             const sideCardH = sideCardCount > 0 ? Math.max(50, (contentH - (gap * (sideCardCount - 1))) / sideCardCount) : contentH;
-            
+
             for (let i = 0; i < sideCardCount; i++) {
-                newItems.push({ 
-                    x: padding + mainW + gap, 
-                    y: contentY + kpiH + gap + (i * (sideCardH + gap)), 
-                    w: sideW, 
-                    h: sideCardH, 
+                newItems.push({
+                    x: padding + mainW + gap,
+                    y: contentY + kpiH + gap + (i * (sideCardH + gap)),
+                    w: sideW,
+                    h: sideCardH,
                     type: 'card',
                     index: cardIndex++
                 });
@@ -626,20 +626,20 @@ const SVGGenerator = () => {
         else if (layoutMode === 'mobile') {
             // Mobile-optimized vertical stack
             let contentY = padding + yOffset;
-            
+
             // Title area (if enabled and position is 'top') - smaller for mobile
             if (showTitle && titlePosition === 'top') {
-                newItems.push({ 
-                    x: padding, 
-                    y: contentY, 
-                    w: effW, 
-                    h: titleHeight * 0.8, 
-                    type: 'title', 
-                    fill: 'transparent' 
+                newItems.push({
+                    x: padding,
+                    y: contentY,
+                    w: effW,
+                    h: titleHeight * 0.8,
+                    type: 'title',
+                    fill: 'transparent'
                 });
                 contentY += (titleHeight * 0.8) + gap;
             }
-            
+
             // Slicer zone at top (if enabled) - smaller for mobile
             if (showSlicerZone && slicerZoneHeight > 0) {
                 newItems.push({
@@ -652,30 +652,30 @@ const SVGGenerator = () => {
                 });
                 contentY += (slicerZoneHeight * 0.8) + gap;
             }
-            
+
             const availableH = effH - (showTitle && titlePosition === 'top' ? (titleHeight * 0.8) + gap : 0) - (showSlicerZone && slicerZoneHeight > 0 ? (slicerZoneHeight * 0.8) + gap : 0);
             const cardH = mobileVisualCount > 0 ? Math.max(50, (availableH - (gap * (mobileVisualCount - 1))) / mobileVisualCount) : availableH;
-            
+
             for (let i = 0; i < mobileVisualCount; i++) {
-                newItems.push({ 
-                    x: padding, 
-                    y: contentY + (i * (cardH + gap)), 
-                    w: effW, 
-                    h: cardH, 
-                    type: i === 0 ? 'kpi' : 'card' 
+                newItems.push({
+                    x: padding,
+                    y: contentY + (i * (cardH + gap)),
+                    w: effW,
+                    h: cardH,
+                    type: i === 0 ? 'kpi' : 'card'
                 });
             }
         }
 
         // Add footer if enabled
         if (showFooter && footerHeight > 0) {
-            newItems.push({ 
-                x: 0, 
-                y: height - footerHeight, 
-                w: width, 
-                h: footerHeight, 
-                type: 'footer', 
-                fill: HHS_COLORS.base.light 
+            newItems.push({
+                x: 0,
+                y: height - footerHeight,
+                w: width,
+                h: footerHeight,
+                type: 'footer',
+                fill: HHS_COLORS.base.light
             });
         }
 
@@ -731,20 +731,20 @@ const SVGGenerator = () => {
 
     // --- SVG Generation ---
     const getSVGString = () => {
-        const { bgHex, cardHex, accentHex, radius, strokeWidth, width, height, noise, showVisualTypes, showVisualLabels, visualTypes, visualLabels, defaultVisualType } = config;
+        const { bgHex, cardHex, accentHex, radius, strokeWidth, width, height, noise, showVisualTypes, showVisualLabels, visualTypes, visualLabels, defaultVisualType, headerHeight, padding, gap } = config;
 
         let defs = '';
         let rects = '';
-        
+
         // 1. Definitions (Filters)
         if (themeMode === 'executive') {
             // Professional Shadow
-             defs += `
+            defs += `
              <filter id="shadow-exec" x="-50%" y="-50%" width="200%" height="200%">
                 <feDropShadow dx="0" dy="2" stdDeviation="6" flood-color="#001a33" flood-opacity="0.12"/>
              </filter>`;
         } else if (themeMode === 'frosted') {
-             // Note: Real backdrop-blur in SVG is tricky without CSS, we simulate with opacity/white overlay
+            // Note: Real backdrop-blur in SVG is tricky without CSS, we simulate with opacity/white overlay
         }
 
         if (noise) {
@@ -780,36 +780,36 @@ const SVGGenerator = () => {
             }
         } else {
             items.forEach(item => {
-            const isHeader = item.type === 'header';
-            const isFooter = item.type === 'footer';
-            const isTrustBar = item.type === 'trustbar';
-            const isLogo = item.type === 'logo';
-            const isTitle = item.type === 'title';
-            const isSlicerZone = item.type === 'slicerzone';
-            
-            // Determine fill based on type
-            let fill;
-            if (isTrustBar) {
-                fill = item.fill || HHS_COLORS.base.lightest;
-            } else if (isHeader) {
-                fill = item.fill || HHS_COLORS.primary.darker;
-            } else if (isFooter) {
-                fill = item.fill || HHS_COLORS.base.light;
-            } else if (isLogo || isTitle) {
-                fill = 'transparent'; // These are placeholder areas
-            } else {
-                fill = themeMode === 'frosted' ? `${cardHex}CC` : cardHex;
-            }
-            
-            const stroke = strokeWidth > 0 && !isHeader && !isFooter && !isTrustBar && !isLogo && !isTitle ? accentHex : 'none';
-            const filter = themeMode === 'executive' && !isHeader && !isFooter && !isTrustBar && !isLogo && !isTitle ? 'url(#shadow-exec)' : 'none';
-            
-            // Special handling for header/footer/trustbar rounding
-            const finalRadius = (isHeader || isFooter || isTrustBar || isLogo || isTitle) ? 0 : radius;
+                const isHeader = item.type === 'header';
+                const isFooter = item.type === 'footer';
+                const isTrustBar = item.type === 'trustbar';
+                const isLogo = item.type === 'logo';
+                const isTitle = item.type === 'title';
+                const isSlicerZone = item.type === 'slicerzone';
 
-            // Only render visible elements (not transparent placeholders)
-            if (!isLogo && !isTitle && !isSlicerZone) {
-                rects += `<rect 
+                // Determine fill based on type
+                let fill;
+                if (isTrustBar) {
+                    fill = item.fill || HHS_COLORS.base.lightest;
+                } else if (isHeader) {
+                    fill = item.fill || HHS_COLORS.primary.darker;
+                } else if (isFooter) {
+                    fill = item.fill || HHS_COLORS.base.light;
+                } else if (isLogo || isTitle) {
+                    fill = 'transparent'; // These are placeholder areas
+                } else {
+                    fill = themeMode === 'frosted' ? `${cardHex}CC` : cardHex;
+                }
+
+                const stroke = strokeWidth > 0 && !isHeader && !isFooter && !isTrustBar && !isLogo && !isTitle ? accentHex : 'none';
+                const filter = themeMode === 'executive' && !isHeader && !isFooter && !isTrustBar && !isLogo && !isTitle ? 'url(#shadow-exec)' : 'none';
+
+                // Special handling for header/footer/trustbar rounding
+                const finalRadius = (isHeader || isFooter || isTrustBar || isLogo || isTitle) ? 0 : radius;
+
+                // Only render visible elements (not transparent placeholders)
+                if (!isLogo && !isTitle && !isSlicerZone) {
+                    rects += `<rect 
                     x="${item.x}" 
                     y="${item.y}" 
                     width="${item.w}" 
@@ -820,55 +820,55 @@ const SVGGenerator = () => {
                     stroke-width="${(isHeader || isFooter || isTrustBar) ? 0 : strokeWidth}"
                     filter="${filter}"
                 />`;
-                
-                // Add visual type and label for card-type items
-                if (item.type === 'card' || item.type === 'kpi' || item.type === 'main') {
-                    // Use item.index if available, otherwise find index in items array
-                    let itemIndex = item.index;
-                    if (itemIndex === undefined) {
-                        itemIndex = items.findIndex(i => 
-                            Math.abs(i.x - item.x) < 1 && Math.abs(i.y - item.y) < 1 && 
-                            Math.abs(i.w - item.w) < 1 && Math.abs(i.h - item.h) < 1 && i.type === item.type
-                        );
-                    }
-                    // Safety check: if index not found, skip visual type/label
-                    if (itemIndex >= 0) {
-                        const visualType = visualTypes?.[itemIndex] || defaultVisualType || 'card';
-                        const visualLabel = visualLabels?.[itemIndex] || '';
-                        
-                        // Visual type indicator (top-left corner)
-                        if (showVisualTypes && visualType !== 'card') {
-                        const typeIcons = {
-                            'chart': '📊',
-                            'table': '📋',
-                            'map': '🗺️',
-                            'kpi': '📈',
-                            'slicer': '🔽',
-                            'text': '📄',
-                            'image': '🖼️'
-                        };
-                        const typeColors = {
-                            'chart': HHS_COLORS.primary.DEFAULT,
-                            'table': HHS_COLORS.accent.cool,
-                            'map': HHS_COLORS.primary.vivid,
-                            'kpi': HHS_COLORS.secondary.DEFAULT,
-                            'slicer': HHS_COLORS.base.dark,
-                            'text': HHS_COLORS.accent.warm,
-                            'image': HHS_COLORS.primary.dark
-                        };
-                        const icon = typeIcons[visualType] || '📦';
-                        const color = typeColors[visualType] || HHS_COLORS.primary.DEFAULT;
-                        
-                        // Icon background circle
-                        rects += `<circle 
+
+                    // Add visual type and label for card-type items
+                    if (item.type === 'card' || item.type === 'kpi' || item.type === 'main') {
+                        // Use item.index if available, otherwise find index in items array
+                        let itemIndex = item.index;
+                        if (itemIndex === undefined) {
+                            itemIndex = items.findIndex(i =>
+                                Math.abs(i.x - item.x) < 1 && Math.abs(i.y - item.y) < 1 &&
+                                Math.abs(i.w - item.w) < 1 && Math.abs(i.h - item.h) < 1 && i.type === item.type
+                            );
+                        }
+                        // Safety check: if index not found, skip visual type/label
+                        if (itemIndex >= 0) {
+                            const visualType = visualTypes?.[itemIndex] || defaultVisualType || 'card';
+                            const visualLabel = visualLabels?.[itemIndex] || '';
+
+                            // Visual type indicator (top-left corner)
+                            if (showVisualTypes && visualType !== 'card') {
+                                const typeIcons = {
+                                    'chart': '📊',
+                                    'table': '📋',
+                                    'map': '🗺️',
+                                    'kpi': '📈',
+                                    'slicer': '🔽',
+                                    'text': '📄',
+                                    'image': '🖼️'
+                                };
+                                const typeColors = {
+                                    'chart': HHS_COLORS.primary.DEFAULT,
+                                    'table': HHS_COLORS.accent.cool,
+                                    'map': HHS_COLORS.primary.vivid,
+                                    'kpi': HHS_COLORS.secondary.DEFAULT,
+                                    'slicer': HHS_COLORS.base.dark,
+                                    'text': HHS_COLORS.accent.warm,
+                                    'image': HHS_COLORS.primary.dark
+                                };
+                                const icon = typeIcons[visualType] || '📦';
+                                const color = typeColors[visualType] || HHS_COLORS.primary.DEFAULT;
+
+                                // Icon background circle
+                                rects += `<circle 
                             cx="${item.x + 20}" 
                             cy="${item.y + 20}" 
                             r="12" 
                             fill="${color}"
                             opacity="0.9"
                         />`;
-                        // Icon text
-                        rects += `<text 
+                                // Icon text
+                                rects += `<text 
                             x="${item.x + 20}" 
                             y="${item.y + 20}" 
                             font-family="Arial, sans-serif" 
@@ -877,8 +877,8 @@ const SVGGenerator = () => {
                             text-anchor="middle"
                             dominant-baseline="middle"
                         >${icon}</text>`;
-                        // Type label
-                        rects += `<text 
+                                // Type label
+                                rects += `<text 
                             x="${item.x + 20}" 
                             y="${item.y + 38}" 
                             font-family="Arial, sans-serif" 
@@ -887,16 +887,16 @@ const SVGGenerator = () => {
                             font-weight="600"
                             text-anchor="middle"
                         >${visualType.toUpperCase()}</text>`;
-                    }
-                    
-                    // Visual label (centered or top)
-                    if (showVisualLabels && visualLabel) {
-                        const lines = visualLabel.split('\n');
-                        const lineHeight = 14;
-                        const startY = item.y + (item.h / 2) - ((lines.length - 1) * lineHeight / 2);
-                        
-                        lines.forEach((line, idx) => {
-                            rects += `<text 
+                            }
+
+                            // Visual label (centered or top)
+                            if (showVisualLabels && visualLabel) {
+                                const lines = visualLabel.split('\n');
+                                const lineHeight = 14;
+                                const startY = item.y + (item.h / 2) - ((lines.length - 1) * lineHeight / 2);
+
+                                lines.forEach((line, idx) => {
+                                    rects += `<text 
                                 x="${item.x + item.w / 2}" 
                                 y="${startY + (idx * lineHeight)}" 
                                 font-family="Arial, sans-serif" 
@@ -907,31 +907,31 @@ const SVGGenerator = () => {
                                 text-anchor="middle"
                                 dominant-baseline="middle"
                             >${line}</text>`;
-                        });
+                                });
+                            }
                         }
                     }
                 }
-            }
-            
-            // Trust bar - add subtle bottom border
-            if (isTrustBar) {
-                rects += `<rect x="0" y="${item.h - 1}" width="${item.w}" height="1" fill="${HHS_COLORS.base.light}" opacity="0.3" />`;
-            }
-            
-            // Header - add yellow accent line at bottom (if enabled) - 3px height per wireframe spec
-            if (isHeader && config.showHeaderAccent) {
-                rects += `<rect x="0" y="${item.y + item.h - 3}" width="${item.w}" height="3" fill="${HHS_COLORS.secondary.DEFAULT}" />`;
-            }
-            
-            // Footer - add subtle top border
-            if (isFooter) {
-                rects += `<rect x="0" y="${item.y}" width="${item.w}" height="2" fill="${HHS_COLORS.base.light}" opacity="0.5" />`;
-            }
-            
-            // Logo area - square indicator for HHS logo placement
-            if (isLogo) {
-                // Subtle background (square)
-                rects += `<rect 
+
+                // Trust bar - add subtle bottom border
+                if (isTrustBar) {
+                    rects += `<rect x="0" y="${item.h - 1}" width="${item.w}" height="1" fill="${HHS_COLORS.base.light}" opacity="0.3" />`;
+                }
+
+                // Header - add yellow accent line at bottom (if enabled) - 3px height per wireframe spec
+                if (isHeader && config.showHeaderAccent) {
+                    rects += `<rect x="0" y="${item.y + item.h - 3}" width="${item.w}" height="3" fill="${HHS_COLORS.secondary.DEFAULT}" />`;
+                }
+
+                // Footer - add subtle top border
+                if (isFooter) {
+                    rects += `<rect x="0" y="${item.y}" width="${item.w}" height="2" fill="${HHS_COLORS.base.light}" opacity="0.5" />`;
+                }
+
+                // Logo area - square indicator for HHS logo placement
+                if (isLogo) {
+                    // Subtle background (square)
+                    rects += `<rect 
                     x="${item.x}" 
                     y="${item.y}" 
                     width="${item.w}" 
@@ -939,8 +939,8 @@ const SVGGenerator = () => {
                     fill="${HHS_COLORS.primary.DEFAULT}"
                     opacity="0.05"
                 />`;
-                // Square border (dashed)
-                rects += `<rect 
+                    // Square border (dashed)
+                    rects += `<rect 
                     x="${item.x}" 
                     y="${item.y}" 
                     width="${item.w}" 
@@ -951,9 +951,9 @@ const SVGGenerator = () => {
                     stroke-dasharray="6,4"
                     opacity="0.4"
                 />`;
-                // Helper text
-                if (config.showLogo) {
-                    rects += `<text 
+                    // Helper text
+                    if (config.showLogo) {
+                        rects += `<text 
                         x="${item.x + item.w / 2}" 
                         y="${item.y + item.h / 2}" 
                         font-family="Arial, sans-serif" 
@@ -963,12 +963,12 @@ const SVGGenerator = () => {
                         text-anchor="middle"
                         dominant-baseline="middle"
                     >HHS Logo</text>`;
+                    }
                 }
-            }
-            
-            // Title area - add subtle dashed border to show placement (only if enabled)
-            if (isTitle) {
-                rects += `<rect 
+
+                // Title area - add subtle dashed border to show placement (only if enabled)
+                if (isTitle) {
+                    rects += `<rect 
                     x="${item.x}" 
                     y="${item.y}" 
                     width="${item.w}" 
@@ -979,18 +979,18 @@ const SVGGenerator = () => {
                     stroke-dasharray="3,3"
                     opacity="0.25"
                 />`;
-            }
-            
-            // Slicer zone - flexible visualization for Power BI slicer placement
-            if (isSlicerZone) {
-                const style = config.slicerZoneStyle || 'standard';
-                const showBg = config.slicerZoneShowBackground !== false;
-                const showBorders = config.slicerZoneShowBorders !== false;
-                const showGuides = config.slicerZoneShowGuides !== false;
-                
-                // Minimal style: just a subtle top line
-                if (style === 'minimal') {
-                    rects += `<line 
+                }
+
+                // Slicer zone - flexible visualization for Power BI slicer placement
+                if (isSlicerZone) {
+                    const style = config.slicerZoneStyle || 'standard';
+                    const showBg = config.slicerZoneShowBackground !== false;
+                    const showBorders = config.slicerZoneShowBorders !== false;
+                    const showGuides = config.slicerZoneShowGuides !== false;
+
+                    // Minimal style: just a subtle top line
+                    if (style === 'minimal') {
+                        rects += `<line 
                         x1="${item.x}" 
                         y1="${item.y}" 
                         x2="${item.x + item.w}" 
@@ -1000,8 +1000,8 @@ const SVGGenerator = () => {
                         stroke-dasharray="4,4"
                         opacity="0.3"
                     />`;
-                    if (config.showSlicerZoneLabel) {
-                        rects += `<text 
+                        if (config.showSlicerZoneLabel) {
+                            rects += `<text 
                             x="${item.x + 10}" 
                             y="${item.y + 12}" 
                             font-family="Arial, sans-serif" 
@@ -1010,12 +1010,12 @@ const SVGGenerator = () => {
                             opacity="0.4"
                             font-weight="500"
                         >Slicer Zone</text>`;
+                        }
                     }
-                } 
-                // Standard style: top/bottom borders, optional background
-                else if (style === 'standard') {
-                    if (showBg) {
-                        rects += `<rect 
+                    // Standard style: top/bottom borders, optional background
+                    else if (style === 'standard') {
+                        if (showBg) {
+                            rects += `<rect 
                             x="${item.x}" 
                             y="${item.y}" 
                             width="${item.w}" 
@@ -1023,10 +1023,10 @@ const SVGGenerator = () => {
                             fill="${HHS_COLORS.primary.DEFAULT}"
                             opacity="${config.slicerZoneOpacity || 0.08}"
                         />`;
-                    }
-                    if (showBorders) {
-                        // Top border
-                        rects += `<line 
+                        }
+                        if (showBorders) {
+                            // Top border
+                            rects += `<line 
                             x1="${item.x}" 
                             y1="${item.y}" 
                             x2="${item.x + item.w}" 
@@ -1035,8 +1035,8 @@ const SVGGenerator = () => {
                             stroke-width="2"
                             opacity="0.4"
                         />`;
-                        // Bottom border
-                        rects += `<line 
+                            // Bottom border
+                            rects += `<line 
                             x1="${item.x}" 
                             y1="${item.y + item.h}" 
                             x2="${item.x + item.w}" 
@@ -1045,9 +1045,9 @@ const SVGGenerator = () => {
                             stroke-width="2"
                             opacity="0.4"
                         />`;
-                    }
-                    if (config.showSlicerZoneLabel) {
-                        rects += `<text 
+                        }
+                        if (config.showSlicerZoneLabel) {
+                            rects += `<text 
                             x="${item.x + item.w / 2}" 
                             y="${item.y + item.h / 2}" 
                             font-family="Arial, sans-serif" 
@@ -1058,12 +1058,12 @@ const SVGGenerator = () => {
                             dominant-baseline="middle"
                             font-weight="500"
                         >Slicer Zone</text>`;
+                        }
                     }
-                } 
-                // Full style: all borders, background, guides
-                else {
-                    if (showBg) {
-                        rects += `<rect 
+                    // Full style: all borders, background, guides
+                    else {
+                        if (showBg) {
+                            rects += `<rect 
                             x="${item.x}" 
                             y="${item.y}" 
                             width="${item.w}" 
@@ -1071,10 +1071,10 @@ const SVGGenerator = () => {
                             fill="${HHS_COLORS.primary.DEFAULT}"
                             opacity="${config.slicerZoneOpacity || 0.08}"
                         />`;
-                    }
-                    if (showBorders) {
-                        // Top border
-                        rects += `<line 
+                        }
+                        if (showBorders) {
+                            // Top border
+                            rects += `<line 
                             x1="${item.x}" 
                             y1="${item.y}" 
                             x2="${item.x + item.w}" 
@@ -1083,8 +1083,8 @@ const SVGGenerator = () => {
                             stroke-width="2"
                             opacity="0.4"
                         />`;
-                        // Bottom border
-                        rects += `<line 
+                            // Bottom border
+                            rects += `<line 
                             x1="${item.x}" 
                             y1="${item.y + item.h}" 
                             x2="${item.x + item.w}" 
@@ -1093,8 +1093,8 @@ const SVGGenerator = () => {
                             stroke-width="2"
                             opacity="0.4"
                         />`;
-                        // Side borders (dashed)
-                        rects += `<line 
+                            // Side borders (dashed)
+                            rects += `<line 
                             x1="${item.x}" 
                             y1="${item.y}" 
                             x2="${item.x}" 
@@ -1104,7 +1104,7 @@ const SVGGenerator = () => {
                             stroke-dasharray="6,4"
                             opacity="0.3"
                         />`;
-                        rects += `<line 
+                            rects += `<line 
                             x1="${item.x + item.w}" 
                             y1="${item.y}" 
                             x2="${item.x + item.w}" 
@@ -1114,9 +1114,9 @@ const SVGGenerator = () => {
                             stroke-dasharray="6,4"
                             opacity="0.3"
                         />`;
-                    }
-                    if (config.showSlicerZoneLabel) {
-                        rects += `<text 
+                        }
+                        if (config.showSlicerZoneLabel) {
+                            rects += `<text 
                             x="${item.x + item.w / 2}" 
                             y="${item.y + item.h / 2}" 
                             font-family="Arial, sans-serif" 
@@ -1127,7 +1127,7 @@ const SVGGenerator = () => {
                             dominant-baseline="middle"
                             font-weight="500"
                         >Slicer Zone</text>`;
-                        rects += `<text 
+                            rects += `<text 
                             x="${item.x + item.w / 2}" 
                             y="${item.y + item.h / 2 + 18}" 
                             font-family="Arial, sans-serif" 
@@ -1137,12 +1137,12 @@ const SVGGenerator = () => {
                             text-anchor="middle"
                             dominant-baseline="middle"
                         >Place filters here</text>`;
-                    }
-                    // Visual guide lines (if enabled)
-                    if (showGuides) {
-                        const guideSpacing = 40;
-                        for (let x = item.x + guideSpacing; x < item.x + item.w; x += guideSpacing) {
-                            rects += `<line 
+                        }
+                        // Visual guide lines (if enabled)
+                        if (showGuides) {
+                            const guideSpacing = 40;
+                            for (let x = item.x + guideSpacing; x < item.x + item.w; x += guideSpacing) {
+                                rects += `<line 
                                 x1="${x}" 
                                 y1="${item.y + 4}" 
                                 x2="${x}" 
@@ -1152,19 +1152,19 @@ const SVGGenerator = () => {
                                 opacity="0.15"
                                 stroke-dasharray="2,6"
                             />`;
+                            }
                         }
                     }
                 }
-            }
             });
         }
-        
+
         // Add visual count warning if enabled and count > 10
         if (items && Array.isArray(items) && items.length > 0) {
-            const visualCount = items.filter(item => 
+            const visualCount = items.filter(item =>
                 ['card', 'kpi', 'main', 'sidebar', 'nav', 'kpi-strip'].includes(item.type)
             ).length;
-            
+
             if (config.showVisualCountWarning && visualCount > 10) {
                 rects += `<text x="${width - 20}" y="${height - 20}" font-family="Arial" font-size="12" fill="#d54309" opacity="0.7" text-anchor="end">⚠ ${visualCount} visuals (recommend &lt;10)</text>`;
             }
@@ -1176,7 +1176,7 @@ const SVGGenerator = () => {
     <defs>${defs}</defs>
     ${rects}
 </svg>`;
-        
+
         return svgString;
     };
 
@@ -1199,14 +1199,14 @@ const SVGGenerator = () => {
 
     const downloadSVG = () => {
         const svgString = getSVGString();
-        
+
         // Validate SVG string
         if (!svgString || !svgString.trim() || !svgString.includes('<svg')) {
             showToast("Error: Invalid SVG content. Please try generating the layout again.");
             console.error('Invalid SVG string:', svgString);
             return;
         }
-        
+
         // Create blob with explicit UTF-8 encoding
         const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
         const url = URL.createObjectURL(blob);
@@ -1226,14 +1226,14 @@ const SVGGenerator = () => {
             const svgString = getSVGString();
             const svgBlob = new Blob([svgString], { type: 'image/svg+xml' });
             const url = URL.createObjectURL(svgBlob);
-            
+
             const img = new Image();
-            
+
             img.onerror = () => {
                 URL.revokeObjectURL(url);
                 showToast("Error: Could not load image for PNG export");
             };
-            
+
             img.onload = () => {
                 try {
                     const canvas = document.createElement('canvas');
@@ -1241,18 +1241,18 @@ const SVGGenerator = () => {
                     canvas.height = config.height;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0);
-                    
+
                     canvas.toBlob((blob) => {
                         if (!blob) {
                             URL.revokeObjectURL(url);
                             showToast("Error: Could not create PNG");
                             return;
                         }
-                                const pngUrl = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = pngUrl;
-                const timestamp = new Date().toISOString().split('T')[0];
-                link.download = `HHS-Background-${layoutMode}-${config.width}x${config.height}-${timestamp}.png`;
+                        const pngUrl = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = pngUrl;
+                        const timestamp = new Date().toISOString().split('T')[0];
+                        link.download = `HHS-Background-${layoutMode}-${config.width}x${config.height}-${timestamp}.png`;
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
@@ -1712,7 +1712,7 @@ Your generated wireframe must:
             let currentLayout = null;
             let inLayoutSection = false;
             let inVisualsSection = false;
-            
+
             // Extract common elements
             const commonElements = {
                 trustBarHeight: 32,
@@ -1725,11 +1725,11 @@ Your generated wireframe must:
                 accentColor: '#face00',
                 accentHeight: 3
             };
-            
+
             // Parse each line
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i];
-                
+
                 // Detect page sections (e.g., "## PAGE 1: Page Name")
                 const pageMatch = line.match(/##\s*PAGE\s*(\d+):\s*(.+)/i);
                 if (pageMatch) {
@@ -1748,7 +1748,7 @@ Your generated wireframe must:
                     inVisualsSection = false;
                     continue;
                 }
-                
+
                 // Detect layout type (e.g., "### Layout Type: FEDERAL")
                 const layoutTypeMatch = line.match(/###\s*Layout\s+Type:\s*(\w+)/i);
                 if (layoutTypeMatch && currentPage) {
@@ -1761,7 +1761,7 @@ Your generated wireframe must:
                     if (layoutName === 'three-column' || layoutName === 'three-col') layoutName = 'three-col';
                     if (layoutName === 'asymmetric') layoutName = 'asymmetric';
                     if (layoutName === 'mobile') layoutName = 'mobile';
-                    
+
                     currentPage.layout = layoutName;
                     currentLayout = layoutName;
                     inLayoutSection = true;
@@ -1770,7 +1770,7 @@ Your generated wireframe must:
                     }
                     continue;
                 }
-                
+
                 // Detect layout sections (legacy format: "## 1. FEDERAL LAYOUT")
                 const legacyLayoutMatch = line.match(/##\s*\d+\.\s*(\w+)\s+LAYOUT/i);
                 if (legacyLayoutMatch && !currentPage) {
@@ -1786,13 +1786,13 @@ Your generated wireframe must:
                     layouts[currentLayout] = { ...commonElements, visuals: [] };
                     continue;
                 }
-                
+
                 // Detect Visuals section
                 if (line.match(/^\*\*Visuals:\*\*|^Visuals:/i)) {
                     inVisualsSection = true;
                     continue;
                 }
-                
+
                 // Parse visual specifications (e.g., "1. **Chart 1** - "Sales by Region" (show label: yes)")
                 if (inVisualsSection && (currentPage || currentLayout)) {
                     const visualMatch = line.match(/(\d+)\.\s*\*\*([^*]+)\*\*\s*-\s*"([^"]+)"\s*\(show\s+label:\s*(yes|no)\)/i);
@@ -1801,7 +1801,7 @@ Your generated wireframe must:
                         const visualType = visualMatch[2].trim();
                         const labelText = visualMatch[3].trim();
                         const showLabel = visualMatch[4].toLowerCase() === 'yes';
-                        
+
                         // Determine visual type
                         let type = 'card';
                         if (visualType.match(/kpi/i)) type = 'kpi';
@@ -1811,7 +1811,7 @@ Your generated wireframe must:
                         else if (visualType.match(/slicer/i)) type = 'slicer';
                         else if (visualType.match(/text/i)) type = 'text';
                         else if (visualType.match(/image/i)) type = 'image';
-                        
+
                         const visual = {
                             index: visualIndex,
                             type: type,
@@ -1819,7 +1819,7 @@ Your generated wireframe must:
                             showLabel: showLabel,
                             originalType: visualType
                         };
-                        
+
                         if (currentPage) {
                             currentPage.visuals.push(visual);
                         } else if (currentLayout) {
@@ -1831,7 +1831,7 @@ Your generated wireframe must:
                         continue;
                     }
                 }
-                
+
                 // Parse Grid Configuration
                 if (line.match(/^\*\*Grid\s+Configuration:\*\*|^Grid\s+Configuration:/i)) {
                     if (currentPage) {
@@ -1839,7 +1839,7 @@ Your generated wireframe must:
                     }
                     continue;
                 }
-                
+
                 // Parse grid rows
                 const gridRowsMatch = line.match(/Rows:\s*(\d+)/i);
                 if (gridRowsMatch && (currentPage || currentLayout)) {
@@ -1850,7 +1850,7 @@ Your generated wireframe must:
                         layouts[currentLayout].gridRows = rows;
                     }
                 }
-                
+
                 // Parse grid columns
                 const gridColsMatch = line.match(/Columns:\s*(\d+)/i);
                 if (gridColsMatch && (currentPage || currentLayout)) {
@@ -1861,7 +1861,7 @@ Your generated wireframe must:
                         layouts[currentLayout].gridColumns = cols;
                     }
                 }
-                
+
                 // Parse per-row columns (e.g., "Row 1 Columns: 3")
                 const rowColsMatch = line.match(/Row\s+(\d+)\s+Columns:\s*(\d+)/i);
                 if (rowColsMatch && currentPage && currentPage.gridConfig) {
@@ -1872,13 +1872,13 @@ Your generated wireframe must:
                     }
                     currentPage.gridConfig.rowColumns[rowIndex] = cols;
                 }
-                
+
                 // Parse page settings (e.g., "**Federal Settings:**", "Sidebar Width: 280px")
                 if (currentPage && line.match(/\*\*.*Settings:\*\*|Settings:/i)) {
                     // Settings section detected, will parse individual settings below
                     continue;
                 }
-                
+
                 // Parse sidebar width in settings
                 if (currentPage && line.match(/Sidebar\s+Width:\s*(\d+)/i)) {
                     const sidebarMatch = line.match(/Sidebar\s+Width:\s*(\d+)/i);
@@ -1887,7 +1887,7 @@ Your generated wireframe must:
                         currentPage.settings.sidebarWidth = parseInt(sidebarMatch[1]);
                     }
                 }
-                
+
                 // Parse show sidebar setting
                 if (currentPage && line.match(/Show\s+Sidebar:\s*(yes|no)/i)) {
                     const showMatch = line.match(/Show\s+Sidebar:\s*(yes|no)/i);
@@ -1896,7 +1896,7 @@ Your generated wireframe must:
                         currentPage.settings.showSidebar = showMatch[1].toLowerCase() === 'yes';
                     }
                 }
-                
+
                 // Parse KPI count in settings
                 if (currentPage && line.match(/KPI\s+Count:\s*(\d+)/i)) {
                     const kpiMatch = line.match(/KPI\s+Count:\s*(\d+)/i);
@@ -1905,7 +1905,7 @@ Your generated wireframe must:
                         currentPage.settings.kpiCount = parseInt(kpiMatch[1]);
                     }
                 }
-                
+
                 // Parse visuals per column
                 if (currentPage && line.match(/Visuals\s+Per\s+Column:\s*(\d+)/i)) {
                     const visualMatch = line.match(/Visuals\s+Per\s+Column:\s*(\d+)/i);
@@ -1914,7 +1914,7 @@ Your generated wireframe must:
                         currentPage.settings.visualsPerColumn = parseInt(visualMatch[1]);
                     }
                 }
-                
+
                 // Parse side card count
                 if (currentPage && line.match(/Side\s+Card\s+Count:\s*(\d+)/i)) {
                     const sideMatch = line.match(/Side\s+Card\s+Count:\s*(\d+)/i);
@@ -1923,7 +1923,7 @@ Your generated wireframe must:
                         currentPage.settings.sideCardCount = parseInt(sideMatch[1]);
                     }
                 }
-                
+
                 // Parse visual count
                 if (currentPage && line.match(/Visual\s+Count:\s*(\d+)/i)) {
                     const visualMatch = line.match(/Visual\s+Count:\s*(\d+)/i);
@@ -1932,7 +1932,7 @@ Your generated wireframe must:
                         currentPage.settings.visualCount = parseInt(visualMatch[1]);
                     }
                 }
-                
+
                 // Extract specifications
                 if (inLayoutSection && currentLayout) {
                     // Header height
@@ -1940,20 +1940,20 @@ Your generated wireframe must:
                     if (headerMatch) {
                         layouts[currentLayout].headerHeight = parseInt(headerMatch[1]);
                     }
-                    
+
                     // Sidebar width (look for "260-280px" or "260px")
                     const sidebarMatch = line.match(/(?:Sidebar|sidebar).*?(\d+)(?:-(\d+))?px/i);
                     if (sidebarMatch) {
                         layouts[currentLayout].sidebarWidth = parseInt(sidebarMatch[1]);
                     }
-                    
+
                     // Grid dimensions (2×2, 3×3, etc.)
                     const gridMatch = line.match(/(?:Grid|grid).*?(\d+)[×xX](\d+)/i);
                     if (gridMatch) {
                         layouts[currentLayout].gridRows = parseInt(gridMatch[1]);
                         layouts[currentLayout].gridColumns = parseInt(gridMatch[2]);
                     }
-                    
+
                     // KPI count - look for "4 KPI" or count "KPI Card" in diagrams
                     const kpiMatch = line.match(/(\d+)\s+KPI/i);
                     if (kpiMatch) {
@@ -1964,19 +1964,19 @@ Your generated wireframe must:
                     if (kpiCardMatches && kpiCardMatches.length > 0) {
                         layouts[currentLayout].kpiCount = Math.max(layouts[currentLayout].kpiCount || 0, kpiCardMatches.length);
                     }
-                    
+
                     // Visual count per column (for three-col layout)
                     const visualPerColMatch = line.match(/(\d+)\s+visual.*?column/i);
                     if (visualPerColMatch) {
                         layouts[currentLayout].visualCount = parseInt(visualPerColMatch[1]);
                     }
-                    
+
                     // General visual count
                     const visualMatch = line.match(/(\d+)\s+visual/i);
                     if (visualMatch && !layouts[currentLayout].visualCount) {
                         layouts[currentLayout].visualCount = parseInt(visualMatch[1]);
                     }
-                    
+
                     // Count Chart instances in diagrams
                     const chartMatches = line.match(/Chart\s+\d+/gi);
                     if (chartMatches && chartMatches.length > 0) {
@@ -1986,19 +1986,19 @@ Your generated wireframe must:
                         }
                     }
                 }
-                
+
                 // End of layout section
                 if (line.startsWith('---') && inLayoutSection) {
                     inLayoutSection = false;
                     inVisualsSection = false;
                 }
-                
+
                 // End of visuals section
                 if (line.startsWith('---') && inVisualsSection) {
                     inVisualsSection = false;
                 }
             }
-            
+
             // Return pages if found, otherwise return layouts (legacy format)
             if (pages.length > 0) {
                 return { pages, layouts, commonElements, hasPages: true };
@@ -2017,7 +2017,7 @@ Your generated wireframe must:
             showToast('No wireframe data available');
             return;
         }
-        
+
         // Handle page-based wireframes
         if (wireframeData.hasPages && wireframeData.pages) {
             const page = wireframeData.pages.find(p => p.layout === layoutName || p.number.toString() === layoutName);
@@ -2026,19 +2026,19 @@ Your generated wireframe must:
                 return;
             }
         }
-        
+
         // Handle legacy layout-based wireframes
         if (!wireframeData.layouts || !wireframeData.layouts[layoutName]) {
             showToast('Layout not found in wireframe');
             return;
         }
-        
+
         const layout = wireframeData.layouts[layoutName];
         const common = wireframeData.commonElements;
-        
+
         // Set layout mode
         setLayoutMode(layoutName);
-        
+
         // Apply common settings
         const newConfig = {
             ...config,
@@ -2051,7 +2051,7 @@ Your generated wireframe must:
             showHeaderAccent: true,
             accentHex: common.accentColor || '#face00'
         };
-        
+
         // Apply layout-specific settings
         if (layoutName === 'federal') {
             newConfig.federalRows = layout.gridRows || 2;
@@ -2072,7 +2072,7 @@ Your generated wireframe must:
         } else if (layoutName === 'mobile') {
             newConfig.mobileVisualCount = layout.visualCount || 3;
         }
-        
+
         // Apply visual labels if available
         if (layout.visuals && layout.visuals.length > 0) {
             const visualTypes = {};
@@ -2085,7 +2085,7 @@ Your generated wireframe must:
             newConfig.visualLabels = { ...config.visualLabels, ...visualLabels };
             newConfig.showVisualLabels = true;
         }
-        
+
         setConfig(newConfig);
         showToast(`Applied ${layoutName} layout from wireframe!`);
     };
@@ -2096,23 +2096,23 @@ Your generated wireframe must:
             showToast('Invalid page data');
             return;
         }
-        
+
         if (!wireframeData || !wireframeData.commonElements) {
             showToast('Invalid wireframe data');
             return;
         }
-        
+
         const common = wireframeData.commonElements;
         const layoutName = page.layout;
-        
+
         if (!layoutName) {
             showToast('Page has no layout type specified');
             return;
         }
-        
+
         // Set layout mode
         setLayoutMode(layoutName);
-        
+
         // Apply common settings
         const newConfig = {
             ...config,
@@ -2125,13 +2125,13 @@ Your generated wireframe must:
             showHeaderAccent: true,
             accentHex: common.accentColor || '#face00'
         };
-        
+
         // Apply grid configuration if available
         if (page.gridConfig) {
             if (layoutName === 'federal' || layoutName === 'grid') {
                 newConfig.gridRows = page.gridConfig.rows || 2;
                 newConfig.gridColumns = page.gridConfig.columns || 2;
-                
+
                 // Apply per-row columns if specified
                 if (page.gridConfig.rowColumns && page.gridConfig.rowColumns.length > 0) {
                     if (layoutName === 'federal') {
@@ -2144,7 +2144,7 @@ Your generated wireframe must:
                 }
             }
         }
-        
+
         // Apply layout-specific settings from page
         if (layoutName === 'federal') {
             newConfig.federalRows = page.gridConfig?.rows || 2;
@@ -2165,7 +2165,7 @@ Your generated wireframe must:
         } else if (layoutName === 'mobile') {
             newConfig.mobileVisualCount = (page.settings && page.settings.visualCount) || 3;
         }
-        
+
         // Apply visual labels
         if (page.visuals && page.visuals.length > 0) {
             const visualTypes = {};
@@ -2184,7 +2184,7 @@ Your generated wireframe must:
                 newConfig.showVisualLabels = true;
             }
         }
-        
+
         setConfig(newConfig);
         const pageNum = page.number || '?';
         const pageName = page.name || 'Unnamed';
@@ -2337,21 +2337,19 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                     <div className="flex gap-2">
                         <button
                             onClick={() => setImportMode(false)}
-                            className={`flex-1 px-3 py-2.5 rounded text-xs font-bold transition-all ${
-                                !importMode
+                            className={`flex-1 px-3 py-2.5 rounded text-xs font-bold transition-all ${!importMode
                                     ? 'bg-[#face00] text-[#162e51] shadow-lg ring-2 ring-[#face00]'
                                     : 'bg-[#3d4551] text-white hover:bg-[#565c65]'
-                            }`}
+                                }`}
                         >
                             Manual Create
                         </button>
                         <button
                             onClick={() => setImportMode(true)}
-                            className={`flex-1 px-3 py-2.5 rounded text-xs font-bold transition-all ${
-                                importMode
+                            className={`flex-1 px-3 py-2.5 rounded text-xs font-bold transition-all ${importMode
                                     ? 'bg-[#face00] text-[#162e51] shadow-lg ring-2 ring-[#face00]'
                                     : 'bg-[#3d4551] text-white hover:bg-[#565c65]'
-                            }`}
+                                }`}
                         >
                             📋 Import Wireframe
                         </button>
@@ -2366,7 +2364,7 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                     <div className="p-5 border-b border-[#3d4551] space-y-4">
                         <div className="flex items-center justify-between mb-2">
                             <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] flex items-center gap-2">
-                                <FileText className="w-3 h-3"/> Wireframe Import
+                                <FileText className="w-3 h-3" /> Wireframe Import
                             </h3>
                             <a
                                 href="/WIREFRAME_IMPORT_GUIDE.md"
@@ -2387,11 +2385,10 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                                 </p>
                                 <button
                                     onClick={copyCursorGuide}
-                                    className={`px-4 py-2 rounded text-xs font-bold transition-all flex items-center gap-2 ${
-                                        cursorGuideCopied
+                                    className={`px-4 py-2 rounded text-xs font-bold transition-all flex items-center gap-2 ${cursorGuideCopied
                                             ? 'bg-[#00a398] text-white'
                                             : 'bg-[#face00] hover:bg-[#e5a000] text-[#162e51]'
-                                    }`}
+                                        }`}
                                 >
                                     {cursorGuideCopied ? (
                                         <>
@@ -2493,11 +2490,10 @@ Example:
                                     }
                                 }}
                                 disabled={!wireframeText.trim()}
-                                className={`w-full px-3 py-2 rounded text-white text-sm transition-colors border border-[#1a4480] flex items-center justify-center gap-2 ${
-                                    wireframeText.trim() 
-                                        ? 'bg-[#005ea2] hover:bg-[#00bde3] cursor-pointer' 
+                                className={`w-full px-3 py-2 rounded text-white text-sm transition-colors border border-[#1a4480] flex items-center justify-center gap-2 ${wireframeText.trim()
+                                        ? 'bg-[#005ea2] hover:bg-[#00bde3] cursor-pointer'
                                         : 'bg-[#3d4551] opacity-50 cursor-not-allowed'
-                                }`}
+                                    }`}
                             >
                                 <FileText className="w-4 h-4" />
                                 Parse Wireframe
@@ -2524,13 +2520,13 @@ Example:
                                                                     continue;
                                                                 }
                                                                 showToast(`Exporting page ${idx + 1} of ${wireframeData.pages.length}...`);
-                                                                
+
                                                                 // Apply the page configuration
                                                                 applyWireframePage(page, wireframeData);
-                                                                
+
                                                                 // Wait for layout to update
                                                                 await new Promise(resolve => setTimeout(resolve, 300));
-                                                                
+
                                                                 // Generate and download SVG
                                                                 const svgString = getSVGString();
                                                                 const blob = new Blob([svgString], { type: 'image/svg+xml' });
@@ -2545,7 +2541,7 @@ Example:
                                                                 link.click();
                                                                 document.body.removeChild(link);
                                                                 URL.revokeObjectURL(url);
-                                                                
+
                                                                 // Small delay between exports
                                                                 if (idx < wireframeData.pages.length - 1) {
                                                                     await new Promise(resolve => setTimeout(resolve, 200));
@@ -2560,11 +2556,10 @@ Example:
                                                         }
                                                     }}
                                                     disabled={isExportingPages}
-                                                    className={`px-2 py-1 rounded text-[#162e51] text-[10px] font-bold transition-colors flex items-center gap-1 ${
-                                                        isExportingPages 
-                                                            ? 'bg-[#97d4ea] cursor-wait opacity-75' 
+                                                    className={`px-2 py-1 rounded text-[#162e51] text-[10px] font-bold transition-colors flex items-center gap-1 ${isExportingPages
+                                                            ? 'bg-[#97d4ea] cursor-wait opacity-75'
                                                             : 'bg-[#face00] hover:bg-[#e5a000] cursor-pointer'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {isExportingPages ? (
                                                         <>
@@ -2632,24 +2627,24 @@ Example:
                 {/* Quick Presets */}
                 <div className="p-5 border-b border-[#3d4551]">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-3 flex items-center gap-2">
-                        <CheckCircle className="w-3 h-3"/> Quick Actions
+                        <CheckCircle className="w-3 h-3" /> Quick Actions
                     </h3>
                     <div className="grid grid-cols-1 gap-2">
-                        <button 
-                            onClick={() => applyHHSPreset('official')} 
+                        <button
+                            onClick={() => applyHHSPreset('official')}
                             className="text-left px-3 py-2 rounded bg-[#005ea2] hover:bg-[#00bde3] text-white text-sm transition-colors border border-[#1a4480] flex items-center justify-between"
                             aria-label="Reset to HHS Official colors"
                         >
                             <span>Reset to HHS Official</span>
                             <div className="flex gap-1"><div className="w-2 h-2 rounded-full bg-[#face00]"></div><div className="w-2 h-2 rounded-full bg-white"></div></div>
                         </button>
-                        <button 
-                            onClick={() => applyHHSPreset('dark_mode')} 
+                        <button
+                            onClick={() => applyHHSPreset('dark_mode')}
                             className="text-left px-3 py-2 rounded bg-[#3d4551] hover:bg-[#565c65] text-white text-sm transition-colors border border-[#1c1d1f] flex items-center justify-between"
                             aria-label="Apply high contrast dark mode colors"
                         >
                             <span>High Contrast / Dark</span>
-                             <div className="flex gap-1"><div className="w-2 h-2 rounded-full bg-[#00bde3]"></div></div>
+                            <div className="flex gap-1"><div className="w-2 h-2 rounded-full bg-[#00bde3]"></div></div>
                         </button>
                         <button onClick={() => {
                             setConfig({
@@ -2726,11 +2721,11 @@ Example:
                 {/* Templates */}
                 <div className="p-5 border-b border-[#3d4551]">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-3 flex items-center gap-2">
-                        <Save className="w-3 h-3"/> Templates
+                        <Save className="w-3 h-3" /> Templates
                     </h3>
                     <div className="grid grid-cols-2 gap-2">
-                        <button 
-                            onClick={saveTemplate} 
+                        <button
+                            onClick={saveTemplate}
                             className="px-3 py-2 rounded bg-[#1a4480] hover:bg-[#005ea2] text-white text-xs font-semibold transition-colors border border-transparent hover:border-[#face00] flex items-center justify-center gap-1"
                             aria-label="Save current configuration as template"
                         >
@@ -2760,7 +2755,7 @@ Example:
                 {/* Canvas Size */}
                 <div className="p-5 border-b border-[#3d4551]">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-3 flex items-center gap-2">
-                        <Maximize2 className="w-3 h-3"/> Canvas Size
+                        <Maximize2 className="w-3 h-3" /> Canvas Size
                     </h3>
                     <div className="grid grid-cols-2 gap-2">
                         {[
@@ -2771,7 +2766,7 @@ Example:
                             { key: 'mobile', label: 'Mobile' },
                             { key: 'custom', label: 'Custom' }
                         ].map(p => (
-                            <button 
+                            <button
                                 key={p.key}
                                 onClick={() => applyCanvasPreset(p.key)}
                                 className={`p-2 rounded border text-xs font-semibold transition-all ${canvasPreset === p.key ? 'bg-[#face00] border-[#e5a000] text-[#162e51]' : 'bg-[#1a4480] border-transparent hover:border-[#face00] text-white'}`}
@@ -2802,478 +2797,476 @@ Example:
 
                 {/* Layout Mode - Only show in manual mode */}
                 {!importMode && (
-                <div className="p-5 border-b border-[#3d4551]">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-3 flex items-center gap-2">
-                        <Layout className="w-3 h-3"/> Layout Structure
-                    </h3>
-                    <div className="grid grid-cols-2 gap-2">
-                        {[
-                            { key: 'federal', label: 'Federal', icon: Shield },
-                            { key: 'sidebar', label: 'Sidebar', icon: Layout },
-                            { key: 'grid', label: 'Grid', icon: Grid3x3 },
-                            { key: 'kpi', label: 'KPI Top', icon: CheckCircle },
-                            { key: 'three-col', label: '3 Column', icon: Columns3 },
-                            { key: 'asymmetric', label: 'Asymmetric', icon: Maximize2 },
-                            { key: 'mobile', label: 'Mobile', icon: Smartphone }
-                        ].map(m => {
-                            const Icon = m.icon;
-                            return (
-                                <button 
-                                    key={m.key}
-                                    onClick={() => setLayoutMode(m.key)}
-                                    className={`p-2 rounded border text-xs capitalize font-semibold transition-all flex items-center justify-center gap-1 ${layoutMode === m.key ? 'bg-[#face00] border-[#e5a000] text-[#162e51]' : 'bg-[#1a4480] border-transparent hover:border-[#face00] text-white'}`}
-                                >
-                                    <Icon className="w-3 h-3" />
-                                    {m.label}
-                                </button>
-                            );
-                        })}
+                    <div className="p-5 border-b border-[#3d4551]">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-3 flex items-center gap-2">
+                            <Layout className="w-3 h-3" /> Layout Structure
+                        </h3>
+                        <div className="grid grid-cols-2 gap-2">
+                            {[
+                                { key: 'federal', label: 'Federal', icon: Shield },
+                                { key: 'sidebar', label: 'Sidebar', icon: Layout },
+                                { key: 'grid', label: 'Grid', icon: Grid3x3 },
+                                { key: 'kpi', label: 'KPI Top', icon: CheckCircle },
+                                { key: 'three-col', label: '3 Column', icon: Columns3 },
+                                { key: 'asymmetric', label: 'Asymmetric', icon: Maximize2 },
+                                { key: 'mobile', label: 'Mobile', icon: Smartphone }
+                            ].map(m => {
+                                const Icon = m.icon;
+                                return (
+                                    <button
+                                        key={m.key}
+                                        onClick={() => setLayoutMode(m.key)}
+                                        className={`p-2 rounded border text-xs capitalize font-semibold transition-all flex items-center justify-center gap-1 ${layoutMode === m.key ? 'bg-[#face00] border-[#e5a000] text-[#162e51]' : 'bg-[#1a4480] border-transparent hover:border-[#face00] text-white'}`}
+                                    >
+                                        <Icon className="w-3 h-3" />
+                                        {m.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
-                </div>
                 )}
 
                 {/* Layout-Specific Configuration - Only show in manual mode */}
                 {!importMode && (
-                <div className="p-5 border-b border-[#3d4551] space-y-4">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-2 flex items-center gap-2">
-                        <Grid3x3 className="w-3 h-3"/> Layout Configuration
-                    </h3>
-                    
-                    <div className="space-y-4">
-                        {layoutMode === 'federal' && (
-                            <>
-                                <div>
-                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                        <span>Header Height</span>
-                                        <span>{config.headerHeight}px</span>
-                                    </div>
-                                    <input type="range" min="60" max="120" value={config.headerHeight} onChange={(e) => handleConfigChange('headerHeight', Number(e.target.value))} className="input-range w-full" />
-                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Height of top navigation bar</p>
-                                </div>
-                                <div>
-                                    <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
-                                        <span>Show Sidebar</span>
-                                        <label className="relative inline-flex items-center cursor-pointer">
-                                            <input type="checkbox" checked={config.showFederalSidebar} onChange={(e) => handleConfigChange('showFederalSidebar', e.target.checked)} className="sr-only peer" />
-                                            <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
-                                        </label>
-                                    </div>
-                                    {config.showFederalSidebar && (
-                                        <div className="mb-3">
-                                            <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                                <span>Sidebar Width</span>
-                                                <span>{config.federalSidebarWidth}px</span>
-                                            </div>
-                                            <input type="range" min="180" max="400" value={config.federalSidebarWidth} onChange={(e) => handleConfigChange('federalSidebarWidth', Number(e.target.value))} className="input-range w-full" />
+                    <div className="p-5 border-b border-[#3d4551] space-y-4">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-2 flex items-center gap-2">
+                            <Grid3x3 className="w-3 h-3" /> Layout Configuration
+                        </h3>
+
+                        <div className="space-y-4">
+                            {layoutMode === 'federal' && (
+                                <>
+                                    <div>
+                                        <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                            <span>Header Height</span>
+                                            <span>{config.headerHeight}px</span>
                                         </div>
-                                    )}
-                                </div>
-                                <div>
-                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                        <span>Grid Rows</span>
-                                        <span>{config.federalRows}</span>
+                                        <input type="range" min="60" max="120" value={config.headerHeight} onChange={(e) => handleConfigChange('headerHeight', Number(e.target.value))} className="input-range w-full" />
+                                        <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Height of top navigation bar</p>
                                     </div>
-                                    <input type="range" min="0" max="4" value={config.federalRows} onChange={(e) => {
-                                        const newRows = Number(e.target.value);
-                                        handleConfigChange('federalRows', newRows);
-                                        // Update row columns array to match new row count
-                                        if (newRows > 0) {
-                                            const currentArray = config.federalRowColumns || [];
-                                            const newArray = Array.from({ length: newRows }, (_, i) => 
-                                                i < currentArray.length ? currentArray[i] : config.federalColumns || 2
+                                    <div>
+                                        <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
+                                            <span>Show Sidebar</span>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" checked={config.showFederalSidebar} onChange={(e) => handleConfigChange('showFederalSidebar', e.target.checked)} className="sr-only peer" />
+                                                <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
+                                            </label>
+                                        </div>
+                                        {config.showFederalSidebar && (
+                                            <div className="mb-3">
+                                                <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                                    <span>Sidebar Width</span>
+                                                    <span>{config.federalSidebarWidth}px</span>
+                                                </div>
+                                                <input type="range" min="180" max="400" value={config.federalSidebarWidth} onChange={(e) => handleConfigChange('federalSidebarWidth', Number(e.target.value))} className="input-range w-full" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                            <span>Grid Rows</span>
+                                            <span>{config.federalRows}</span>
+                                        </div>
+                                        <input type="range" min="0" max="4" value={config.federalRows} onChange={(e) => {
+                                            const newRows = Number(e.target.value);
+                                            handleConfigChange('federalRows', newRows);
+                                            // Update row columns array to match new row count
+                                            if (newRows > 0) {
+                                                const currentArray = config.federalRowColumns || [];
+                                                const newArray = Array.from({ length: newRows }, (_, i) =>
+                                                    i < currentArray.length ? currentArray[i] : config.federalColumns || 2
+                                                );
+                                                handleConfigChange('federalRowColumns', newArray);
+                                            }
+                                        }} className="input-range w-full" />
+                                        <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of rows in grid (0 = no grid)</p>
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
+                                            <span>Different Columns Per Row</span>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" checked={config.useFederalPerRowColumns} onChange={(e) => handleConfigChange('useFederalPerRowColumns', e.target.checked)} className="sr-only peer" />
+                                                <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
+                                            </label>
+                                        </div>
+                                        {config.useFederalPerRowColumns ? (
+                                            <div className="space-y-3 bg-[#1a4480]/20 p-3 rounded border border-[#3d4551]">
+                                                <p className="text-[10px] text-[#97d4ea] mb-2 opacity-70">Configure columns for each row:</p>
+                                                {Array.from({ length: config.federalRows }).map((_, rowIndex) => {
+                                                    const cols = config.federalRowColumns?.[rowIndex] || config.federalColumns || 2;
+                                                    return (
+                                                        <div key={rowIndex} className="space-y-2">
+                                                            <div className="flex items-center justify-between">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-xs font-semibold text-[#dfe1e2]">Row {rowIndex + 1}</span>
+                                                                    <div className="flex gap-1">
+                                                                        {[1, 2, 3, 4].map(num => (
+                                                                            <button
+                                                                                key={num}
+                                                                                onClick={() => {
+                                                                                    const newArray = [...(config.federalRowColumns || [])];
+                                                                                    newArray[rowIndex] = num;
+                                                                                    handleConfigChange('federalRowColumns', newArray);
+                                                                                }}
+                                                                                className={`w-6 h-6 rounded text-[10px] font-bold transition-all ${cols === num
+                                                                                        ? 'bg-[#face00] text-[#162e51]'
+                                                                                        : 'bg-[#3d4551] text-[#dfe1e2] hover:bg-[#565c65]'
+                                                                                    }`}
+                                                                            >
+                                                                                {num}
+                                                                            </button>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                                <span className="text-xs text-[#97d4ea]">{cols} {cols === 1 ? 'column' : 'columns'}</span>
+                                                            </div>
+                                                            <input
+                                                                type="range"
+                                                                min="1"
+                                                                max="4"
+                                                                value={cols}
+                                                                onChange={(e) => {
+                                                                    const newValue = Number(e.target.value);
+                                                                    const newArray = [...(config.federalRowColumns || [])];
+                                                                    newArray[rowIndex] = newValue;
+                                                                    handleConfigChange('federalRowColumns', newArray);
+                                                                }}
+                                                                className="input-range w-full"
+                                                            />
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : (
+                                            <div>
+                                                <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                                    <span>Grid Columns</span>
+                                                    <span>{config.federalColumns}</span>
+                                                </div>
+                                                <input type="range" min="0" max="4" value={config.federalColumns} onChange={(e) => handleConfigChange('federalColumns', Number(e.target.value))} className="input-range w-full" />
+                                                <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of columns in grid (0 = no grid)</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </>
+                            )}
+
+                            {layoutMode === 'sidebar' && (
+                                <>
+                                    <div>
+                                        <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                            <span>Sidebar Width</span>
+                                            <span>{config.sidebarLayoutWidth}px</span>
+                                        </div>
+                                        <input type="range" min="180" max="400" value={config.sidebarLayoutWidth} onChange={(e) => handleConfigChange('sidebarLayoutWidth', Number(e.target.value))} className="input-range w-full" />
+                                        <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Width of left navigation sidebar</p>
+                                    </div>
+                                    <div>
+                                        <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                            <span>Visual Areas</span>
+                                            <span>{config.sidebarVisualCount}</span>
+                                        </div>
+                                        <input type="range" min="1" max="9" value={config.sidebarVisualCount} onChange={(e) => handleConfigChange('sidebarVisualCount', Number(e.target.value))} className="input-range w-full" />
+                                        <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of visual cards below KPIs</p>
+                                    </div>
+                                    <div>
+                                        <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                            <span>Columns</span>
+                                            <span>{config.sidebarColumns}</span>
+                                        </div>
+                                        <input type="range" min="1" max="3" value={config.sidebarColumns} onChange={(e) => handleConfigChange('sidebarColumns', Number(e.target.value))} className="input-range w-full" />
+                                        <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Grid columns for main area</p>
+                                    </div>
+                                </>
+                            )}
+
+                            {layoutMode === 'grid' && (
+                                <>
+                                    <div>
+                                        <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                            <span>Rows</span>
+                                            <span>{config.gridRows}</span>
+                                        </div>
+                                        <input type="range" min="1" max="6" value={config.gridRows} onChange={(e) => {
+                                            const newRows = Number(e.target.value);
+                                            handleConfigChange('gridRows', newRows);
+                                            // Update row columns array to match new row count
+                                            const currentArray = config.gridRowColumns || [];
+                                            const newArray = Array.from({ length: newRows }, (_, i) =>
+                                                i < currentArray.length ? currentArray[i] : config.gridColumns || 2
                                             );
-                                            handleConfigChange('federalRowColumns', newArray);
-                                        }
-                                    }} className="input-range w-full" />
-                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of rows in grid (0 = no grid)</p>
-                                </div>
-                                <div>
-                                    <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
-                                        <span>Different Columns Per Row</span>
+                                            handleConfigChange('gridRowColumns', newArray);
+                                        }} className="input-range w-full" />
+                                        <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of rows in grid</p>
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
+                                            <span>Different Columns Per Row</span>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" checked={config.usePerRowColumns} onChange={(e) => handleConfigChange('usePerRowColumns', e.target.checked)} className="sr-only peer" />
+                                                <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
+                                            </label>
+                                        </div>
+                                        {config.usePerRowColumns ? (
+                                            <div className="space-y-3 bg-[#1a4480]/20 p-3 rounded border border-[#3d4551]">
+                                                <p className="text-[10px] text-[#97d4ea] mb-2 opacity-70">Configure columns for each row:</p>
+                                                {Array.from({ length: config.gridRows }).map((_, rowIndex) => {
+                                                    const cols = config.gridRowColumns?.[rowIndex] || config.gridColumns || 2;
+                                                    return (
+                                                        <div key={rowIndex} className="space-y-2">
+                                                            <div className="flex items-center justify-between">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-xs font-semibold text-[#dfe1e2]">Row {rowIndex + 1}</span>
+                                                                    <div className="flex gap-1">
+                                                                        {[1, 2, 3, 4].map(num => (
+                                                                            <button
+                                                                                key={num}
+                                                                                onClick={() => {
+                                                                                    const newArray = [...(config.gridRowColumns || [])];
+                                                                                    newArray[rowIndex] = num;
+                                                                                    handleConfigChange('gridRowColumns', newArray);
+                                                                                }}
+                                                                                className={`w-6 h-6 rounded text-[10px] font-bold transition-all ${cols === num
+                                                                                        ? 'bg-[#face00] text-[#162e51]'
+                                                                                        : 'bg-[#3d4551] text-[#dfe1e2] hover:bg-[#565c65]'
+                                                                                    }`}
+                                                                            >
+                                                                                {num}
+                                                                            </button>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                                <span className="text-xs text-[#97d4ea]">{cols} {cols === 1 ? 'column' : 'columns'}</span>
+                                                            </div>
+                                                            <input
+                                                                type="range"
+                                                                min="1"
+                                                                max="4"
+                                                                value={cols}
+                                                                onChange={(e) => {
+                                                                    const newValue = Number(e.target.value);
+                                                                    const newArray = [...(config.gridRowColumns || [])];
+                                                                    newArray[rowIndex] = newValue;
+                                                                    handleConfigChange('gridRowColumns', newArray);
+                                                                }}
+                                                                className="input-range w-full"
+                                                            />
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : (
+                                            <div>
+                                                <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                                    <span>Columns</span>
+                                                    <span>{config.gridColumns}</span>
+                                                </div>
+                                                <input type="range" min="1" max="4" value={config.gridColumns} onChange={(e) => handleConfigChange('gridColumns', Number(e.target.value))} className="input-range w-full" />
+                                                <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of columns in grid</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </>
+                            )}
+
+                            {layoutMode === 'kpi' && (
+                                <>
+                                    <div>
+                                        <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                            <span>KPI Count</span>
+                                            <span>{config.kpiCount}</span>
+                                        </div>
+                                        <input type="range" min="2" max="8" value={config.kpiCount} onChange={(e) => handleConfigChange('kpiCount', Number(e.target.value))} className="input-range w-full" />
+                                        <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of KPI cards in top row</p>
+                                    </div>
+                                    <div>
+                                        <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                            <span>Visual Areas</span>
+                                            <span>{config.kpiVisualCount}</span>
+                                        </div>
+                                        <input type="range" min="1" max="9" value={config.kpiVisualCount} onChange={(e) => handleConfigChange('kpiVisualCount', Number(e.target.value))} className="input-range w-full" />
+                                        <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of visual cards below KPIs</p>
+                                    </div>
+                                    <div>
+                                        <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                            <span>Columns</span>
+                                            <span>{config.kpiColumns}</span>
+                                        </div>
+                                        <input type="range" min="1" max="3" value={config.kpiColumns} onChange={(e) => handleConfigChange('kpiColumns', Number(e.target.value))} className="input-range w-full" />
+                                        <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Grid columns for visuals below main chart</p>
+                                    </div>
+                                    <div className="flex items-center justify-between p-2 bg-[#1a4480]/30 rounded border border-[#3d4551]">
+                                        <div className="flex-1">
+                                            <div className="text-xs font-semibold text-[#dfe1e2] mb-1">Main Chart Full-Width</div>
+                                            <p className="text-[10px] text-[#97d4ea] opacity-70">
+                                                {config.kpiMainChartFullWidth
+                                                    ? 'First visual is full-width, rest in grid below'
+                                                    : 'All visuals in grid layout'}
+                                            </p>
+                                        </div>
                                         <label className="relative inline-flex items-center cursor-pointer">
-                                            <input type="checkbox" checked={config.useFederalPerRowColumns} onChange={(e) => handleConfigChange('useFederalPerRowColumns', e.target.checked)} className="sr-only peer" />
+                                            <input type="checkbox" checked={config.kpiMainChartFullWidth} onChange={(e) => handleConfigChange('kpiMainChartFullWidth', e.target.checked)} className="sr-only peer" />
                                             <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
                                         </label>
                                     </div>
-                                    {config.useFederalPerRowColumns ? (
-                                        <div className="space-y-3 bg-[#1a4480]/20 p-3 rounded border border-[#3d4551]">
-                                            <p className="text-[10px] text-[#97d4ea] mb-2 opacity-70">Configure columns for each row:</p>
-                                            {Array.from({ length: config.federalRows }).map((_, rowIndex) => {
-                                                const cols = config.federalRowColumns?.[rowIndex] || config.federalColumns || 2;
-                                                return (
-                                                    <div key={rowIndex} className="space-y-2">
-                                                        <div className="flex items-center justify-between">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-xs font-semibold text-[#dfe1e2]">Row {rowIndex + 1}</span>
-                                                                <div className="flex gap-1">
-                                                                    {[1, 2, 3, 4].map(num => (
-                                                                        <button
-                                                                            key={num}
-                                                                            onClick={() => {
-                                                                                const newArray = [...(config.federalRowColumns || [])];
-                                                                                newArray[rowIndex] = num;
-                                                                                handleConfigChange('federalRowColumns', newArray);
-                                                                            }}
-                                                                            className={`w-6 h-6 rounded text-[10px] font-bold transition-all ${
-                                                                                cols === num 
-                                                                                    ? 'bg-[#face00] text-[#162e51]' 
-                                                                                    : 'bg-[#3d4551] text-[#dfe1e2] hover:bg-[#565c65]'
-                                                                            }`}
-                                                                        >
-                                                                            {num}
-                                                                        </button>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                            <span className="text-xs text-[#97d4ea]">{cols} {cols === 1 ? 'column' : 'columns'}</span>
-                                                        </div>
-                                                        <input 
-                                                            type="range" 
-                                                            min="1" 
-                                                            max="4" 
-                                                            value={cols} 
-                                                            onChange={(e) => {
-                                                                const newValue = Number(e.target.value);
-                                                                const newArray = [...(config.federalRowColumns || [])];
-                                                                newArray[rowIndex] = newValue;
-                                                                handleConfigChange('federalRowColumns', newArray);
-                                                            }} 
-                                                            className="input-range w-full" 
-                                                        />
-                                                    </div>
-                                                );
-                                            })}
+                                </>
+                            )}
+
+                            {layoutMode === 'three-col' && (
+                                <>
+                                    <div>
+                                        <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                            <span>KPI Count</span>
+                                            <span>{config.kpiCount}</span>
                                         </div>
-                                    ) : (
-                                        <div>
-                                            <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                                <span>Grid Columns</span>
-                                                <span>{config.federalColumns}</span>
-                                            </div>
-                                            <input type="range" min="0" max="4" value={config.federalColumns} onChange={(e) => handleConfigChange('federalColumns', Number(e.target.value))} className="input-range w-full" />
-                                            <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of columns in grid (0 = no grid)</p>
+                                        <input type="range" min="2" max="8" value={config.kpiCount} onChange={(e) => handleConfigChange('kpiCount', Number(e.target.value))} className="input-range w-full" />
+                                        <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of KPI cards in top row</p>
+                                    </div>
+                                    <div>
+                                        <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                            <span>Visuals per Column</span>
+                                            <span>{config.threeColVisualCount}</span>
                                         </div>
-                                    )}
-                                </div>
-                            </>
-                        )}
+                                        <input type="range" min="1" max="4" value={config.threeColVisualCount} onChange={(e) => handleConfigChange('threeColVisualCount', Number(e.target.value))} className="input-range w-full" />
+                                        <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of visual cards stacked in each column</p>
+                                    </div>
+                                </>
+                            )}
 
-                        {layoutMode === 'sidebar' && (
-                            <>
-                                <div>
-                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                        <span>Sidebar Width</span>
-                                        <span>{config.sidebarLayoutWidth}px</span>
-                                    </div>
-                                    <input type="range" min="180" max="400" value={config.sidebarLayoutWidth} onChange={(e) => handleConfigChange('sidebarLayoutWidth', Number(e.target.value))} className="input-range w-full" />
-                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Width of left navigation sidebar</p>
-                                </div>
-                                <div>
-                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                        <span>Visual Areas</span>
-                                        <span>{config.sidebarVisualCount}</span>
-                                    </div>
-                                    <input type="range" min="1" max="9" value={config.sidebarVisualCount} onChange={(e) => handleConfigChange('sidebarVisualCount', Number(e.target.value))} className="input-range w-full" />
-                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of visual cards below KPIs</p>
-                                </div>
-                                <div>
-                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                        <span>Columns</span>
-                                        <span>{config.sidebarColumns}</span>
-                                    </div>
-                                    <input type="range" min="1" max="3" value={config.sidebarColumns} onChange={(e) => handleConfigChange('sidebarColumns', Number(e.target.value))} className="input-range w-full" />
-                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Grid columns for main area</p>
-                                </div>
-                            </>
-                        )}
-
-                        {layoutMode === 'grid' && (
-                            <>
-                                <div>
-                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                        <span>Rows</span>
-                                        <span>{config.gridRows}</span>
-                                    </div>
-                                    <input type="range" min="1" max="6" value={config.gridRows} onChange={(e) => {
-                                        const newRows = Number(e.target.value);
-                                        handleConfigChange('gridRows', newRows);
-                                        // Update row columns array to match new row count
-                                        const currentArray = config.gridRowColumns || [];
-                                        const newArray = Array.from({ length: newRows }, (_, i) => 
-                                            i < currentArray.length ? currentArray[i] : config.gridColumns || 2
-                                        );
-                                        handleConfigChange('gridRowColumns', newArray);
-                                    }} className="input-range w-full" />
-                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of rows in grid</p>
-                                </div>
-                                <div>
-                                    <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
-                                        <span>Different Columns Per Row</span>
-                                        <label className="relative inline-flex items-center cursor-pointer">
-                                            <input type="checkbox" checked={config.usePerRowColumns} onChange={(e) => handleConfigChange('usePerRowColumns', e.target.checked)} className="sr-only peer" />
-                                            <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
-                                        </label>
-                                    </div>
-                                    {config.usePerRowColumns ? (
-                                        <div className="space-y-3 bg-[#1a4480]/20 p-3 rounded border border-[#3d4551]">
-                                            <p className="text-[10px] text-[#97d4ea] mb-2 opacity-70">Configure columns for each row:</p>
-                                            {Array.from({ length: config.gridRows }).map((_, rowIndex) => {
-                                                const cols = config.gridRowColumns?.[rowIndex] || config.gridColumns || 2;
-                                                return (
-                                                    <div key={rowIndex} className="space-y-2">
-                                                        <div className="flex items-center justify-between">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-xs font-semibold text-[#dfe1e2]">Row {rowIndex + 1}</span>
-                                                                <div className="flex gap-1">
-                                                                    {[1, 2, 3, 4].map(num => (
-                                                                        <button
-                                                                            key={num}
-                                                                            onClick={() => {
-                                                                                const newArray = [...(config.gridRowColumns || [])];
-                                                                                newArray[rowIndex] = num;
-                                                                                handleConfigChange('gridRowColumns', newArray);
-                                                                            }}
-                                                                            className={`w-6 h-6 rounded text-[10px] font-bold transition-all ${
-                                                                                cols === num 
-                                                                                    ? 'bg-[#face00] text-[#162e51]' 
-                                                                                    : 'bg-[#3d4551] text-[#dfe1e2] hover:bg-[#565c65]'
-                                                                            }`}
-                                                                        >
-                                                                            {num}
-                                                                        </button>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                            <span className="text-xs text-[#97d4ea]">{cols} {cols === 1 ? 'column' : 'columns'}</span>
-                                                        </div>
-                                                        <input 
-                                                            type="range" 
-                                                            min="1" 
-                                                            max="4" 
-                                                            value={cols} 
-                                                            onChange={(e) => {
-                                                                const newValue = Number(e.target.value);
-                                                                const newArray = [...(config.gridRowColumns || [])];
-                                                                newArray[rowIndex] = newValue;
-                                                                handleConfigChange('gridRowColumns', newArray);
-                                                            }} 
-                                                            className="input-range w-full" 
-                                                        />
-                                                    </div>
-                                                );
-                                            })}
+                            {layoutMode === 'asymmetric' && (
+                                <>
+                                    <div>
+                                        <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                            <span>KPI Count</span>
+                                            <span>{config.kpiCount}</span>
                                         </div>
-                                    ) : (
-                                        <div>
-                                            <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                                <span>Columns</span>
-                                                <span>{config.gridColumns}</span>
-                                            </div>
-                                            <input type="range" min="1" max="4" value={config.gridColumns} onChange={(e) => handleConfigChange('gridColumns', Number(e.target.value))} className="input-range w-full" />
-                                            <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of columns in grid</p>
+                                        <input type="range" min="2" max="8" value={config.kpiCount} onChange={(e) => handleConfigChange('kpiCount', Number(e.target.value))} className="input-range w-full" />
+                                        <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of KPI cards in top row</p>
+                                    </div>
+                                    <div>
+                                        <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                            <span>Side Cards</span>
+                                            <span>{config.asymmetricSideCount}</span>
                                         </div>
-                                    )}
-                                </div>
-                            </>
-                        )}
+                                        <input type="range" min="1" max="4" value={config.asymmetricSideCount} onChange={(e) => handleConfigChange('asymmetricSideCount', Number(e.target.value))} className="input-range w-full" />
+                                        <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of side cards stacked on the right</p>
+                                    </div>
+                                </>
+                            )}
 
-                        {layoutMode === 'kpi' && (
-                            <>
+                            {layoutMode === 'mobile' && (
                                 <div>
                                     <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                        <span>KPI Count</span>
-                                        <span>{config.kpiCount}</span>
+                                        <span>Visual Cards</span>
+                                        <span>{config.mobileVisualCount}</span>
                                     </div>
-                                    <input type="range" min="2" max="8" value={config.kpiCount} onChange={(e) => handleConfigChange('kpiCount', Number(e.target.value))} className="input-range w-full" />
-                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of KPI cards in top row</p>
+                                    <input type="range" min="2" max="6" value={config.mobileVisualCount} onChange={(e) => handleConfigChange('mobileVisualCount', Number(e.target.value))} className="input-range w-full" />
+                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of cards in vertical stack</p>
                                 </div>
-                                <div>
-                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                        <span>Visual Areas</span>
-                                        <span>{config.kpiVisualCount}</span>
-                                    </div>
-                                    <input type="range" min="1" max="9" value={config.kpiVisualCount} onChange={(e) => handleConfigChange('kpiVisualCount', Number(e.target.value))} className="input-range w-full" />
-                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of visual cards below KPIs</p>
-                                </div>
-                                <div>
-                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                        <span>Columns</span>
-                                        <span>{config.kpiColumns}</span>
-                                    </div>
-                                    <input type="range" min="1" max="3" value={config.kpiColumns} onChange={(e) => handleConfigChange('kpiColumns', Number(e.target.value))} className="input-range w-full" />
-                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Grid columns for visuals below main chart</p>
-                                </div>
-                                <div className="flex items-center justify-between p-2 bg-[#1a4480]/30 rounded border border-[#3d4551]">
-                                    <div className="flex-1">
-                                        <div className="text-xs font-semibold text-[#dfe1e2] mb-1">Main Chart Full-Width</div>
-                                        <p className="text-[10px] text-[#97d4ea] opacity-70">
-                                            {config.kpiMainChartFullWidth 
-                                                ? 'First visual is full-width, rest in grid below' 
-                                                : 'All visuals in grid layout'}
-                                        </p>
-                                    </div>
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" checked={config.kpiMainChartFullWidth} onChange={(e) => handleConfigChange('kpiMainChartFullWidth', e.target.checked)} className="sr-only peer" />
-                                        <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
-                                    </label>
-                                </div>
-                            </>
-                        )}
-
-                        {layoutMode === 'three-col' && (
-                            <>
-                                <div>
-                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                        <span>KPI Count</span>
-                                        <span>{config.kpiCount}</span>
-                                    </div>
-                                    <input type="range" min="2" max="8" value={config.kpiCount} onChange={(e) => handleConfigChange('kpiCount', Number(e.target.value))} className="input-range w-full" />
-                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of KPI cards in top row</p>
-                                </div>
-                                <div>
-                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                        <span>Visuals per Column</span>
-                                        <span>{config.threeColVisualCount}</span>
-                                    </div>
-                                    <input type="range" min="1" max="4" value={config.threeColVisualCount} onChange={(e) => handleConfigChange('threeColVisualCount', Number(e.target.value))} className="input-range w-full" />
-                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of visual cards stacked in each column</p>
-                                </div>
-                            </>
-                        )}
-
-                        {layoutMode === 'asymmetric' && (
-                            <>
-                                <div>
-                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                        <span>KPI Count</span>
-                                        <span>{config.kpiCount}</span>
-                                    </div>
-                                    <input type="range" min="2" max="8" value={config.kpiCount} onChange={(e) => handleConfigChange('kpiCount', Number(e.target.value))} className="input-range w-full" />
-                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of KPI cards in top row</p>
-                                </div>
-                                <div>
-                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                        <span>Side Cards</span>
-                                        <span>{config.asymmetricSideCount}</span>
-                                    </div>
-                                    <input type="range" min="1" max="4" value={config.asymmetricSideCount} onChange={(e) => handleConfigChange('asymmetricSideCount', Number(e.target.value))} className="input-range w-full" />
-                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of side cards stacked on the right</p>
-                                </div>
-                            </>
-                        )}
-
-                        {layoutMode === 'mobile' && (
-                            <div>
-                                <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
-                                    <span>Visual Cards</span>
-                                    <span>{config.mobileVisualCount}</span>
-                                </div>
-                                <input type="range" min="2" max="6" value={config.mobileVisualCount} onChange={(e) => handleConfigChange('mobileVisualCount', Number(e.target.value))} className="input-range w-full" />
-                                <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of cards in vertical stack</p>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
-                </div>
                 )}
 
                 {/* Visual Types & Labels - Only show in manual mode */}
                 {!importMode && (
-                <div className="p-5 border-b border-[#3d4551] space-y-4">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-2 flex items-center gap-2">
-                        <Grid3x3 className="w-3 h-3"/> Visual Types & Labels
-                    </h3>
-                    
-                    <div className="space-y-4">
-                        <div>
-                            <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
-                                <span>Show Visual Type Indicators</span>
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" checked={config.showVisualTypes} onChange={(e) => handleConfigChange('showVisualTypes', e.target.checked)} className="sr-only peer" />
-                                    <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
-                                </label>
-                            </div>
-                            <p className="text-[10px] text-[#97d4ea] opacity-70">Show icons and type labels on visual cards</p>
-                        </div>
-                        
-                        <div>
-                            <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
-                                <span>Show Visual Labels</span>
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" checked={config.showVisualLabels} onChange={(e) => handleConfigChange('showVisualLabels', e.target.checked)} className="sr-only peer" />
-                                    <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
-                                </label>
-                            </div>
-                            <p className="text-[10px] text-[#97d4ea] opacity-70">Show custom labels on visual cards</p>
-                        </div>
+                    <div className="p-5 border-b border-[#3d4551] space-y-4">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-2 flex items-center gap-2">
+                            <Grid3x3 className="w-3 h-3" /> Visual Types & Labels
+                        </h3>
 
-                        {items.filter(item => item.type === 'card' || item.type === 'kpi' || item.type === 'main').length > 0 && (
-                            <div className="space-y-3 bg-[#1a4480]/20 p-3 rounded border border-[#3d4551] max-h-64 overflow-y-auto">
-                                <p className="text-[10px] text-[#97d4ea] mb-2 opacity-70">Configure each visual card:</p>
-                                {items
-                                    .filter(item => item.type === 'card' || item.type === 'kpi' || item.type === 'main')
-                                    .map((item, idx) => {
-                                        const itemIndex = item.index !== undefined ? item.index : idx;
-                                        const visualType = config.visualTypes?.[itemIndex] || config.defaultVisualType || 'card';
-                                        const visualLabel = config.visualLabels?.[itemIndex] || '';
-                                        
-                                        return (
-                                            <div key={itemIndex} className="space-y-2 p-2 bg-[#162e51]/50 rounded">
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-xs font-semibold text-[#dfe1e2]">Visual {itemIndex + 1}</span>
-                                                    <span className="text-[10px] text-[#97d4ea]">{Math.round(item.w)}×{Math.round(item.h)}px</span>
-                                                </div>
-                                                
-                                                <div>
-                                                    <label className="text-[10px] text-[#97d4ea] mb-1 block">Type:</label>
-                                                    <select
-                                                        value={visualType}
-                                                        onChange={(e) => {
-                                                            const newTypes = { ...(config.visualTypes || {}) };
-                                                            newTypes[itemIndex] = e.target.value;
-                                                            handleConfigChange('visualTypes', newTypes);
-                                                        }}
-                                                        className="w-full bg-[#1a4480] border border-[#3d4551] rounded px-2 py-1 text-xs text-[#dfe1e2]"
-                                                    >
-                                                        <option value="card">Card (Generic)</option>
-                                                        <option value="chart">📊 Chart</option>
-                                                        <option value="table">📋 Table</option>
-                                                        <option value="map">🗺️ Map</option>
-                                                        <option value="kpi">📈 KPI</option>
-                                                        <option value="slicer">🔽 Slicer</option>
-                                                        <option value="text">📄 Text Box</option>
-                                                        <option value="image">🖼️ Image</option>
-                                                    </select>
-                                                </div>
-                                                
-                                                <div>
-                                                    <label className="text-[10px] text-[#97d4ea] mb-1 block">Label:</label>
-                                                    <input
-                                                        type="text"
-                                                        value={visualLabel}
-                                                        onChange={(e) => {
-                                                            const newLabels = { ...(config.visualLabels || {}) };
-                                                            newLabels[itemIndex] = e.target.value;
-                                                            handleConfigChange('visualLabels', newLabels);
-                                                        }}
-                                                        placeholder="e.g., Sales by Region"
-                                                        className="w-full bg-[#1a4480] border border-[#3d4551] rounded px-2 py-1 text-xs text-[#dfe1e2] placeholder-[#565c65]"
-                                                    />
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
+                        <div className="space-y-4">
+                            <div>
+                                <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
+                                    <span>Show Visual Type Indicators</span>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" checked={config.showVisualTypes} onChange={(e) => handleConfigChange('showVisualTypes', e.target.checked)} className="sr-only peer" />
+                                        <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
+                                    </label>
+                                </div>
+                                <p className="text-[10px] text-[#97d4ea] opacity-70">Show icons and type labels on visual cards</p>
                             </div>
-                        )}
+
+                            <div>
+                                <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
+                                    <span>Show Visual Labels</span>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" checked={config.showVisualLabels} onChange={(e) => handleConfigChange('showVisualLabels', e.target.checked)} className="sr-only peer" />
+                                        <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
+                                    </label>
+                                </div>
+                                <p className="text-[10px] text-[#97d4ea] opacity-70">Show custom labels on visual cards</p>
+                            </div>
+
+                            {items.filter(item => item.type === 'card' || item.type === 'kpi' || item.type === 'main').length > 0 && (
+                                <div className="space-y-3 bg-[#1a4480]/20 p-3 rounded border border-[#3d4551] max-h-64 overflow-y-auto">
+                                    <p className="text-[10px] text-[#97d4ea] mb-2 opacity-70">Configure each visual card:</p>
+                                    {items
+                                        .filter(item => item.type === 'card' || item.type === 'kpi' || item.type === 'main')
+                                        .map((item, idx) => {
+                                            const itemIndex = item.index !== undefined ? item.index : idx;
+                                            const visualType = config.visualTypes?.[itemIndex] || config.defaultVisualType || 'card';
+                                            const visualLabel = config.visualLabels?.[itemIndex] || '';
+
+                                            return (
+                                                <div key={itemIndex} className="space-y-2 p-2 bg-[#162e51]/50 rounded">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-xs font-semibold text-[#dfe1e2]">Visual {itemIndex + 1}</span>
+                                                        <span className="text-[10px] text-[#97d4ea]">{Math.round(item.w)}×{Math.round(item.h)}px</span>
+                                                    </div>
+
+                                                    <div>
+                                                        <label className="text-[10px] text-[#97d4ea] mb-1 block">Type:</label>
+                                                        <select
+                                                            value={visualType}
+                                                            onChange={(e) => {
+                                                                const newTypes = { ...(config.visualTypes || {}) };
+                                                                newTypes[itemIndex] = e.target.value;
+                                                                handleConfigChange('visualTypes', newTypes);
+                                                            }}
+                                                            className="w-full bg-[#1a4480] border border-[#3d4551] rounded px-2 py-1 text-xs text-[#dfe1e2]"
+                                                        >
+                                                            <option value="card">Card (Generic)</option>
+                                                            <option value="chart">📊 Chart</option>
+                                                            <option value="table">📋 Table</option>
+                                                            <option value="map">🗺️ Map</option>
+                                                            <option value="kpi">📈 KPI</option>
+                                                            <option value="slicer">🔽 Slicer</option>
+                                                            <option value="text">📄 Text Box</option>
+                                                            <option value="image">🖼️ Image</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <div>
+                                                        <label className="text-[10px] text-[#97d4ea] mb-1 block">Label:</label>
+                                                        <input
+                                                            type="text"
+                                                            value={visualLabel}
+                                                            onChange={(e) => {
+                                                                const newLabels = { ...(config.visualLabels || {}) };
+                                                                newLabels[itemIndex] = e.target.value;
+                                                                handleConfigChange('visualLabels', newLabels);
+                                                            }}
+                                                            placeholder="e.g., Sales by Region"
+                                                            className="w-full bg-[#1a4480] border border-[#3d4551] rounded px-2 py-1 text-xs text-[#dfe1e2] placeholder-[#565c65]"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
                 )}
 
                 {/* Metrics */}
                 <div className="p-5 border-b border-[#3d4551] space-y-6">
-                     <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-2 flex items-center gap-2">
-                        <Settings className="w-3 h-3"/> Spacing & Style
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-2 flex items-center gap-2">
+                        <Settings className="w-3 h-3" /> Spacing & Style
                     </h3>
-                    
+
                     <div className="space-y-4">
                         <div>
                             <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
@@ -3282,7 +3275,7 @@ Example:
                             </div>
                             <input type="range" min="0" max="48" value={config.gap} onChange={(e) => handleConfigChange('gap', Number(e.target.value))} className="input-range w-full" />
                         </div>
-                        
+
                         <div>
                             <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
                                 <span>Page Padding</span>
@@ -3290,7 +3283,7 @@ Example:
                             </div>
                             <input type="range" min="0" max="80" value={config.padding} onChange={(e) => handleConfigChange('padding', Number(e.target.value))} className="input-range w-full" />
                         </div>
-                        
+
                         <div>
                             <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
                                 <span>Corner Radius</span>
@@ -3359,9 +3352,9 @@ Example:
                 {/* Branding Elements */}
                 <div className="p-5 border-b border-[#3d4551] space-y-4">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-2 flex items-center gap-2">
-                        <Shield className="w-3 h-3"/> HHS Branding
+                        <Shield className="w-3 h-3" /> HHS Branding
                     </h3>
-                    
+
                     <div className="space-y-4">
                         {/* Trust Bar */}
                         <div>
@@ -3450,8 +3443,8 @@ Example:
                                         <span className="text-[10px] uppercase opacity-70 block mb-2">Position</span>
                                         <div className="flex gap-2">
                                             {['top', 'header'].map(pos => (
-                                                <button 
-                                                    key={pos} 
+                                                <button
+                                                    key={pos}
                                                     onClick={() => handleConfigChange('titlePosition', pos)}
                                                     className={`flex-1 py-1 px-2 text-[10px] uppercase rounded border ${config.titlePosition === pos ? 'bg-[#face00] text-[#162e51] font-bold border-[#face00]' : 'border-[#97d4ea] text-[#97d4ea]'}`}
                                                 >
@@ -3514,7 +3507,7 @@ Example:
                                         <input type="range" min="0.02" max="0.2" step="0.01" value={config.slicerZoneOpacity || 0.08} onChange={(e) => handleConfigChange('slicerZoneOpacity', Number(e.target.value))} className="input-range w-full" />
                                         <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Adjust visibility of slicer zone background</p>
                                     </div>
-                                    
+
                                     <div className="mt-3 pt-3 border-t border-[#3d4551]">
                                         <label className="text-[10px] text-[#97d4ea] mb-2 block">Visual Style:</label>
                                         <div className="grid grid-cols-3 gap-2">
@@ -3522,11 +3515,10 @@ Example:
                                                 <button
                                                     key={style}
                                                     onClick={() => handleConfigChange('slicerZoneStyle', style)}
-                                                    className={`p-2 rounded text-[10px] font-semibold transition-all capitalize ${
-                                                        (config.slicerZoneStyle || 'standard') === style
+                                                    className={`p-2 rounded text-[10px] font-semibold transition-all capitalize ${(config.slicerZoneStyle || 'standard') === style
                                                             ? 'bg-[#face00] text-[#162e51] border border-[#e5a000]'
                                                             : 'bg-[#1a4480] text-white border border-transparent hover:border-[#face00]'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {style}
                                                 </button>
@@ -3538,7 +3530,7 @@ Example:
                                             {(config.slicerZoneStyle || 'standard') === 'full' && 'All borders, background, and guide lines'}
                                         </p>
                                     </div>
-                                    
+
                                     {(config.slicerZoneStyle || 'standard') !== 'minimal' && (
                                         <div className="mt-3 pt-3 border-t border-[#3d4551] space-y-2">
                                             <div className="flex items-center justify-between text-xs text-[#dfe1e2]">
@@ -3587,7 +3579,7 @@ Example:
                 {/* Color Tweaks */}
                 <div className="p-5 space-y-4">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-2 flex items-center gap-2">
-                        <Palette className="w-3 h-3"/> Custom Override
+                        <Palette className="w-3 h-3" /> Custom Override
                     </h3>
                     <div className="grid grid-cols-2 gap-3">
                         <div className="flex flex-col gap-1">
@@ -3599,13 +3591,13 @@ Example:
                             <input type="color" value={config.cardHex} onChange={(e) => handleConfigChange('cardHex', e.target.value)} className="w-full h-8 rounded cursor-pointer bg-transparent" />
                         </div>
                     </div>
-                    
+
                     <div className="pt-4 border-t border-[#3d4551]">
                         <span className="text-[10px] uppercase opacity-70 block mb-2">Visual Style</span>
-                         <div className="flex gap-2">
+                        <div className="flex gap-2">
                             {['standard', 'executive', 'frosted'].map(t => (
-                                <button 
-                                    key={t} 
+                                <button
+                                    key={t}
                                     onClick={() => setThemeMode(t)}
                                     className={`flex-1 py-1 px-2 text-[10px] uppercase rounded border ${themeMode === t ? 'bg-[#face00] text-[#162e51] font-bold border-[#face00]' : 'border-[#97d4ea] text-[#97d4ea]'}`}
                                 >
@@ -3623,8 +3615,8 @@ Example:
                 {/* Toolbar */}
                 <div className="h-14 border-b border-[#3d4551] bg-[#1c1d1f] flex items-center justify-between px-6 shadow-md z-10">
                     <div className="flex items-center gap-4">
-                         <div className="text-sm font-bold text-white font-serif">Preview</div>
-                         <div className="text-xs text-[#97d4ea] bg-[#162e51] px-2 py-1 rounded flex items-center gap-2">
+                        <div className="text-sm font-bold text-white font-serif">Preview</div>
+                        <div className="text-xs text-[#97d4ea] bg-[#162e51] px-2 py-1 rounded flex items-center gap-2">
                             <span>{config.width} x {config.height}</span>
                             <span className="opacity-50">•</span>
                             <span className="opacity-70">{getAspectRatio()}</span>
@@ -3636,28 +3628,26 @@ Example:
                             >
                                 <Copy className="w-3 h-3" />
                             </button>
-                         </div>
-                         {(() => {
+                        </div>
+                        {(() => {
                             const visualCount = items.filter(item => ['card', 'kpi', 'main', 'sidebar', 'nav', 'kpi-strip'].includes(item.type)).length;
                             return (
-                                <div className={`text-xs px-2 py-1 rounded ${
-                                    visualCount > 10 ? 'bg-[#d54309] text-white' : 'bg-[#162e51] text-[#97d4ea]'
-                                }`}>
+                                <div className={`text-xs px-2 py-1 rounded ${visualCount > 10 ? 'bg-[#d54309] text-white' : 'bg-[#162e51] text-[#97d4ea]'
+                                    }`}>
                                     {visualCount} visual{visualCount !== 1 ? 's' : ''}
                                 </div>
                             );
-                         })()}
-                         <button
+                        })()}
+                        <button
                             onClick={() => setShowGrid(!showGrid)}
-                            className={`px-3 py-1 rounded text-xs font-semibold transition-colors flex items-center gap-1 ${
-                                showGrid ? 'bg-[#face00] text-[#162e51]' : 'bg-[#3d4551] text-white hover:bg-[#565c65]'
-                            }`}
+                            className={`px-3 py-1 rounded text-xs font-semibold transition-colors flex items-center gap-1 ${showGrid ? 'bg-[#face00] text-[#162e51]' : 'bg-[#3d4551] text-white hover:bg-[#565c65]'
+                                }`}
                             title="Toggle grid overlay (Ctrl/Cmd+G)"
                         >
                             <Grid className="w-3 h-3" /> Grid
                         </button>
                     </div>
-                    
+
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => setShowKeyboardShortcuts(true)}
@@ -3682,7 +3672,7 @@ Example:
                         >
                             <HelpCircle className="w-4 h-4" />
                         </button>
-                        <button 
+                        <button
                             onClick={copyPowerBISettings}
                             className="bg-[#1a4480] hover:bg-[#005ea2] text-white px-3 py-2 rounded-md font-semibold text-sm flex items-center gap-2 transition-all border border-transparent hover:border-[#face00]"
                             title="Copy Power BI settings to clipboard"
@@ -3690,7 +3680,7 @@ Example:
                         >
                             <Copy className="w-4 h-4" /> Settings
                         </button>
-                        <button 
+                        <button
                             onClick={copySVGToClipboard}
                             className="bg-[#1a4480] hover:bg-[#005ea2] text-white px-3 py-2 rounded-md font-semibold text-sm flex items-center gap-2 transition-all border border-transparent hover:border-[#face00]"
                             title="Copy SVG to clipboard"
@@ -3698,7 +3688,7 @@ Example:
                             <Copy className="w-4 h-4" />
                         </button>
                         <div className="relative group">
-                            <button 
+                            <button
                                 onClick={downloadSVG}
                                 className="bg-[#005ea2] hover:bg-[#00bde3] text-white px-5 py-2 rounded-md font-bold text-sm flex items-center gap-2 shadow-lg transition-all border border-[#1a4480]"
                             >
@@ -3732,29 +3722,29 @@ Example:
                 </div>
 
                 {/* Canvas Container - Padded and Centered */}
-                <div className="flex-1 overflow-hidden p-6 md:p-12 flex items-center justify-center bg-repeat" style={{backgroundImage: 'radial-gradient(#3d4551 1px, transparent 1px)', backgroundSize: '20px 20px'}}>
-                    
+                <div className="flex-1 overflow-hidden p-6 md:p-12 flex items-center justify-center bg-repeat" style={{ backgroundImage: 'radial-gradient(#3d4551 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
+
                     {/* THE FIX: aspect-video ensures the div keeps 16:9 ratio.
                         w-full ensures it stretches to fit the panel.
                         max-w/max-h limits it so it doesn't overflow.
                     */}
-                    <div 
+                    <div
                         className="w-full max-w-[1280px] bg-white shadow-2xl rounded-sm overflow-hidden ring-4 ring-[#00000020] relative"
-                        style={{ 
+                        style={{
                             aspectRatio: `${config.width} / ${config.height}`,
                             maxHeight: '80vh'
                         }}
                     >
-                        <div 
+                        <div
                             className="w-full h-full"
-                            dangerouslySetInnerHTML={{ 
+                            dangerouslySetInnerHTML={{
                                 __html: getSVGString()
                                     .replace(`width="${config.width}"`, 'width="100%"')
-                                    .replace(`height="${config.height}"`, 'height="100%"') 
-                            }} 
+                                    .replace(`height="${config.height}"`, 'height="100%"')
+                            }}
                         />
                         {showGrid && (
-                            <div 
+                            <div
                                 className="absolute inset-0 pointer-events-none"
                                 style={{
                                     backgroundImage: `
@@ -3768,7 +3758,7 @@ Example:
                     </div>
 
                 </div>
-                
+
                 {/* Bottom Help Text */}
                 {(() => {
                     const visualCount = items.filter(item => ['card', 'kpi', 'main', 'sidebar', 'nav', 'kpi-strip'].includes(item.type)).length;
@@ -3787,29 +3777,28 @@ Example:
 
                 {/* Toast Notification */}
                 {toast && (
-                    <div 
-                        className={`fixed top-20 left-1/2 -translate-x-1/2 px-6 py-3 rounded-lg shadow-2xl flex items-center gap-2 font-semibold z-50 min-w-[300px] max-w-[500px] transition-all ${
-                            toast.startsWith('✓') || toast.startsWith('Success') 
-                                ? 'bg-[#00a398] text-white' 
+                    <div
+                        className={`fixed top-20 left-1/2 -translate-x-1/2 px-6 py-3 rounded-lg shadow-2xl flex items-center gap-2 font-semibold z-50 min-w-[300px] max-w-[500px] transition-all ${toast.startsWith('✓') || toast.startsWith('Success')
+                                ? 'bg-[#00a398] text-white'
                                 : toast.startsWith('✗') || toast.startsWith('Error')
-                                ? 'bg-[#d54309] text-white'
-                                : 'bg-[#005ea2] text-white'
-                        }`}
+                                    ? 'bg-[#d54309] text-white'
+                                    : 'bg-[#005ea2] text-white'
+                            }`}
                         style={{
                             animation: 'slideDown 0.3s ease-out'
                         }}
                     >
                         {toast.startsWith('✓') ? (
-                            <CheckCircle className="w-5 h-5 flex-shrink-0"/>
+                            <CheckCircle className="w-5 h-5 flex-shrink-0" />
                         ) : toast.startsWith('✗') ? (
                             <div className="w-5 h-5 flex-shrink-0 text-xl leading-none">✗</div>
                         ) : (
-                            <CheckCircle className="w-5 h-5 flex-shrink-0"/>
+                            <CheckCircle className="w-5 h-5 flex-shrink-0" />
                         )}
                         <span className="text-sm">{toast}</span>
                     </div>
                 )}
-                
+
                 {/* Toast Animation Style */}
                 <style>{`
                     @keyframes slideDown {
@@ -3931,7 +3920,7 @@ Example:
 
                                 <div>
                                     <h4 className="font-bold text-white mb-3">Recommended Chart Color Schemes</h4>
-                                    
+
                                     <div className="space-y-4">
                                         <div className="bg-[#1a4480] p-4 rounded border border-[#3d4551]">
                                             <div className="font-semibold text-white mb-2">✅ Column/Bar Charts (Sequential Data)</div>
