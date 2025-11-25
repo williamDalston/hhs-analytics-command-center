@@ -756,7 +756,30 @@ const SVGGenerator = () => {
         if (noise) rects += `<rect width="100%" height="100%" filter="url(#noise)" opacity="1" pointer-events="none"/>`;
 
         // 3. Items
-        items.forEach(item => {
+        // Safety check: if items is empty or not ready, generate a fallback layout
+        if (!items || !Array.isArray(items) || items.length === 0) {
+            // Generate a simple fallback layout
+            const fallbackHeaderH = headerHeight || 88;
+            rects += `<rect x="0" y="0" width="${width}" height="${fallbackHeaderH}" fill="${HHS_COLORS.primary.darker}" />`;
+            const cardW = (width - padding * 3) / 2;
+            const cardH = (height - padding * 3 - fallbackHeaderH) / 2;
+            const startY = fallbackHeaderH + padding;
+            for (let row = 0; row < 2; row++) {
+                for (let col = 0; col < 2; col++) {
+                    rects += `<rect 
+                        x="${padding + col * (cardW + gap)}" 
+                        y="${startY + row * (cardH + gap)}" 
+                        width="${cardW}" 
+                        height="${cardH}" 
+                        rx="${radius}" 
+                        fill="${cardHex}" 
+                        stroke="${accentHex}" 
+                        stroke-width="${strokeWidth}"
+                    />`;
+                }
+            }
+        } else {
+            items.forEach(item => {
             const isHeader = item.type === 'header';
             const isFooter = item.type === 'footer';
             const isTrustBar = item.type === 'trustbar';
@@ -1133,7 +1156,8 @@ const SVGGenerator = () => {
                     }
                 }
             }
-        });
+            });
+        }
         
         // Add visual count warning if enabled and count > 10
         const visualCount = items.filter(item => 
