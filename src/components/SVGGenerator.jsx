@@ -119,6 +119,8 @@ const SVGGenerator = () => {
     const [wireframeText, setWireframeText] = useState('');
     const [wireframeData, setWireframeData] = useState(null); // Parsed wireframe data
     const [isExportingPages, setIsExportingPages] = useState(false); // Loading state for export all
+    const [isBatchGenerating, setIsBatchGenerating] = useState(false); // Loading state for batch generation
+    const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 }); // Batch generation progress
     const [cursorGuideCopied, setCursorGuideCopied] = useState(false); // Track if guide was copied
 
     // --- Canvas Size Presets ---
@@ -1372,6 +1374,106 @@ const SVGGenerator = () => {
         }
     };
 
+    // Batch download all variations
+    const downloadAllVariations = async () => {
+        if (isBatchGenerating) return;
+
+        // All variations - same as QUICK_BATCH_GENERATOR.js
+        const configs = [
+            // === FEDERAL LAYOUT VARIATIONS ===
+            {name: "Federal-NoNav-NoTitle-NoSlicer-NoKPI-NoSidebar-2x2", layoutMode: "federal", showLogo: false, headerHeight: 0, showTitle: false, showSlicerZone: false, showFederalKPIs: false, showFederalSidebar: false, federalRows: 2, federalColumns: 2},
+            {name: "Federal-NoNav-WithTitle-NoSlicer-NoKPI-NoSidebar-2x2", layoutMode: "federal", showLogo: false, headerHeight: 0, showTitle: true, titlePosition: "top", showSlicerZone: false, showFederalKPIs: false, showFederalSidebar: false, federalRows: 2, federalColumns: 2},
+            {name: "Federal-WithNav-NoTitle-NoSlicer-NoKPI-NoSidebar-2x2", layoutMode: "federal", showLogo: true, headerHeight: 88, showTitle: false, showSlicerZone: false, showFederalKPIs: false, showFederalSidebar: false, federalRows: 2, federalColumns: 2},
+            {name: "Federal-WithNav-WithTitle-NoSlicer-NoKPI-NoSidebar-2x2", layoutMode: "federal", showLogo: true, headerHeight: 88, showTitle: true, titlePosition: "top", showSlicerZone: false, showFederalKPIs: false, showFederalSidebar: false, federalRows: 2, federalColumns: 2},
+            {name: "Federal-WithNav-TitleInHeader-NoSlicer-NoKPI-NoSidebar-2x2", layoutMode: "federal", showLogo: true, headerHeight: 88, showTitle: true, titlePosition: "header", showSlicerZone: false, showFederalKPIs: false, showFederalSidebar: false, federalRows: 2, federalColumns: 2},
+            {name: "Federal-WithNav-NoTitle-WithSlicer-NoKPI-NoSidebar-2x2", layoutMode: "federal", showLogo: true, headerHeight: 88, showTitle: false, showSlicerZone: true, slicerZoneHeight: 60, showFederalKPIs: false, showFederalSidebar: false, federalRows: 2, federalColumns: 2},
+            {name: "Federal-WithNav-WithTitle-WithSlicer-NoKPI-NoSidebar-2x2", layoutMode: "federal", showLogo: true, headerHeight: 88, showTitle: true, titlePosition: "top", showSlicerZone: true, slicerZoneHeight: 60, showFederalKPIs: false, showFederalSidebar: false, federalRows: 2, federalColumns: 2},
+            {name: "Federal-WithNav-NoTitle-NoSlicer-WithKPI3-NoSidebar-2x2", layoutMode: "federal", showLogo: true, headerHeight: 88, showTitle: false, showSlicerZone: false, showFederalKPIs: true, federalKPICount: 3, federalKPIRowHeight: 100, showFederalSidebar: false, federalRows: 2, federalColumns: 2},
+            {name: "Federal-WithNav-NoTitle-NoSlicer-WithKPI4-NoSidebar-2x2", layoutMode: "federal", showLogo: true, headerHeight: 88, showTitle: false, showSlicerZone: false, showFederalKPIs: true, federalKPICount: 4, federalKPIRowHeight: 100, showFederalSidebar: false, federalRows: 2, federalColumns: 2},
+            {name: "Federal-WithNav-NoTitle-NoSlicer-WithKPI5-NoSidebar-2x2", layoutMode: "federal", showLogo: true, headerHeight: 88, showTitle: false, showSlicerZone: false, showFederalKPIs: true, federalKPICount: 5, federalKPIRowHeight: 100, showFederalSidebar: false, federalRows: 2, federalColumns: 2},
+            {name: "Federal-WithNav-WithTitle-NoSlicer-WithKPI4-NoSidebar-2x2", layoutMode: "federal", showLogo: true, headerHeight: 88, showTitle: true, titlePosition: "top", showSlicerZone: false, showFederalKPIs: true, federalKPICount: 4, federalKPIRowHeight: 100, showFederalSidebar: false, federalRows: 2, federalColumns: 2},
+            {name: "Federal-WithNav-NoTitle-WithSlicer-WithKPI4-NoSidebar-2x2", layoutMode: "federal", showLogo: true, headerHeight: 88, showTitle: false, showSlicerZone: true, slicerZoneHeight: 60, showFederalKPIs: true, federalKPICount: 4, federalKPIRowHeight: 100, showFederalSidebar: false, federalRows: 2, federalColumns: 2},
+            {name: "Federal-WithNav-WithTitle-WithSlicer-WithKPI4-NoSidebar-2x2", layoutMode: "federal", showLogo: true, headerHeight: 88, showTitle: true, titlePosition: "top", showSlicerZone: true, slicerZoneHeight: 60, showFederalKPIs: true, federalKPICount: 4, federalKPIRowHeight: 100, showFederalSidebar: false, federalRows: 2, federalColumns: 2},
+            {name: "Federal-WithNav-NoTitle-NoSlicer-NoKPI-WithSidebar-2x2", layoutMode: "federal", showLogo: true, headerHeight: 88, showTitle: false, showSlicerZone: false, showFederalKPIs: false, showFederalSidebar: true, federalSidebarWidth: 280, federalRows: 2, federalColumns: 2},
+            {name: "Federal-WithNav-WithTitle-NoSlicer-NoKPI-WithSidebar-2x2", layoutMode: "federal", showLogo: true, headerHeight: 88, showTitle: true, titlePosition: "top", showSlicerZone: false, showFederalKPIs: false, showFederalSidebar: true, federalSidebarWidth: 280, federalRows: 2, federalColumns: 2},
+            {name: "Federal-WithNav-NoTitle-NoSlicer-WithKPI4-WithSidebar-2x2", layoutMode: "federal", showLogo: true, headerHeight: 88, showTitle: false, showSlicerZone: false, showFederalKPIs: true, federalKPICount: 4, federalKPIRowHeight: 100, showFederalSidebar: true, federalSidebarWidth: 280, federalRows: 2, federalColumns: 2},
+            {name: "Federal-WithNav-WithSlicer-WithKPI4-WithSidebar-2x2", layoutMode: "federal", showLogo: true, headerHeight: 88, showTitle: false, showSlicerZone: true, slicerZoneHeight: 60, showFederalKPIs: true, federalKPICount: 4, federalKPIRowHeight: 100, showFederalSidebar: true, federalSidebarWidth: 280, federalRows: 2, federalColumns: 2},
+            {name: "Federal-WithNav-NoSlicer-WithKPI4-NoSidebar-2x3", layoutMode: "federal", showLogo: true, headerHeight: 88, showTitle: false, showSlicerZone: false, showFederalKPIs: true, federalKPICount: 4, federalKPIRowHeight: 100, showFederalSidebar: false, federalRows: 2, federalColumns: 3},
+            {name: "Federal-WithNav-NoSlicer-WithKPI4-NoSidebar-3x2", layoutMode: "federal", showLogo: true, headerHeight: 88, showTitle: false, showSlicerZone: false, showFederalKPIs: true, federalKPICount: 4, federalKPIRowHeight: 100, showFederalSidebar: false, federalRows: 3, federalColumns: 2},
+            {name: "Federal-WithNav-NoSlicer-WithKPI4-NoSidebar-3x3", layoutMode: "federal", showLogo: true, headerHeight: 88, showTitle: false, showSlicerZone: false, showFederalKPIs: true, federalKPICount: 4, federalKPIRowHeight: 100, showFederalSidebar: false, federalRows: 3, federalColumns: 3},
+            // === GRID LAYOUT VARIATIONS ===
+            {name: "Grid-NoNav-NoTitle-NoSlicer-2x2", layoutMode: "grid", showLogo: false, headerHeight: 0, showTitle: false, showSlicerZone: false, gridRows: 2, gridColumns: 2},
+            {name: "Grid-WithNav-NoTitle-NoSlicer-2x2", layoutMode: "grid", showLogo: true, headerHeight: 88, showTitle: false, showSlicerZone: false, gridRows: 2, gridColumns: 2},
+            {name: "Grid-WithNav-WithTitle-NoSlicer-2x2", layoutMode: "grid", showLogo: true, headerHeight: 88, showTitle: true, titlePosition: "top", showSlicerZone: false, gridRows: 2, gridColumns: 2},
+            {name: "Grid-WithNav-NoTitle-WithSlicer-2x2", layoutMode: "grid", showLogo: true, headerHeight: 88, showTitle: false, showSlicerZone: true, slicerZoneHeight: 60, gridRows: 2, gridColumns: 2},
+            {name: "Grid-WithNav-WithTitle-WithSlicer-2x2", layoutMode: "grid", showLogo: true, headerHeight: 88, showTitle: true, titlePosition: "top", showSlicerZone: true, slicerZoneHeight: 60, gridRows: 2, gridColumns: 2},
+            {name: "Grid-WithNav-NoSlicer-2x3", layoutMode: "grid", showLogo: true, headerHeight: 88, showTitle: false, showSlicerZone: false, gridRows: 2, gridColumns: 3},
+            {name: "Grid-WithNav-NoSlicer-3x2", layoutMode: "grid", showLogo: true, headerHeight: 88, showTitle: false, showSlicerZone: false, gridRows: 3, gridColumns: 2},
+            {name: "Grid-WithNav-NoSlicer-3x3", layoutMode: "grid", showLogo: true, headerHeight: 88, showTitle: false, showSlicerZone: false, gridRows: 3, gridColumns: 3},
+            // === KPI LAYOUT VARIATIONS ===
+            {name: "KPI-NoNav-NoTitle-NoSlicer-3KPIs", layoutMode: "kpi", showLogo: false, headerHeight: 0, showTitle: false, showSlicerZone: false, kpiCount: 3},
+            {name: "KPI-WithNav-NoTitle-NoSlicer-4KPIs", layoutMode: "kpi", showLogo: true, headerHeight: 88, showTitle: false, showSlicerZone: false, kpiCount: 4},
+            {name: "KPI-WithNav-WithTitle-NoSlicer-4KPIs", layoutMode: "kpi", showLogo: true, headerHeight: 88, showTitle: true, titlePosition: "top", showSlicerZone: false, kpiCount: 4},
+            {name: "KPI-WithNav-NoTitle-WithSlicer-5KPIs", layoutMode: "kpi", showLogo: true, headerHeight: 88, showTitle: false, showSlicerZone: true, slicerZoneHeight: 60, kpiCount: 5},
+            {name: "KPI-WithNav-WithTitle-WithSlicer-5KPIs", layoutMode: "kpi", showLogo: true, headerHeight: 88, showTitle: true, titlePosition: "top", showSlicerZone: true, slicerZoneHeight: 60, kpiCount: 5},
+        ];
+
+        setIsBatchGenerating(true);
+        setBatchProgress({ current: 0, total: configs.length });
+        setThemeMode('executive');
+        setCanvasPreset('16:9');
+        
+        showToast(`🚀 Starting batch generation of ${configs.length} backgrounds...`);
+
+        try {
+            for (let i = 0; i < configs.length; i++) {
+                const cfg = configs[i];
+                setBatchProgress({ current: i + 1, total: configs.length });
+                
+                // Set layout mode
+                setLayoutMode(cfg.layoutMode);
+                await new Promise(r => setTimeout(r, 100));
+                
+                // Apply all config values
+                Object.keys(cfg).forEach(key => {
+                    if (key !== 'name' && key !== 'layoutMode') {
+                        handleConfigChange(key, cfg[key]);
+                    }
+                });
+                
+                // Wait for layout to update
+                await new Promise(r => setTimeout(r, 800));
+                
+                // Download the SVG
+                const svgString = getSVGString();
+                if (svgString && svgString.trim() && svgString.includes('<svg')) {
+                    const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    const timestamp = new Date().toISOString().split('T')[0];
+                    const safeName = cfg.name.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '-');
+                    link.download = `HHS-Background-${safeName}-${timestamp}.svg`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                }
+                
+                // Wait before next download
+                await new Promise(r => setTimeout(r, 1000));
+            }
+            
+            showToast(`✅ Successfully generated ${configs.length} backgrounds! Check your Downloads folder.`);
+        } catch (error) {
+            console.error('Error in batch generation:', error);
+            showToast('✗ Error generating backgrounds. Check console for details.');
+        } finally {
+            setIsBatchGenerating(false);
+            setBatchProgress({ current: 0, total: 0 });
+        }
+    };
+
     const downloadReportSpec = () => {
         const layout = generateLayout();
         const spec = {
@@ -2406,6 +2508,48 @@ View → Page View → Page Size → Custom → ${config.width} x ${config.heigh
                         <Shield className="w-6 h-6 text-[#face00]" /> HHS.gov Gen
                     </h1>
                     <p className="text-xs text-[#97d4ea] mt-1 opacity-90 font-sans">Official Brand Background Tool</p>
+                </div>
+
+                {/* Quick Actions - BATCH DOWNLOAD - Always at top for visibility */}
+                <div className="sticky top-0 z-20 p-5 border-b-4 border-[#face00] bg-gradient-to-br from-[#face00] via-[#face00]/90 to-[#e5a000] shadow-xl">
+                    <div className="flex items-center gap-2 mb-3">
+                        <Download className="w-5 h-5 text-[#162e51]" />
+                        <h3 className="text-sm font-black uppercase tracking-wider text-[#162e51]">
+                            🚀 Batch Download All 37 Variations
+                        </h3>
+                    </div>
+                    <button
+                        onClick={downloadAllVariations}
+                        disabled={isBatchGenerating}
+                        className={`w-full px-4 py-4 rounded-xl text-white text-base font-black transition-all border-3 flex items-center justify-between shadow-2xl ${isBatchGenerating
+                                ? 'bg-[#3d4551] opacity-75 cursor-wait border-[#1c1d1f]'
+                                : 'bg-[#162e51] hover:bg-[#1a4480] border-[#face00] cursor-pointer hover:scale-[1.03] transform'
+                            }`}
+                        aria-label="Download all 37 background variations"
+                    >
+                        <div className="flex items-center gap-3">
+                            {isBatchGenerating ? (
+                                <>
+                                    <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    <span className="text-lg font-bold">Generating {batchProgress.current}/{batchProgress.total}...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Download className="w-6 h-6" />
+                                    <div className="flex flex-col text-left">
+                                        <span className="text-lg font-black">Download All 37 Variations</span>
+                                        <span className="text-xs opacity-90 font-normal">Executive Theme • 16:9 Canvas</span>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                        {!isBatchGenerating && (
+                            <span className="text-xs bg-[#face00] text-[#162e51] px-3 py-1.5 rounded-full font-black shadow-lg">ONE CLICK</span>
+                        )}
+                    </button>
+                    <p className="text-[10px] text-[#162e51] mt-3 font-semibold opacity-90">
+                        💡 Instantly download all Federal, Grid & KPI layout combinations for Power BI practice
+                    </p>
                 </div>
 
                 {/* Quick Start - Wireframe Import Banner */}
