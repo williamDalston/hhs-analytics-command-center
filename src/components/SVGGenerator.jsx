@@ -763,6 +763,23 @@ const SVGGenerator = () => {
         return newItems; // Return items for use in other functions
     }, [layoutMode, config]);
 
+    // Expose functions to window for batch generation
+    useEffect(() => {
+        window.svgGeneratorAPI = {
+            setLayoutMode,
+            setCanvasPreset,
+            setConfig,
+            handleConfigChange,
+            downloadSVG,
+            generateLayout,
+            config,
+            layoutMode
+        };
+        return () => {
+            delete window.svgGeneratorAPI;
+        };
+    }, [config, layoutMode]);
+
     // Generate layout on mount and when dependencies change
     useEffect(() => {
         generateLayout();
