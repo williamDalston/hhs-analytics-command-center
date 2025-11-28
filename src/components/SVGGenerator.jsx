@@ -40,8 +40,14 @@ const SVGGenerator = () => {
         bgHex: HHS_COLORS.base.lighter, // #f1f3f6
         cardHex: '#ffffff',
         accentHex: HHS_COLORS.primary.DEFAULT, // #005ea2
-        gap: 16,
+        gap: 16, // Default/base gap - used as fallback
         padding: 20,
+        useCustomSpacing: false, // Toggle to use custom spacing values
+        rowSpacing: 16, // Spacing between rows
+        columnSpacing: 16, // Spacing between columns
+        sidebarSpacing: 16, // Spacing between sidebar and main content
+        kpiCardSpacing: 16, // Spacing between KPI cards
+        kpiRowSpacing: 16, // Spacing between KPI row and content below
         radius: 8, // Sharper corners for Gov
         strokeWidth: 0,
         opacity: 1,
@@ -142,7 +148,15 @@ const SVGGenerator = () => {
 
     // --- Layout Generator Engine ---
     const generateLayout = useCallback(() => {
-        const { width, height, gap, padding, headerHeight, footerHeight, kpiCount, showFooter, showTrustBar, trustBarHeight, showLogo, logoAreaWidth, logoIsSquare, showTitle, titleHeight, titlePosition, showSlicerZone, slicerZoneHeight, federalRows, federalColumns, federalRowColumns, useFederalPerRowColumns, federalSidebarWidth, showFederalSidebar, showFederalKPIs, federalKPICount, federalKPIRowHeight, useFederalCustomRowHeights, federalRowHeights, sidebarLayoutWidth, sidebarVisualCount, sidebarColumns, gridRows, gridColumns, gridRowColumns, usePerRowColumns, useGridCustomRowHeights, gridRowHeights, kpiVisualCount, kpiColumns, kpiMainChartFullWidth, threeColVisualCount, asymmetricSideCount, mobileVisualCount, visualTypes, visualLabels } = config;
+        const { width, height, gap, padding, headerHeight, footerHeight, kpiCount, showFooter, showTrustBar, trustBarHeight, showLogo, logoAreaWidth, logoIsSquare, showTitle, titleHeight, titlePosition, showSlicerZone, slicerZoneHeight, federalRows, federalColumns, federalRowColumns, useFederalPerRowColumns, federalSidebarWidth, showFederalSidebar, showFederalKPIs, federalKPICount, federalKPIRowHeight, useFederalCustomRowHeights, federalRowHeights, useCustomSpacing, rowSpacing, columnSpacing, sidebarSpacing, kpiCardSpacing, kpiRowSpacing, sidebarLayoutWidth, sidebarVisualCount, sidebarColumns, gridRows, gridColumns, gridRowColumns, usePerRowColumns, useGridCustomRowHeights, gridRowHeights, kpiVisualCount, kpiColumns, kpiMainChartFullWidth, threeColVisualCount, asymmetricSideCount, mobileVisualCount, visualTypes, visualLabels } = config;
+        
+        // Use custom spacing if enabled, otherwise use default gap
+        const rowGap = useCustomSpacing ? rowSpacing : gap;
+        const colGap = useCustomSpacing ? columnSpacing : gap;
+        const sidebarGap = useCustomSpacing ? sidebarSpacing : gap;
+        const kpiCardGap = useCustomSpacing ? kpiCardSpacing : gap;
+        const kpiRowGap = useCustomSpacing ? kpiRowSpacing : gap;
+        
         const effW = width - (padding * 2);
         let effH = height - (padding * 2);
         let yOffset = 0;
@@ -233,17 +247,17 @@ const SVGGenerator = () => {
             // Calculate sidebar dimensions first (needed for KPI positioning)
             if (showFederalSidebar && federalSidebarWidth > 0) {
                 const sidebarW = Math.min(federalSidebarWidth, effW * 0.4); // Cap at 40% of width
-                mainContentX = padding + sidebarW + gap;
-                mainContentW = effW - sidebarW - gap;
+                mainContentX = padding + sidebarW + sidebarGap;
+                mainContentW = effW - sidebarW - sidebarGap;
             }
             
             // KPI Row at top (if enabled) - in main content area (excluding sidebar)
             let kpiRowY = contentStartY;
             if (showFederalKPIs && federalKPICount > 0) {
-                const kpiW = (mainContentW - (gap * (federalKPICount - 1))) / federalKPICount;
+                const kpiW = (mainContentW - (kpiCardGap * (federalKPICount - 1))) / federalKPICount;
                 for (let i = 0; i < federalKPICount; i++) {
                     newItems.push({
-                        x: mainContentX + (i * (kpiW + gap)),
+                        x: mainContentX + (i * (kpiW + kpiCardGap)),
                         y: kpiRowY,
                         w: kpiW,
                         h: federalKPIRowHeight,
@@ -251,7 +265,7 @@ const SVGGenerator = () => {
                         index: cardIndex++
                     });
                 }
-                contentStartY += federalKPIRowHeight + gap;
+                contentStartY += federalKPIRowHeight + kpiRowGap;
             }
             
             const contentH = height - contentStartY - (showFooter ? footerH + gap : 0) - padding;
@@ -275,11 +289,11 @@ const SVGGenerator = () => {
                 if (useFederalCustomRowHeights && federalRowHeights && federalRowHeights.length === rows) {
                     // Use custom height ratios
                     const totalRatio = federalRowHeights.reduce((sum, h) => sum + h, 0);
-                    const availableH = contentH - padding - (gap * (rows - 1));
+                    const availableH = contentH - padding - (rowGap * (rows - 1));
                     rowHeights = federalRowHeights.map(ratio => Math.max(50, (availableH * ratio) / totalRatio));
                 } else {
                     // Uniform heights
-                    const uniformH = Math.max(50, (contentH - padding - (gap * (rows - 1))) / rows);
+                    const uniformH = Math.max(50, (contentH - padding - (rowGap * (rows - 1))) / rows);
                     rowHeights = Array(rows).fill(uniformH);
                 }
 
@@ -289,11 +303,11 @@ const SVGGenerator = () => {
                     for (let row = 0; row < rows; row++) {
                         const rowH = rowHeights[row];
                         const cols = Math.max(1, federalRowColumns[row] || federalColumns);
-                        const cardW = Math.max(50, (mainContentW - (gap * (cols - 1))) / cols); // Min 50px width
+                        const cardW = Math.max(50, (mainContentW - (colGap * (cols - 1))) / cols); // Min 50px width
 
                         for (let col = 0; col < cols; col++) {
                             newItems.push({
-                                x: mainContentX + (col * (cardW + gap)),
+                                x: mainContentX + (col * (cardW + colGap)),
                                 y: currentY,
                                 w: cardW,
                                 h: rowH,
@@ -301,19 +315,19 @@ const SVGGenerator = () => {
                                 index: cardIndex++
                             });
                         }
-                        currentY += rowH + gap;
+                        currentY += rowH + rowGap;
                     }
                 } else {
                     // Uniform columns for all rows
                     const cols = Math.max(1, federalColumns);
-                    const cardW = Math.max(50, (mainContentW - (gap * (cols - 1))) / cols); // Min 50px width
+                    const cardW = Math.max(50, (mainContentW - (colGap * (cols - 1))) / cols); // Min 50px width
 
                     let currentY = contentStartY;
                     for (let row = 0; row < rows; row++) {
                         const rowH = rowHeights[row];
                         for (let col = 0; col < cols; col++) {
                             newItems.push({
-                                x: mainContentX + (col * (cardW + gap)),
+                                x: mainContentX + (col * (cardW + colGap)),
                                 y: currentY,
                                 w: cardW,
                                 h: rowH,
@@ -321,7 +335,7 @@ const SVGGenerator = () => {
                                 index: cardIndex++
                             });
                         }
-                        currentY += rowH + gap;
+                        currentY += rowH + rowGap;
                     }
                 }
             }
@@ -357,28 +371,28 @@ const SVGGenerator = () => {
             }
 
             const sideW = Math.min(sidebarLayoutWidth, effW * 0.35); // Cap at 35% of width
-            const mainW = effW - sideW - gap;
+            const mainW = effW - sideW - sidebarGap;
             const availableH = effH - (showTitle && titlePosition === 'top' ? titleHeight + gap : 0) - (showSlicerZone && slicerZoneHeight > 0 ? slicerZoneHeight + gap : 0);
 
             newItems.push({ x: padding, y: contentY, w: sideW, h: availableH, type: 'nav' });
 
             const kpiH = 110;
-            const mainContentH = availableH - kpiH - gap;
+            const mainContentH = availableH - kpiH - kpiRowGap;
 
-            newItems.push({ x: padding + sideW + gap, y: contentY, w: mainW, h: kpiH, type: 'kpi-strip' });
+            newItems.push({ x: padding + sideW + sidebarGap, y: contentY, w: mainW, h: kpiH, type: 'kpi-strip' });
 
             // Grid of visuals in main area
             const cols = Math.max(1, Math.min(sidebarColumns, sidebarVisualCount));
             const rows = Math.max(1, Math.ceil(sidebarVisualCount / cols));
-            const cardW = cols > 0 ? Math.max(50, (mainW - (gap * (cols - 1))) / cols) : mainW;
-            const cardH = rows > 0 ? Math.max(50, (mainContentH - (gap * (rows - 1))) / rows) : mainContentH;
+            const cardW = cols > 0 ? Math.max(50, (mainW - (colGap * (cols - 1))) / cols) : mainW;
+            const cardH = rows > 0 ? Math.max(50, (mainContentH - (rowGap * (rows - 1))) / rows) : mainContentH;
 
             for (let i = 0; i < sidebarVisualCount; i++) {
                 const row = Math.floor(i / cols);
                 const col = i % cols;
                 newItems.push({
-                    x: padding + sideW + gap + (col * (cardW + gap)),
-                    y: contentY + kpiH + gap + (row * (cardH + gap)),
+                    x: padding + sideW + sidebarGap + (col * (cardW + colGap)),
+                    y: contentY + kpiH + kpiRowGap + (row * (cardH + rowGap)),
                     w: cardW,
                     h: cardH,
                     type: 'card',
@@ -423,11 +437,11 @@ const SVGGenerator = () => {
             if (useGridCustomRowHeights && gridRowHeights && gridRowHeights.length === gridRows) {
                 // Use custom height ratios
                 const totalRatio = gridRowHeights.reduce((sum, h) => sum + h, 0);
-                const availableHeight = availableH - (gap * (gridRows - 1));
+                const availableHeight = availableH - (rowGap * (gridRows - 1));
                 rowHeights = gridRowHeights.map(ratio => Math.max(50, (availableHeight * ratio) / totalRatio));
             } else {
                 // Uniform heights
-                const uniformH = (availableH - (gap * (gridRows - 1))) / gridRows;
+                const uniformH = (availableH - (rowGap * (gridRows - 1))) / gridRows;
                 rowHeights = Array(gridRows).fill(uniformH);
             }
 
@@ -437,11 +451,11 @@ const SVGGenerator = () => {
                 for (let row = 0; row < gridRows; row++) {
                     const rowH = rowHeights[row];
                     const cols = Math.max(1, gridRowColumns[row] || gridColumns);
-                    const colW = (effW - (gap * (cols - 1))) / cols;
+                    const colW = (effW - (colGap * (cols - 1))) / cols;
 
                     for (let col = 0; col < cols; col++) {
                         newItems.push({
-                            x: padding + (col * (colW + gap)),
+                            x: padding + (col * (colW + colGap)),
                             y: currentY,
                             w: colW,
                             h: rowH,
@@ -449,18 +463,18 @@ const SVGGenerator = () => {
                             index: cardIndex++
                         });
                     }
-                    currentY += rowH + gap;
+                    currentY += rowH + rowGap;
                 }
             } else {
                 // Uniform columns for all rows
-                const colW = (effW - (gap * (gridColumns - 1))) / gridColumns;
+                const colW = (effW - (colGap * (gridColumns - 1))) / gridColumns;
 
                 let currentY = contentY;
                 for (let row = 0; row < gridRows; row++) {
                     const rowH = rowHeights[row];
                     for (let col = 0; col < gridColumns; col++) {
                         newItems.push({
-                            x: padding + (col * (colW + gap)),
+                            x: padding + (col * (colW + colGap)),
                             y: currentY,
                             w: colW,
                             h: rowH,
@@ -468,7 +482,7 @@ const SVGGenerator = () => {
                             index: cardIndex++
                         });
                     }
-                    currentY += rowH + gap;
+                    currentY += rowH + rowGap;
                 }
             }
         }
@@ -503,16 +517,16 @@ const SVGGenerator = () => {
             }
 
             const kpiH = 100;
-            const kpiW = (effW - (gap * (kpiCount - 1))) / kpiCount;
+            const kpiW = (effW - (kpiCardGap * (kpiCount - 1))) / kpiCount;
             const availableH = effH - (showTitle && titlePosition === 'top' ? titleHeight + gap : 0) - (showSlicerZone && slicerZoneHeight > 0 ? slicerZoneHeight + gap : 0);
 
             for (let i = 0; i < kpiCount; i++) {
-                newItems.push({ x: padding + (i * (kpiW + gap)), y: contentY, w: kpiW, h: kpiH, type: 'kpi' });
+                newItems.push({ x: padding + (i * (kpiW + kpiCardGap)), y: contentY, w: kpiW, h: kpiH, type: 'kpi' });
             }
 
             // Visuals below KPIs
-            const mainContentH = availableH - kpiH - gap;
-            let visualY = contentY + kpiH + gap;
+            const mainContentH = availableH - kpiH - kpiRowGap;
+            let visualY = contentY + kpiH + kpiRowGap;
 
             if (kpiMainChartFullWidth && kpiVisualCount > 0) {
                 // First visual is full-width (main chart)
@@ -528,18 +542,18 @@ const SVGGenerator = () => {
                 // Remaining visuals in grid below the main chart
                 if (kpiVisualCount > 1) {
                     const remainingVisuals = kpiVisualCount - 1;
-                    const remainingH = mainContentH - mainChartH - gap;
+                    const remainingH = mainContentH - mainChartH - rowGap;
                     const cols = Math.max(1, Math.min(kpiColumns, remainingVisuals));
                     const rows = Math.max(1, Math.ceil(remainingVisuals / cols));
-                    const cardW = cols > 0 ? Math.max(50, (effW - (gap * (cols - 1))) / cols) : effW;
-                    const cardH = rows > 0 ? Math.max(50, (remainingH - (gap * (rows - 1))) / rows) : remainingH;
+                    const cardW = cols > 0 ? Math.max(50, (effW - (colGap * (cols - 1))) / cols) : effW;
+                    const cardH = rows > 0 ? Math.max(50, (remainingH - (rowGap * (rows - 1))) / rows) : remainingH;
 
                     for (let i = 0; i < remainingVisuals; i++) {
                         const row = Math.floor(i / cols);
                         const col = i % cols;
                         newItems.push({
-                            x: padding + (col * (cardW + gap)),
-                            y: visualY + mainChartH + gap + (row * (cardH + gap)),
+                            x: padding + (col * (cardW + colGap)),
+                            y: visualY + mainChartH + rowGap + (row * (cardH + rowGap)),
                             w: cardW,
                             h: cardH,
                             type: 'card',
@@ -551,15 +565,15 @@ const SVGGenerator = () => {
                 // Original grid layout (all visuals in grid)
                 const cols = Math.max(1, Math.min(kpiColumns, kpiVisualCount));
                 const rows = Math.max(1, Math.ceil(kpiVisualCount / cols));
-                const cardW = cols > 0 ? Math.max(50, (effW - (gap * (cols - 1))) / cols) : effW;
-                const cardH = rows > 0 ? Math.max(50, (mainContentH - (gap * (rows - 1))) / rows) : mainContentH;
+                const cardW = cols > 0 ? Math.max(50, (effW - (colGap * (cols - 1))) / cols) : effW;
+                const cardH = rows > 0 ? Math.max(50, (mainContentH - (rowGap * (rows - 1))) / rows) : mainContentH;
 
                 for (let i = 0; i < kpiVisualCount; i++) {
                     const row = Math.floor(i / cols);
                     const col = i % cols;
                     newItems.push({
-                        x: padding + (col * (cardW + gap)),
-                        y: visualY + (row * (cardH + gap)),
+                        x: padding + (col * (cardW + colGap)),
+                        y: visualY + (row * (cardH + rowGap)),
                         w: cardW,
                         h: cardH,
                         type: 'card',
@@ -2721,6 +2735,12 @@ Example:
                                 accentHex: HHS_COLORS.primary.DEFAULT,
                                 gap: 16,
                                 padding: 20,
+                                useCustomSpacing: false,
+                                rowSpacing: 16,
+                                columnSpacing: 16,
+                                sidebarSpacing: 16,
+                                kpiCardSpacing: 16,
+                                kpiRowSpacing: 16,
                                 radius: 8,
                                 strokeWidth: 0,
                                 opacity: 1,
@@ -2867,6 +2887,78 @@ Example:
                         </div>
                     )}
                 </div>
+
+                {/* Spacing Controls - Only show in manual mode */}
+                {!importMode && (
+                    <div className="p-5 border-b border-[#3d4551]">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-[#97d4ea] mb-3 flex items-center gap-2">
+                            <Grid3x3 className="w-3 h-3" /> Spacing Controls
+                        </h3>
+                        <div>
+                            <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
+                                <span>Use Custom Spacing</span>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" checked={config.useCustomSpacing} onChange={(e) => handleConfigChange('useCustomSpacing', e.target.checked)} className="sr-only peer" />
+                                    <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
+                                </label>
+                            </div>
+                            {config.useCustomSpacing && (
+                                <div className="space-y-3 bg-[#1a4480]/20 p-3 rounded border border-[#3d4551] mt-3">
+                                    <div>
+                                        <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                            <span>Row Spacing</span>
+                                            <span>{config.rowSpacing}px</span>
+                                        </div>
+                                        <input type="range" min="0" max="60" step="2" value={config.rowSpacing} onChange={(e) => handleConfigChange('rowSpacing', Number(e.target.value))} className="input-range w-full" />
+                                        <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Space between rows</p>
+                                    </div>
+                                    <div>
+                                        <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                            <span>Column Spacing</span>
+                                            <span>{config.columnSpacing}px</span>
+                                        </div>
+                                        <input type="range" min="0" max="60" step="2" value={config.columnSpacing} onChange={(e) => handleConfigChange('columnSpacing', Number(e.target.value))} className="input-range w-full" />
+                                        <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Space between columns</p>
+                                    </div>
+                                    <div>
+                                        <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                            <span>Sidebar Spacing</span>
+                                            <span>{config.sidebarSpacing}px</span>
+                                        </div>
+                                        <input type="range" min="0" max="60" step="2" value={config.sidebarSpacing} onChange={(e) => handleConfigChange('sidebarSpacing', Number(e.target.value))} className="input-range w-full" />
+                                        <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Space between sidebar and main content</p>
+                                    </div>
+                                    <div>
+                                        <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                            <span>KPI Card Spacing</span>
+                                            <span>{config.kpiCardSpacing}px</span>
+                                        </div>
+                                        <input type="range" min="0" max="60" step="2" value={config.kpiCardSpacing} onChange={(e) => handleConfigChange('kpiCardSpacing', Number(e.target.value))} className="input-range w-full" />
+                                        <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Space between KPI cards</p>
+                                    </div>
+                                    <div>
+                                        <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                            <span>KPI Row Spacing</span>
+                                            <span>{config.kpiRowSpacing}px</span>
+                                        </div>
+                                        <input type="range" min="0" max="60" step="2" value={config.kpiRowSpacing} onChange={(e) => handleConfigChange('kpiRowSpacing', Number(e.target.value))} className="input-range w-full" />
+                                        <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Space between KPI row and content below</p>
+                                    </div>
+                                </div>
+                            )}
+                            {!config.useCustomSpacing && (
+                                <div className="mt-3">
+                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                        <span>Default Gap (applies to all)</span>
+                                        <span>{config.gap}px</span>
+                                    </div>
+                                    <input type="range" min="0" max="60" step="2" value={config.gap} onChange={(e) => handleConfigChange('gap', Number(e.target.value))} className="input-range w-full" />
+                                    <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Uniform spacing for all elements</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 {/* Layout Mode - Only show in manual mode */}
                 {!importMode && (
