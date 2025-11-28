@@ -1,0 +1,159 @@
+JIRA DASHBOARD STYLING - QUICK REFERENCE
+========================================
+
+COLORS
+------
+Primary Blue: #005ea2 (main brand, primary actions)
+Primary Dark: #1a4480 (headers, emphasis)
+Primary Darker: #162e51 (page headers, strong emphasis)
+Primary Vivid: #00bde3 (accents, highlights, positive trends)
+Accent Cool: #00a398 (success states, positive metrics)
+Accent Warm: #d54309 (alerts, negative metrics, urgent)
+Secondary Yellow: #face00 (attention, warnings)
+Base Darkest: #1c1d1f (primary text)
+Base Darker: #3d4551 (secondary text, labels)
+Base Dark: #565c65 (tertiary text, subtle labels)
+Base Light: #dfe1e2 (borders, dividers)
+Base Lighter: #f1f3f6 (page background)
+Base Lightest: #fbfcfd (card backgrounds, white)
+
+FONTS
+-----
+Body/All Text: Source Sans Pro
+Fallback: Helvetica Neue, Helvetica, Roboto, Arial, sans-serif
+
+Font Sizes:
+- Page Title: 18-20pt, Bold, #162e51
+- Visual Titles: 14pt, Semi-bold (600), #162e51
+- KPI Labels: 11-12pt, Regular (400), #3d4551
+- KPI Values: 24-28pt, Bold (700), #1c1d1f
+- Chart Labels: 11pt, Regular, #565c65
+- Axis Labels: 10pt, Regular, #565c65
+- Data Labels: 10-11pt, Regular, #1c1d1f
+- Tooltips: 11pt, Regular, #1c1d1f
+
+KPI CARD STYLING
+----------------
+Background: #fbfcfd (white)
+Border: 1px solid #dfe1e2 (light gray)
+Border Radius: 8px
+Shadow: 0 1px 3px rgba(0, 0, 0, 0.1)
+Padding: 16px all sides
+Value: 28pt, Bold, #1c1d1f
+Label: 11pt, Regular, #3d4551
+Top Border Accent: 3px in semantic color
+
+KPI Color Coding:
+- Total: #005ea2 (primary blue)
+- Resolved: #00a398 (success green)
+- In Progress: #00bde3 (vivid blue)
+- Backlog: #565c65 (neutral gray)
+- Blocked: #d54309 (alert red)
+- Points: #1a4480 (primary dark)
+- Velocity: #face00 (yellow)
+- Resolution %: #00a398 (success green)
+
+CHART STYLING
+-------------
+Background: #fbfcfd (white)
+Border: 1px solid #dfe1e2 (light gray)
+Border Radius: 8px
+Title: 14pt, Semi-bold, #162e51, left-aligned
+Legend: 11pt, Regular, #3d4551, bottom position
+Gridlines: #dfe1e2, 1px, solid, 0.5 opacity
+Axes: 10pt, Regular, #565c65
+Data Labels: 10-11pt, Semi-bold, #1c1d1f
+
+Bar Chart:
+- Bar Width: 60-70% of category
+- Rounded Top Corners: 2px radius
+- Data Labels: Inside end (top of bar)
+- Colors: Use semantic colors for statuses
+
+Line Chart:
+- Line Width: 3px
+- Marker Size: 6px circles
+- Marker Border: White, 2px
+- Primary Line: #005ea2 (blue)
+- Secondary Line: #00a398 (green)
+
+TOOLTIP STYLING
+---------------
+Background: #1c1d1f (dark)
+Border Radius: 4px
+Padding: 12px
+Shadow: 0 4px 12px rgba(0, 0, 0, 0.3)
+Text: 11pt, Regular, #fbfcfd (white)
+Labels: 10pt, Regular, #97d4ea (light blue), UPPERCASE
+Values: 12pt, Semi-bold, #fbfcfd (white)
+Positive: #00a398 (green)
+Negative: #d54309 (red)
+
+PAGE STYLING
+------------
+Background: #f1f3f6 (light gray)
+Padding: 20px all sides
+Gap Between Visuals: 20px
+
+Visual Container:
+- Background: #fbfcfd (white)
+- Border: 1px solid #dfe1e2
+- Border Radius: 8px
+- Shadow: 0 2px 4px rgba(0, 0, 0, 0.08)
+
+INTERACTIONS
+------------
+Hover:
+- Border: 1px solid #97d4ea (light blue)
+- Background: #f1f3f6 (slightly darker)
+- Transition: 0.2s ease-in-out
+
+Selection:
+- Border: 2px solid #005ea2 (primary blue)
+- Background: Slight tint of #e5faff
+
+Focus (Accessibility):
+- Border: 2px solid #005ea2
+- Outline: 2px, offset 2px
+
+DATA COLORS (Sequential)
+------------------------
+1. #005ea2 (Primary Blue)
+2. #1a4480 (Primary Dark)
+3. #00bde3 (Primary Vivid)
+4. #00a398 (Accent Cool)
+5. #face00 (Secondary Yellow)
+6. #d54309 (Accent Warm)
+7. #97d4ea (Primary Light)
+8. #565c65 (Base Dark)
+
+SEMANTIC COLORS
+---------------
+Resolved/Complete: #00a398 (green)
+In Progress/Active: #00bde3 (blue)
+Backlog/Pending: #565c65 (gray)
+Blocked/Urgent: #d54309 (red)
+New/Open: #005ea2 (blue)
+
+ACCESSIBILITY (508 Compliance)
+--------------------------------
+- Color Contrast: Minimum 4.5:1 for normal text
+- Alt Text: Required for all visuals (meaningful descriptions)
+- Keyboard Navigation: Logical tab order
+- Focus Indicators: Visible 2px border in #005ea2
+- Semantic Colors: Never rely on color alone (use icons/text)
+
+QUICK IMPLEMENTATION
+--------------------
+1. Apply HHS theme JSON (from StyleGuide)
+2. Set all fonts to Source Sans Pro
+3. Use semantic colors for status indicators
+4. Add 8px border radius to all visuals
+5. Use 20px gaps between visuals
+6. Enable data labels on charts
+7. Configure tooltips with dark background
+8. Add alt text to all visuals
+9. Test color contrast ratios
+10. Verify keyboard navigation
+
+

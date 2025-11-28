@@ -1,0 +1,112 @@
+# MCP Server Agent Instructions: Power BI Visual Placement
+
+## CRITICAL REQUIREMENT
+DO NOT create empty pages. You MUST create pages WITH visuals already positioned using calculated coordinates. Empty pages are NOT acceptable.
+
+## Power BI Coordinate System
+- Origin (0,0): Top-left corner
+- Standard page: 1280 x 720 units (16:9)
+- X increases left-to-right, Y increases top-to-bottom
+- All coordinates must be integers
+
+## Standard Measurements
+- Padding: 20px
+- Gap between visuals: 16-20px
+- Header height (Federal): 88px
+- Trust bar: 32px
+- Slicer zone: 60px
+- Sidebar width: 260-280px
+- KPI card: 220-280px width x 110px height
+- Minimum visual size: 200 x 150 units
+
+## Calculation Formula for Grid Layout
+```
+availableWidth = pageWidth - (padding * 2)
+availableHeight = pageHeight - (padding * 2)
+visualWidth = (availableWidth - (gap * (cols - 1))) / cols
+visualHeight = (availableHeight - (gap * (rows - 1))) / rows
+x = padding + (col * (visualWidth + gap))
+y = padding + (row * (visualHeight + gap))
+```
+
+## Example: 2x2 Grid (1280x720 page)
+Page: 1280 x 720, Padding: 20, Gap: 20, Rows: 2, Cols: 2
+Available: 1240 x 680
+Visual size: 610 x 330
+Positions:
+  Visual 1: x=20, y=20, w=610, h=330
+  Visual 2: x=650, y=20, w=610, h=330
+  Visual 3: x=20, y=370, w=610, h=330
+  Visual 4: x=650, y=370, w=610, h=330
+
+## Federal Layout (with Header)
+Header: y=0-88
+Content starts: y=108 (header 88 + padding 20)
+Sidebar (if enabled): x=20, width=280
+Main content (with sidebar): x=320, width=940
+Calculate visuals in main area using grid formula above.
+
+## KPI Top Layout
+KPI row: y=20, height=110
+4 KPIs: Each 295px wide (calculated: (1280-40-60)/4)
+KPI positions: x=20,335,650,965
+Main charts: y=150 (20+110+20), available height=550
+
+## Visual JSON Structure (REQUIRED)
+Each visual MUST include:
+{
+  "x": <calculated>,
+  "y": <calculated>,
+  "z": <layer_order>,
+  "width": <calculated>,
+  "height": <calculated>,
+  "visualType": "barChart|lineChart|card|slicer|etc",
+  "config": { /* visual config */ },
+  "filters": [],
+  "query": { /* data bindings */ }
+}
+
+## Validation Rules
+1. x >= 0, y >= 0
+2. width > 0, height > 0
+3. x + width <= pageWidth
+4. y + height <= pageHeight
+5. No overlaps (unless intentional)
+6. All coordinates rounded to integers
+
+## Required Steps
+1. Determine page dimensions (1280x720 standard)
+2. Identify layout pattern (Federal/Grid/KPI/Sidebar/etc)
+3. Calculate all layout elements (headers, sidebars, etc)
+4. Calculate visual positions using formulas
+5. Create visual objects with positions, types, and metadata
+6. Validate coordinates before finalizing
+7. NEVER create empty visualContainers arrays
+
+## Common Layout Examples
+
+### Grid 3x3 (1280x720)
+Visual size: 400 x 213
+Positions: x = 20,440,860 for cols; y = 20,253,486 for rows
+
+### Sidebar Layout
+Sidebar: x=20, w=260
+Main: x=300, w=960
+KPI strip: x=300, y=20, w=960, h=110
+Visuals: x=300, y=150, calculated from available 960x550 area
+
+### Three Column
+Column width: 400px (for 1280px page)
+Column 1: x=20, Col 2: x=440, Col 3: x=860
+Visuals stack vertically within columns with 20px gap
+
+## REMEMBER
+- Calculate EVERY position (don't guess)
+- Include visuals in EVERY page (not empty)
+- Use proper visual types and metadata
+- Validate all coordinates
+- Round to integers
+- Account for headers, padding, gaps
+
+
+

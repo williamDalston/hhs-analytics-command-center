@@ -76,6 +76,11 @@ const SVGGenerator = () => {
         useFederalPerRowColumns: false, // Toggle to use per-row column configuration for federal layout
         federalSidebarWidth: 280, // Width of sidebar in federal layout
         showFederalSidebar: true, // Show/hide sidebar in federal layout
+        showFederalKPIs: false, // Show KPI row at top of federal layout
+        federalKPICount: 4, // Number of KPI cards in top row
+        federalKPIRowHeight: 100, // Height of KPI row in pixels
+        useFederalCustomRowHeights: false, // Toggle to use custom row heights
+        federalRowHeights: [1, 1], // Array of height ratios for each row (e.g., [0.5, 1, 1.5] means row 1 is 0.5x, row 2 is 1x, row 3 is 1.5x)
         sidebarLayoutWidth: 260, // Width of sidebar in sidebar layout
         sidebarVisualCount: 1, // Number of visual areas in sidebar layout main area
         sidebarColumns: 1, // Columns for sidebar layout main area
@@ -83,6 +88,8 @@ const SVGGenerator = () => {
         gridColumns: 2, // Number of columns for grid layout (fallback, used if gridRowColumns not set)
         gridRowColumns: [2, 2], // Array of column counts per row (e.g., [2, 3, 1] means row 1 has 2 cols, row 2 has 3 cols, row 3 has 1 col)
         usePerRowColumns: false, // Toggle to use per-row column configuration
+        useGridCustomRowHeights: false, // Toggle to use custom row heights for grid layout
+        gridRowHeights: [1, 1], // Array of height ratios for each row in grid layout
         kpiVisualCount: 1, // Number of visual areas in KPI layout main area
         kpiColumns: 1, // Columns for KPI layout main area
         kpiMainChartFullWidth: true, // If true, first visual is full-width, rest are in grid below
@@ -135,7 +142,7 @@ const SVGGenerator = () => {
 
     // --- Layout Generator Engine ---
     const generateLayout = useCallback(() => {
-        const { width, height, gap, padding, headerHeight, footerHeight, kpiCount, showFooter, showTrustBar, trustBarHeight, showLogo, logoAreaWidth, logoIsSquare, showTitle, titleHeight, titlePosition, showSlicerZone, slicerZoneHeight, federalRows, federalColumns, federalRowColumns, useFederalPerRowColumns, federalSidebarWidth, showFederalSidebar, sidebarLayoutWidth, sidebarVisualCount, sidebarColumns, gridRows, gridColumns, gridRowColumns, usePerRowColumns, kpiVisualCount, kpiColumns, kpiMainChartFullWidth, threeColVisualCount, asymmetricSideCount, mobileVisualCount, visualTypes, visualLabels } = config;
+        const { width, height, gap, padding, headerHeight, footerHeight, kpiCount, showFooter, showTrustBar, trustBarHeight, showLogo, logoAreaWidth, logoIsSquare, showTitle, titleHeight, titlePosition, showSlicerZone, slicerZoneHeight, federalRows, federalColumns, federalRowColumns, useFederalPerRowColumns, federalSidebarWidth, showFederalSidebar, showFederalKPIs, federalKPICount, federalKPIRowHeight, useFederalCustomRowHeights, federalRowHeights, sidebarLayoutWidth, sidebarVisualCount, sidebarColumns, gridRows, gridColumns, gridRowColumns, usePerRowColumns, useGridCustomRowHeights, gridRowHeights, kpiVisualCount, kpiColumns, kpiMainChartFullWidth, threeColVisualCount, asymmetricSideCount, mobileVisualCount, visualTypes, visualLabels } = config;
         const effW = width - (padding * 2);
         let effH = height - (padding * 2);
         let yOffset = 0;
@@ -219,28 +226,68 @@ const SVGGenerator = () => {
             if (showSlicerZone && slicerZoneHeight > 0) {
                 contentStartY += slicerZoneHeight + gap;
             }
-            const contentH = height - contentStartY - (showFooter ? footerH + gap : 0) - padding;
-
+            
             let mainContentX = padding;
             let mainContentW = effW;
 
-            // Left Card (e.g., filters/slicers) - optional
+            // Calculate sidebar dimensions first (needed for KPI positioning)
             if (showFederalSidebar && federalSidebarWidth > 0) {
                 const sidebarW = Math.min(federalSidebarWidth, effW * 0.4); // Cap at 40% of width
-                newItems.push({ x: padding, y: contentStartY, w: sidebarW, h: contentH - padding, type: 'sidebar' });
                 mainContentX = padding + sidebarW + gap;
                 mainContentW = effW - sidebarW - gap;
+            }
+            
+            // KPI Row at top (if enabled) - in main content area (excluding sidebar)
+            let kpiRowY = contentStartY;
+            if (showFederalKPIs && federalKPICount > 0) {
+                const kpiW = (mainContentW - (gap * (federalKPICount - 1))) / federalKPICount;
+                for (let i = 0; i < federalKPICount; i++) {
+                    newItems.push({
+                        x: mainContentX + (i * (kpiW + gap)),
+                        y: kpiRowY,
+                        w: kpiW,
+                        h: federalKPIRowHeight,
+                        type: 'kpi',
+                        index: cardIndex++
+                    });
+                }
+                contentStartY += federalKPIRowHeight + gap;
+            }
+            
+            const contentH = height - contentStartY - (showFooter ? footerH + gap : 0) - padding;
+
+            // Left Card (e.g., filters/slicers) - optional
+            // Sidebar spans from content start (before KPIs) to bottom
+            if (showFederalSidebar && federalSidebarWidth > 0) {
+                const sidebarW = Math.min(federalSidebarWidth, effW * 0.4);
+                const sidebarStartY = headerY + navH + (padding / 2);
+                const sidebarAdjustedY = showSlicerZone && slicerZoneHeight > 0 ? sidebarStartY + slicerZoneHeight + gap : sidebarStartY;
+                const sidebarH = height - sidebarAdjustedY - (showFooter ? footerH + gap : 0) - padding;
+                newItems.push({ x: padding, y: sidebarAdjustedY, w: sidebarW, h: sidebarH, type: 'sidebar' });
             }
 
             // Right side: Grid of visual areas (if rows and columns > 0)
             if (federalRows > 0 && federalColumns > 0 && mainContentW > 0 && contentH > 0) {
                 const rows = Math.max(1, federalRows);
-                const cardH = Math.max(50, (contentH - padding - (gap * (rows - 1))) / rows); // Min 50px height
+                
+                // Calculate row heights - either custom ratios or uniform
+                let rowHeights = [];
+                if (useFederalCustomRowHeights && federalRowHeights && federalRowHeights.length === rows) {
+                    // Use custom height ratios
+                    const totalRatio = federalRowHeights.reduce((sum, h) => sum + h, 0);
+                    const availableH = contentH - padding - (gap * (rows - 1));
+                    rowHeights = federalRowHeights.map(ratio => Math.max(50, (availableH * ratio) / totalRatio));
+                } else {
+                    // Uniform heights
+                    const uniformH = Math.max(50, (contentH - padding - (gap * (rows - 1))) / rows);
+                    rowHeights = Array(rows).fill(uniformH);
+                }
 
                 // Use per-row columns if enabled, otherwise use uniform columns
                 if (useFederalPerRowColumns && federalRowColumns && federalRowColumns.length > 0) {
                     let currentY = contentStartY;
                     for (let row = 0; row < rows; row++) {
+                        const rowH = rowHeights[row];
                         const cols = Math.max(1, federalRowColumns[row] || federalColumns);
                         const cardW = Math.max(50, (mainContentW - (gap * (cols - 1))) / cols); // Min 50px width
 
@@ -249,29 +296,32 @@ const SVGGenerator = () => {
                                 x: mainContentX + (col * (cardW + gap)),
                                 y: currentY,
                                 w: cardW,
-                                h: cardH,
+                                h: rowH,
                                 type: 'card',
                                 index: cardIndex++
                             });
                         }
-                        currentY += cardH + gap;
+                        currentY += rowH + gap;
                     }
                 } else {
                     // Uniform columns for all rows
                     const cols = Math.max(1, federalColumns);
                     const cardW = Math.max(50, (mainContentW - (gap * (cols - 1))) / cols); // Min 50px width
 
+                    let currentY = contentStartY;
                     for (let row = 0; row < rows; row++) {
+                        const rowH = rowHeights[row];
                         for (let col = 0; col < cols; col++) {
                             newItems.push({
                                 x: mainContentX + (col * (cardW + gap)),
-                                y: contentStartY + (row * (cardH + gap)),
+                                y: currentY,
                                 w: cardW,
-                                h: cardH,
+                                h: rowH,
                                 type: 'card',
                                 index: cardIndex++
                             });
                         }
+                        currentY += rowH + gap;
                     }
                 }
             }
@@ -367,12 +417,25 @@ const SVGGenerator = () => {
             }
 
             const availableH = effH - (showTitle && titlePosition === 'top' ? titleHeight + gap : 0) - (showSlicerZone && slicerZoneHeight > 0 ? slicerZoneHeight + gap : 0);
-            const rowH = (availableH - (gap * (gridRows - 1))) / gridRows;
+            
+            // Calculate row heights - either custom ratios or uniform
+            let rowHeights = [];
+            if (useGridCustomRowHeights && gridRowHeights && gridRowHeights.length === gridRows) {
+                // Use custom height ratios
+                const totalRatio = gridRowHeights.reduce((sum, h) => sum + h, 0);
+                const availableHeight = availableH - (gap * (gridRows - 1));
+                rowHeights = gridRowHeights.map(ratio => Math.max(50, (availableHeight * ratio) / totalRatio));
+            } else {
+                // Uniform heights
+                const uniformH = (availableH - (gap * (gridRows - 1))) / gridRows;
+                rowHeights = Array(gridRows).fill(uniformH);
+            }
 
             // Use per-row columns if enabled, otherwise use uniform columns
             if (usePerRowColumns && gridRowColumns && gridRowColumns.length > 0) {
                 let currentY = contentY;
                 for (let row = 0; row < gridRows; row++) {
+                    const rowH = rowHeights[row];
                     const cols = Math.max(1, gridRowColumns[row] || gridColumns);
                     const colW = (effW - (gap * (cols - 1))) / cols;
 
@@ -392,17 +455,20 @@ const SVGGenerator = () => {
                 // Uniform columns for all rows
                 const colW = (effW - (gap * (gridColumns - 1))) / gridColumns;
 
+                let currentY = contentY;
                 for (let row = 0; row < gridRows; row++) {
+                    const rowH = rowHeights[row];
                     for (let col = 0; col < gridColumns; col++) {
                         newItems.push({
                             x: padding + (col * (colW + gap)),
-                            y: contentY + (row * (rowH + gap)),
+                            y: currentY,
                             w: colW,
                             h: rowH,
                             type: 'card',
                             index: cardIndex++
                         });
                     }
+                    currentY += rowH + gap;
                 }
             }
         }
@@ -2689,6 +2755,11 @@ Example:
                                 useFederalPerRowColumns: false,
                                 federalSidebarWidth: 280,
                                 showFederalSidebar: true,
+                                showFederalKPIs: false,
+                                federalKPICount: 4,
+                                federalKPIRowHeight: 100,
+                                useFederalCustomRowHeights: false,
+                                federalRowHeights: [1, 1],
                                 sidebarLayoutWidth: 260,
                                 sidebarVisualCount: 1,
                                 sidebarColumns: 1,
@@ -2696,6 +2767,8 @@ Example:
                                 gridColumns: 2,
                                 gridRowColumns: [2, 2],
                                 usePerRowColumns: false,
+                                useGridCustomRowHeights: false,
+                                gridRowHeights: [1, 1],
                                 kpiVisualCount: 1,
                                 kpiColumns: 1,
                                 kpiMainChartFullWidth: true,
@@ -2878,6 +2951,14 @@ Example:
                                                     i < currentArray.length ? currentArray[i] : config.federalColumns || 2
                                                 );
                                                 handleConfigChange('federalRowColumns', newArray);
+                                                // Update row heights array to match new row count
+                                                if (config.useFederalCustomRowHeights) {
+                                                    const currentHeights = config.federalRowHeights || [];
+                                                    const newHeights = Array.from({ length: newRows }, (_, i) =>
+                                                        i < currentHeights.length ? currentHeights[i] : 1
+                                                    );
+                                                    handleConfigChange('federalRowHeights', newHeights);
+                                                }
                                             }
                                         }} className="input-range w-full" />
                                         <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of rows in grid (0 = no grid)</p>
@@ -2949,6 +3030,78 @@ Example:
                                             </div>
                                         )}
                                     </div>
+                                    <div>
+                                        <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
+                                            <span>Show KPI Row at Top</span>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" checked={config.showFederalKPIs} onChange={(e) => handleConfigChange('showFederalKPIs', e.target.checked)} className="sr-only peer" />
+                                                <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
+                                            </label>
+                                        </div>
+                                        {config.showFederalKPIs && (
+                                            <div className="mb-3 space-y-2 bg-[#1a4480]/20 p-3 rounded border border-[#3d4551]">
+                                                <div>
+                                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                                        <span>KPI Count</span>
+                                                        <span>{config.federalKPICount}</span>
+                                                    </div>
+                                                    <input type="range" min="1" max="6" value={config.federalKPICount} onChange={(e) => handleConfigChange('federalKPICount', Number(e.target.value))} className="input-range w-full" />
+                                                </div>
+                                                <div>
+                                                    <div className="flex justify-between text-xs mb-1 text-[#dfe1e2]">
+                                                        <span>KPI Row Height</span>
+                                                        <span>{config.federalKPIRowHeight}px</span>
+                                                    </div>
+                                                    <input type="range" min="60" max="200" step="10" value={config.federalKPIRowHeight} onChange={(e) => handleConfigChange('federalKPIRowHeight', Number(e.target.value))} className="input-range w-full" />
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
+                                            <span>Custom Row Heights</span>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" checked={config.useFederalCustomRowHeights} onChange={(e) => {
+                                                    handleConfigChange('useFederalCustomRowHeights', e.target.checked);
+                                                    // Initialize row heights array if enabling
+                                                    if (e.target.checked && (!config.federalRowHeights || config.federalRowHeights.length !== config.federalRows)) {
+                                                        handleConfigChange('federalRowHeights', Array(config.federalRows).fill(1));
+                                                    }
+                                                }} className="sr-only peer" />
+                                                <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
+                                            </label>
+                                        </div>
+                                        {config.useFederalCustomRowHeights && config.federalRows > 0 && (
+                                            <div className="space-y-3 bg-[#1a4480]/20 p-3 rounded border border-[#3d4551]">
+                                                <p className="text-[10px] text-[#97d4ea] mb-2 opacity-70">Set height ratio for each row (larger = taller):</p>
+                                                {Array.from({ length: config.federalRows }).map((_, rowIndex) => {
+                                                    const heightRatio = config.federalRowHeights?.[rowIndex] || 1;
+                                                    return (
+                                                        <div key={rowIndex} className="space-y-2">
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="text-xs font-semibold text-[#dfe1e2]">Row {rowIndex + 1} Height</span>
+                                                                <span className="text-xs text-[#97d4ea]">{heightRatio}x</span>
+                                                            </div>
+                                                            <input
+                                                                type="range"
+                                                                min="0.2"
+                                                                max="3"
+                                                                step="0.1"
+                                                                value={heightRatio}
+                                                                onChange={(e) => {
+                                                                    const newValue = Number(e.target.value);
+                                                                    const newArray = [...(config.federalRowHeights || Array(config.federalRows).fill(1))];
+                                                                    newArray[rowIndex] = newValue;
+                                                                    handleConfigChange('federalRowHeights', newArray);
+                                                                }}
+                                                                className="input-range w-full"
+                                                            />
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
                                 </>
                             )}
 
@@ -2997,6 +3150,14 @@ Example:
                                                 i < currentArray.length ? currentArray[i] : config.gridColumns || 2
                                             );
                                             handleConfigChange('gridRowColumns', newArray);
+                                            // Update row heights array to match new row count
+                                            if (config.useGridCustomRowHeights) {
+                                                const currentHeights = config.gridRowHeights || [];
+                                                const newHeights = Array.from({ length: newRows }, (_, i) =>
+                                                    i < currentHeights.length ? currentHeights[i] : 1
+                                                );
+                                                handleConfigChange('gridRowHeights', newHeights);
+                                            }
                                         }} className="input-range w-full" />
                                         <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of rows in grid</p>
                                     </div>
@@ -3064,6 +3225,51 @@ Example:
                                                 </div>
                                                 <input type="range" min="1" max="4" value={config.gridColumns} onChange={(e) => handleConfigChange('gridColumns', Number(e.target.value))} className="input-range w-full" />
                                                 <p className="text-[10px] text-[#97d4ea] mt-1 opacity-70">Number of columns in grid</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center justify-between text-xs mb-2 text-[#dfe1e2]">
+                                            <span>Custom Row Heights</span>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" checked={config.useGridCustomRowHeights} onChange={(e) => {
+                                                    handleConfigChange('useGridCustomRowHeights', e.target.checked);
+                                                    // Initialize row heights array if enabling
+                                                    if (e.target.checked && (!config.gridRowHeights || config.gridRowHeights.length !== config.gridRows)) {
+                                                        handleConfigChange('gridRowHeights', Array(config.gridRows).fill(1));
+                                                    }
+                                                }} className="sr-only peer" />
+                                                <div className="w-9 h-5 bg-[#3d4551] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#face00]"></div>
+                                            </label>
+                                        </div>
+                                        {config.useGridCustomRowHeights && config.gridRows > 0 && (
+                                            <div className="space-y-3 bg-[#1a4480]/20 p-3 rounded border border-[#3d4551]">
+                                                <p className="text-[10px] text-[#97d4ea] mb-2 opacity-70">Set height ratio for each row (larger = taller):</p>
+                                                {Array.from({ length: config.gridRows }).map((_, rowIndex) => {
+                                                    const heightRatio = config.gridRowHeights?.[rowIndex] || 1;
+                                                    return (
+                                                        <div key={rowIndex} className="space-y-2">
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="text-xs font-semibold text-[#dfe1e2]">Row {rowIndex + 1} Height</span>
+                                                                <span className="text-xs text-[#97d4ea]">{heightRatio}x</span>
+                                                            </div>
+                                                            <input
+                                                                type="range"
+                                                                min="0.2"
+                                                                max="3"
+                                                                step="0.1"
+                                                                value={heightRatio}
+                                                                onChange={(e) => {
+                                                                    const newValue = Number(e.target.value);
+                                                                    const newArray = [...(config.gridRowHeights || Array(config.gridRows).fill(1))];
+                                                                    newArray[rowIndex] = newValue;
+                                                                    handleConfigChange('gridRowHeights', newArray);
+                                                                }}
+                                                                className="input-range w-full"
+                                                            />
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         )}
                                     </div>

@@ -1,0 +1,60 @@
+EXACT PIXEL PLACEMENTS FOR JIRA DELIVERY DASHBOARD
+====================================================
+
+Page: 1280 x 720
+Padding: 20px
+Gap: 20px
+
+RECOMMENDED LAYOUT (Option 3 - Optimized)
+------------------------------------------
+
+KPI CARDS (2 rows of 4, each 295px × 110px)
+--------------------------------------------
+Row 1 (y=20):
+  KPI 1 (Total):        x=20,   y=20,   w=295, h=110, z=1
+  KPI 2 (Resolved):     x=335,  y=20,   w=295, h=110, z=2
+  KPI 3 (In Progress):  x=650,  y=20,   w=295, h=110, z=3
+  KPI 4 (Backlog):      x=965,  y=20,   w=295, h=110, z=4
+
+Row 2 (y=150):
+  KPI 5 (Blocked):      x=20,   y=150,  w=295, h=110, z=5
+  KPI 6 (Points):       x=335,  y=150,  w=295, h=110, z=6
+  KPI 7 (Vel.):         x=650,  y=150,  w=295, h=110, z=7
+  KPI 8 (Res%):         x=965,  y=150,  w=295, h=110, z=8
+
+CHARTS (2 rows of 2, each 610px × 210px)
+-----------------------------------------
+Row 1 (y=280):
+  Chart 1 (Issues by Status):      x=20,   y=280,  w=610, h=210, z=9
+  Chart 2 (Issues by Project):     x=650,  y=280,  w=610, h=210, z=10
+
+Row 2 (y=510):
+  Chart 3 (Resolution Trend):      x=20,   y=510,  w=610, h=210, z=11
+  Chart 4 (Resolution Rate Trend): x=650,  y=510,  w=610, h=210, z=12
+
+QUICK REFERENCE TABLE
+---------------------
+Visual          | Type      | X    | Y    | Width | Height | Z
+----------------|-----------|------|------|-------|--------|----
+Total           | card      | 20   | 20   | 295   | 110    | 1
+Resolved        | card      | 335  | 20   | 295   | 110    | 2
+In Progress     | card      | 650  | 20   | 295   | 110    | 3
+Backlog         | card      | 965  | 20   | 295   | 110    | 4
+Blocked         | card      | 20   | 150  | 295   | 110    | 5
+Points          | card      | 335  | 150  | 295   | 110    | 6
+Vel.            | card      | 650  | 150  | 295   | 110    | 7
+Res%            | card      | 965  | 150  | 295   | 110    | 8
+Issues by Status| barChart  | 20   | 280  | 610   | 210    | 9
+Issues by Proj  | barChart  | 650  | 280  | 610   | 210    | 10
+Resolution Trend| lineChart | 20   | 510  | 610   | 210    | 11
+Res Rate Trend  | lineChart | 650  | 510  | 610   | 210    | 12
+
+VALIDATION
+----------
+✓ All visuals fit within page bounds (1280 × 720)
+✓ 20px padding maintained on all sides
+✓ 20px gap between visuals
+✓ No overlaps
+✓ Perfect fit: Last chart bottom = 720px (page height)
+
+
