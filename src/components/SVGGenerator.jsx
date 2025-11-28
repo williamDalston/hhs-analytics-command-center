@@ -768,17 +768,19 @@ const SVGGenerator = () => {
         window.svgGeneratorAPI = {
             setLayoutMode,
             setCanvasPreset,
+            setThemeMode,
             setConfig,
             handleConfigChange,
             downloadSVG,
             generateLayout,
             config,
-            layoutMode
+            layoutMode,
+            themeMode
         };
         return () => {
             delete window.svgGeneratorAPI;
         };
-    }, [config, layoutMode]);
+    }, [config, layoutMode, themeMode]);
 
     // Generate layout on mount and when dependencies change
     useEffect(() => {
