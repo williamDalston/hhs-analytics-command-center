@@ -783,24 +783,33 @@ const SecureFilePortal = () => {
   };
 
   const handleDeleteFile = async (id) => {
-    if (useCloudStorage && supabase) {
-      // Find file first to get path
-      const fileToDelete = files.find(f => f.id === id);
-      if (fileToDelete) {
-          const isStoragePath = fileToDelete.encrypted.length < 500 && !fileToDelete.encrypted.endsWith('=');
-          if (isStoragePath) {
-              await supabase.storage.from('portal-uploads').remove([fileToDelete.encrypted]);
-          }
+    const fileToDelete = files.find(f => f.id === id);
+    if (!fileToDelete) return;
+    
+    // Confirm deletion
+    const confirmed = window.confirm(`Are you sure you want to delete "${fileToDelete.name}"? This action cannot be undone.`);
+    if (!confirmed) return;
+    
+    try {
+      if (useCloudStorage && supabase) {
+        // Find file first to get path
+        const isStoragePath = fileToDelete.encrypted.length < 500 && !fileToDelete.encrypted.endsWith('=');
+        if (isStoragePath) {
+          await supabase.storage.from('portal-uploads').remove([fileToDelete.encrypted]);
+        }
+        await supabase.from('portal_files').delete().eq('id', id);
+        await loadData();
+        addToast(`"${fileToDelete.name}" deleted successfully`, 'success');
+      } else {
+        const existing = readLocalFiles(accessToken);
+        const updated = existing.filter(f => f.id !== id);
+        writeLocalFiles(accessToken, updated);
+        setFiles(updated);
+        addToast(`"${fileToDelete.name}" deleted successfully`, 'success');
       }
-      await supabase.from('portal_files').delete().eq('id', id);
-      await loadData();
-      addToast('File deleted', 'success');
-    } else {
-       const existing = readLocalFiles(accessToken);
-       const updated = existing.filter(f => f.id !== id);
-       writeLocalFiles(accessToken, updated);
-       setFiles(updated);
-       addToast('File deleted', 'success');
+    } catch (error) {
+      console.error('Error deleting file:', error);
+      addToast('Failed to delete file. Please try again.', 'error');
     }
   };
 
