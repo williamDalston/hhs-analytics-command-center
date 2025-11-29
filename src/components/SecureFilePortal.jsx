@@ -654,7 +654,7 @@ const SecureFilePortal = () => {
               uploaded_by: 'User'
             });
 
-            addToast(`${file.name} uploaded successfully (${(file.size / 1024 / 1024).toFixed(1)}MB)`, 'success');
+            addToast(`${file.name} uploaded successfully (${(file.size / 1024 / 1024).toFixed(1)}MB) - Synced to cloud! Check other devices - they should update automatically.`, 'success');
           } catch (uploadErr) {
             throw new Error(`Upload failed for ${file.name}: ${uploadErr.message}`);
           }
@@ -674,12 +674,20 @@ const SecureFilePortal = () => {
           const updatedFiles = [localFile, ...existingFiles];
           writeLocalFiles(accessToken, updatedFiles);
           setFiles(updatedFiles);
-          addToast(`${file.name} saved locally (${(file.size / 1024 / 1024).toFixed(1)}MB)`, 'success');
+            addToast(`${file.name} saved locally (${(file.size / 1024 / 1024).toFixed(1)}MB) - NOTE: Local files don't sync across devices!`, 'success');
+            // Still update the UI immediately for local mode
+            setFiles(updatedFiles);
         }
       }
       
+      // Always reload data after upload to ensure sync
       if (useCloudStorage && supabase) {
+        // Wait a moment for database to update, then reload
+        await new Promise(resolve => setTimeout(resolve, 500));
         await loadData();
+      } else {
+        // Local mode - warn user
+        addToast('⚠️ File saved locally only - will NOT sync to other devices! Enable Cloud Mode for cross-device sync.', 'error');
       }
     } catch (err) {
       setError('Upload failed: ' + err.message);
@@ -898,6 +906,15 @@ const SecureFilePortal = () => {
               <span className="flex items-center gap-1.5 bg-green-50 text-green-700 px-2.5 py-1 rounded-full border border-green-200 font-medium">
                 <Lock className="h-3 w-3" /> End-to-End Encrypted
               </span>
+              {useCloudStorage ? (
+                <span className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full border border-blue-200 font-medium">
+                  <Cloud className="h-3 w-3" /> Cloud Mode - Files Sync
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5 bg-yellow-50 text-yellow-700 px-2.5 py-1 rounded-full border border-yellow-200 font-medium">
+                  <HardDrive className="h-3 w-3" /> Local Mode - No Sync
+                </span>
+              )}
               <button 
                 onClick={handleCopyInviteLink}
                 className="flex items-center gap-1.5 hover:bg-slate-100 px-2.5 py-1 rounded-full transition-all duration-200 cursor-pointer group hover:scale-105 active:scale-95"
@@ -1209,6 +1226,44 @@ const SecureFilePortal = () => {
       {/* FILES TAB */}
       {activeTab === 'files' && (
         <div className="space-y-6">
+          {!useCloudStorage && (
+            <div className="card bg-yellow-50 border-2 border-yellow-300 p-4">
+              <div className="flex items-center gap-2 text-yellow-800">
+                <AlertCircle className="h-5 w-5" />
+                <span className="font-bold">⚠️ Local Mode Active - Files Won't Sync!</span>
+              </div>
+              <p className="text-yellow-700 mt-2 text-sm">
+                Files are stored only in this browser's localStorage and <strong>will NOT sync to other computers</strong>. 
+                For cross-device sync, you need to enable Cloud Mode with Supabase.
+              </p>
+              <p className="text-yellow-600 mt-2 text-xs">
+                Check your .env file has VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY configured.
+              </p>
+            </div>
+          )}
+          {useCloudStorage && (
+            <div className="card bg-blue-50 border-2 border-blue-300 p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-blue-800">
+                  <Cloud className="h-5 w-5" />
+                  <span className="font-bold">Cloud Mode Active - Files Sync Across Devices</span>
+                </div>
+                <button
+                  onClick={() => {
+                    loadData();
+                    addToast('Refreshing files from cloud...', 'info');
+                  }}
+                  className="btn-secondary text-sm flex items-center gap-2"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Refresh
+                </button>
+              </div>
+              <p className="text-blue-700 mt-2 text-sm">
+                Files automatically sync every 3 seconds. Click "Refresh" to sync manually.
+              </p>
+            </div>
+          )}
           {error && (
             <div className="card bg-red-50 border-2 border-red-200 p-4">
               <div className="flex items-center gap-2 text-red-700">
