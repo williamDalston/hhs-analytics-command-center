@@ -315,7 +315,13 @@ const SecureFilePortal = () => {
 
   // Check Supabase availability
   useEffect(() => {
-    if (supabase) setUseCloudStorage(true);
+    if (supabase) {
+      setUseCloudStorage(true);
+      console.log('✅ Supabase connected - Cloud Mode enabled');
+    } else {
+      console.warn('⚠️ Supabase not configured - Using Local Mode (files won\'t sync)');
+      console.log('Check .env file has VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
+    }
   }, [supabase]);
 
   // Auto-authenticate on mount - no token sharing needed
