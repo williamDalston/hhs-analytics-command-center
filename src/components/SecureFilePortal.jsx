@@ -592,6 +592,27 @@ const SecureFilePortal = () => {
     setUploading(true);
     try {
       for (const file of filesToProcess) {
+        console.log('Processing file:', { name: file.name, size: file.size, type: file.type });
+        
+        // Normalize file type for Power BI files (browser might not recognize .pbip/.pbix MIME types)
+        let fileType = file.type;
+        const fileName = file.name.toLowerCase();
+        
+        // Always detect Power BI files by extension (even if browser assigned a type)
+        if (fileName.endsWith('.pbip')) {
+          fileType = 'application/power-bi-project';
+        } else if (fileName.endsWith('.pbix')) {
+          fileType = 'application/power-bi-report';
+        } else if (fileName.endsWith('.pbit')) {
+          fileType = 'application/power-bi-template';
+        } else if (!fileType || fileType === 'application/octet-stream' || fileType === '') {
+          fileType = 'application/octet-stream'; // Default fallback for unknown types
+        }
+        
+        // Update file.type for consistency
+        file.type = fileType;
+        console.log('Normalized file type:', fileType);
+        
         // Check file size limits
         if (!useCloudStorage && file.size > MAX_FILE_SIZE_LOCAL) {
           addToast(`File ${file.name} is too large for local mode (max ${MAX_FILE_SIZE_LOCAL / 1024 / 1024}MB). Please enable Cloud mode (Supabase).`, 'error');
@@ -696,9 +717,15 @@ const SecureFilePortal = () => {
         addToast('⚠️ File saved locally only - will NOT sync to other devices! Enable Cloud Mode for cross-device sync.', 'error');
       }
     } catch (err) {
-      setError('Upload failed: ' + err.message);
-      addToast(err.message, 'error');
+      const errorMessage = err.message || 'Unknown error occurred';
+      setError('Upload failed: ' + errorMessage);
+      addToast(`Upload failed: ${errorMessage}`, 'error');
       console.error('File upload error:', err);
+      console.error('Error details:', {
+        message: err.message,
+        stack: err.stack,
+        name: err.name
+      });
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -706,15 +733,22 @@ const SecureFilePortal = () => {
   };
 
   const handleFileUpload = async (e) => {
-    const selectedFiles = Array.from(e.target.files);
+    const selectedFiles = Array.from(e.target.files || []);
     if (!selectedFiles.length) {
+      console.warn('No files selected');
       return;
     }
+    
+    console.log(`📤 Starting upload of ${selectedFiles.length} file(s):`, selectedFiles.map(f => ({ name: f.name, size: f.size, type: f.type })));
+    
     if (!isAuthenticated || !encryptionKey) {
-      addToast('Please wait for authentication to complete before uploading files.', 'error');
+      const msg = 'Please wait for authentication to complete before uploading files.';
+      addToast(msg, 'error');
       setError('Authentication required. Please refresh the page if this persists.');
+      console.error('Upload blocked - not authenticated or no encryption key');
       return;
     }
+    
     await processFiles(selectedFiles);
   };
 
@@ -1307,6 +1341,7 @@ const SecureFilePortal = () => {
              <input
                type="file"
                multiple
+               accept="*/*"
                onChange={handleFileUpload}
                className="hidden"
                id="file-upload"
@@ -1338,7 +1373,7 @@ const SecureFilePortal = () => {
                  {useCloudStorage ? (
                    <>
                      <p><strong>Cloud Mode:</strong> Supports large files up to ~200MB</p>
-                     <p className="text-slate-400">Power BI files (.pbix) work best with Cloud mode enabled</p>
+                     <p className="text-slate-400">Power BI files (.pbix, .pbip, .pbit) work best with Cloud mode enabled</p>
                      <p className="text-slate-300">Free tier: 1GB total storage</p>
                    </>
                  ) : (
