@@ -573,7 +573,15 @@ const SecureFilePortal = () => {
   };
 
   const processFiles = async (filesToProcess) => {
-    if (!filesToProcess.length || !encryptionKey) return;
+    if (!filesToProcess.length) {
+      addToast('Please select at least one file', 'error');
+      return;
+    }
+    if (!encryptionKey) {
+      addToast('Encryption key not ready. Please wait for authentication to complete.', 'error');
+      setError('Encryption key not available. Please refresh the page and try again.');
+      return;
+    }
 
     setUploading(true);
     try {
@@ -685,6 +693,14 @@ const SecureFilePortal = () => {
 
   const handleFileUpload = async (e) => {
     const selectedFiles = Array.from(e.target.files);
+    if (!selectedFiles.length) {
+      return;
+    }
+    if (!isAuthenticated || !encryptionKey) {
+      addToast('Please wait for authentication to complete before uploading files.', 'error');
+      setError('Authentication required. Please refresh the page if this persists.');
+      return;
+    }
     await processFiles(selectedFiles);
   };
 
@@ -703,9 +719,15 @@ const SecureFilePortal = () => {
     setIsDragging(false);
     
     const droppedFiles = Array.from(e.dataTransfer.files);
-    if (droppedFiles.length > 0) {
-      await processFiles(droppedFiles);
+    if (!droppedFiles.length) {
+      return;
     }
+    if (!isAuthenticated || !encryptionKey) {
+      addToast('Please wait for authentication to complete before uploading files.', 'error');
+      setError('Authentication required. Please refresh the page if this persists.');
+      return;
+    }
+    await processFiles(droppedFiles);
   };
 
   const handleDownloadFile = async (file) => {
@@ -1187,6 +1209,21 @@ const SecureFilePortal = () => {
       {/* FILES TAB */}
       {activeTab === 'files' && (
         <div className="space-y-6">
+          {error && (
+            <div className="card bg-red-50 border-2 border-red-200 p-4">
+              <div className="flex items-center gap-2 text-red-700">
+                <AlertCircle className="h-5 w-5" />
+                <span className="font-semibold">Upload Error:</span>
+              </div>
+              <p className="text-red-600 mt-2 text-sm">{error}</p>
+              <button 
+                onClick={() => setError('')}
+                className="mt-3 text-xs text-red-600 hover:text-red-800 underline"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
            <div 
              className={`card border-2 border-dashed transition-all duration-200 ${
                isDragging 
@@ -1204,16 +1241,25 @@ const SecureFilePortal = () => {
                className="hidden"
                id="file-upload"
                ref={fileInputRef}
-               disabled={uploading}
+               disabled={uploading || !isAuthenticated || !encryptionKey}
              />
-             <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center py-12">
+             <label 
+               htmlFor="file-upload" 
+               className={`flex flex-col items-center py-12 ${(!isAuthenticated || !encryptionKey) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+             >
                <div className={`h-20 w-20 rounded-full shadow-sm flex items-center justify-center mb-4 transition-colors ${
                  isDragging ? 'bg-brand-100' : 'bg-white'
                }`}>
                  <Upload className={`h-10 w-10 text-brand-600 ${uploading ? 'animate-bounce' : ''}`} />
                </div>
                <span className="text-xl font-bold text-brand-900 mb-2">
-                 {uploading ? 'Encrypting & Uploading...' : isDragging ? 'Drop Files to Securely Upload' : 'Click or Drag Files Here'}
+                 {!isAuthenticated || !encryptionKey 
+                   ? 'Please wait for authentication...' 
+                   : uploading 
+                     ? 'Encrypting & Uploading...' 
+                     : isDragging 
+                       ? 'Drop Files to Securely Upload' 
+                       : 'Click or Drag Files Here'}
                </span>
                <span className="text-sm text-slate-500 max-w-xs text-center">
                  Files are encrypted client-side with AES-GCM before leaving your browser
