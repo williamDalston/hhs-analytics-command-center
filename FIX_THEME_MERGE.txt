@@ -1,0 +1,2 @@
+Creating a clean comprehensive theme merge - will need to replace lines 279-648 with proper single function
+

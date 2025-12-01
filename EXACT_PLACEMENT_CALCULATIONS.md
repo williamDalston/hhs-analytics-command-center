@@ -482,3 +482,5 @@ Chart 4 (Resolution Rate Trend): x=650,  y=510,  w=610, h=210, z=12
 All coordinates are exact pixel values ready for your MCP server to use!
 
 
+
+

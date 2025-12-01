@@ -108,10 +108,176 @@ const StyleGuide = () => {
         addToast(`Copied ${name} (${hex}) to clipboard`, 'success');
     };
 
-    // Comprehensive HHS Power BI Theme - Valid JSON format for direct import
+    // Comprehensive HHS Power BI Theme - Merged and validated
+    // Includes general visual styles for all charts AND detailed Bar/Column chart properties
     const downloadPowerBITheme = () => {
+        // Shared Bar/Column chart configuration to avoid duplication
+        const barColumnChartConfig = {
+            "title": [{
+                "show": true,
+                "fontFamily": "Source Sans Pro",
+                "fontSize": 14,
+                "fontColor": { "solid": { "color": "#162e51" } },
+                "alignment": "left"
+            }],
+            "legend": [{
+                "show": true,
+                "position": "Bottom",
+                "fontFamily": "Source Sans Pro",
+                "fontSize": 11,
+                "fontColor": { "solid": { "color": "#3d4551" } },
+                "labelColor": { "solid": { "color": "#3d4551" } },
+                "background": false,
+                "outline": "none"
+            }],
+            "dataColors": [{
+                "defaultColor": { "solid": { "color": "#005ea2" } },
+                "general": {
+                    "useColorScale": false,
+                    "nullColor": { "solid": { "color": "#a9aeb1" } }
+                }
+            }],
+            "labels": [{
+                "show": true,
+                "fontFamily": "Source Sans Pro",
+                "fontSize": 10,
+                "color": { "solid": { "color": "#1c1d1f" } },
+                "labelColor": { "solid": { "color": "#1c1d1f" } },
+                "position": "insideEnd",
+                "displayUnits": 0,
+                "precision": 0,
+                "showValue": true,
+                "backgroundColor": { "solid": { "color": "#ffffff" } },
+                "backgroundTransparency": 0
+            }],
+            "categoryAxis": [{
+                "show": true,
+                "showAxisTitle": true,
+                "axisTitle": "",
+                "axisTitleColor": { "solid": { "color": "#565c65" } },
+                "axisTitleFontSize": 11,
+                "axisTitleFontFamily": "Source Sans Pro",
+                "labelColor": { "solid": { "color": "#565c65" } },
+                "labelFontColor": { "solid": { "color": "#565c65" } },
+                "labelFontSize": 10,
+                "labelFontFamily": "Source Sans Pro",
+                "labelDisplayUnits": 0,
+                "labelPrecision": 0,
+                "labelDensity": 0,
+                "labelAngle": 0,
+                "showGridlines": true,
+                "gridlineColor": { "solid": { "color": "#dfe1e2" } },
+                "gridlineStyle": "solid",
+                "gridlineThickness": 1,
+                "lineColor": { "solid": { "color": "#a9aeb1" } },
+                "lineStyle": "solid",
+                "lineThickness": 1,
+                "reverse": false
+            }],
+            "valueAxis": [{
+                "show": true,
+                "showAxisTitle": true,
+                "axisTitle": "",
+                "axisTitleColor": { "solid": { "color": "#565c65" } },
+                "axisTitleFontSize": 11,
+                "axisTitleFontFamily": "Source Sans Pro",
+                "labelColor": { "solid": { "color": "#565c65" } },
+                "labelFontColor": { "solid": { "color": "#565c65" } },
+                "labelFontSize": 10,
+                "labelFontFamily": "Source Sans Pro",
+                "labelDisplayUnits": 0,
+                "labelPrecision": 0,
+                "showGridlines": true,
+                "gridlineColor": { "solid": { "color": "#dfe1e2" } },
+                "gridlineStyle": "solid",
+                "gridlineThickness": 1,
+                "lineColor": { "solid": { "color": "#a9aeb1" } },
+                "lineStyle": "solid",
+                "lineThickness": 1,
+                "includeZero": true,
+                "position": "left",
+                "labelDensity": 0,
+                "labelAngle": 0,
+                "reverse": false
+            }],
+            "plotArea": [{
+                "background": true,
+                "backgroundColor": { "solid": { "color": "#fbfcfd" } },
+                "transparency": 0,
+                "outline": "none",
+                "outlineColor": { "solid": { "color": "#dfe1e2" } },
+                "outlineWeight": 1
+            }],
+            "border": [{
+                "show": true,
+                "color": { "solid": { "color": "#dfe1e2" } },
+                "radius": 8,
+                "weight": 1
+            }],
+            "shadow": [{
+                "show": false,
+                "color": { "solid": { "color": "#000000" } },
+                "blur": 4,
+                "angle": 45,
+                "distance": 2
+            }],
+            "general": [{
+                "formatString": "",
+                "transparency": 0,
+                "tooltip": true,
+                "wordWrap": false
+            }],
+            "background": [{
+                "show": true,
+                "color": { "solid": { "color": "#fbfcfd" } },
+                "transparency": 0
+            }],
+            "layout": [{
+                "lockAspect": false,
+                "padding": 0
+            }],
+            "visualHeader": [{
+                "show": true,
+                "iconColor": { "solid": { "color": "#565c65" } },
+                "iconLineColor": { "solid": { "color": "#565c65" } },
+                "iconBackground": false,
+                "iconBackgroundColor": { "solid": { "color": "#fbfcfd" } }
+            }],
+            "tooltips": [{
+                "type": "default",
+                "textSize": 11,
+                "fontFamily": "Source Sans Pro",
+                "fontColor": { "solid": { "color": "#fbfcfd" } },
+                "backgroundColor": { "solid": { "color": "#1c1d1f" } },
+                "transparency": 5
+            }],
+            "categoryLabels": [{
+                "color": { "solid": { "color": "#565c65" } },
+                "fontFamily": "Source Sans Pro",
+                "fontSize": 10
+            }],
+            "dataPoint": [{
+                "outline": false,
+                "outlineColor": { "solid": { "color": "#ffffff" } },
+                "outlineThickness": 1
+            }],
+            "fill": [{
+                "color": { "solid": { "color": "#005ea2" } },
+                "transparency": 0
+            }],
+            "shape": [{
+                "show": true,
+                "shapeType": "rectangle",
+                "lineStyle": "solid",
+                "lineThickness": 0,
+                "roundedCorners": 2,
+                "stackedBarSpacing": 0,
+                "innerPadding": 0
+            }]
+        };
+
         const theme = {
-            "name": "HHS Official Theme",
+            "name": "HHS Official Power BI Theme - Complete",
             "dataColors": [
                 "#005ea2",
                 "#1a4480",
@@ -135,417 +301,38 @@ const StyleGuide = () => {
             "visualStyles": {
                 "*": {
                     "*": {
-                        "title": [
-                            {
-                                "fontColor": {
-                                    "solid": {
-                                        "color": "#162e51"
-                                    }
-                                },
+                        "title": [{
+                            "fontColor": { "solid": { "color": "#162e51" } },
                                 "fontFamily": "Source Sans Pro",
                                 "fontSize": 14
-                            }
-                        ],
-                        "label": [
-                            {
-                                "fontColor": {
-                                    "solid": {
-                                        "color": "#1c1d1f"
-                                    }
-                                },
-                                "fontFamily": "Source Sans Pro",
-                                "fontSize": 11
-                            }
-                        ]
+                        }],
+                        "label": [{
+                            "fontColor": { "solid": { "color": "#1c1d1f" } },
+                            "fontFamily": "Source Sans Pro",
+                            "fontSize": 11
+                        }]
                     }
+                },
+                "columnChart": {
+                    "*": barColumnChartConfig
+                },
+                "barChart": {
+                    "*": barColumnChartConfig
                 }
             }
         };
 
-        // Ensure valid JSON (no comments, proper formatting)
         const jsonString = JSON.stringify(theme, null, 2);
         const blob = new Blob([jsonString], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = 'HHS-Official-PowerBI-Theme.json';
+        link.download = 'HHS-Official-PowerBI-Theme-Complete.json';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-        addToast('Power BI Theme downloaded! Import via View → Themes → Browse for themes', 'success');
-    };
-
-    // Comprehensive Bar/Column Chart Theme with ALL themeable properties
-    const downloadBarColumnTheme = () => {
-        const barColumnTheme = {
-            "name": "HHS Bar/Column Chart Theme - Complete",
-            "dataColors": [
-                "#005ea2",
-                "#1a4480",
-                "#00bde3",
-                "#face00",
-                "#00a398",
-                "#162e51",
-                "#97d4ea",
-                "#d54309",
-                "#565c65",
-                "#1dc2ae",
-                "#ccecf2",
-                "#e5faff",
-                "#185394",
-                "#f3966d",
-                "#3d4551"
-            ],
-            "background": "#f1f3f6",
-            "foreground": "#1c1d1f",
-            "tableAccent": "#005ea2",
-            "visualStyles": {
-                "columnChart": {
-                    "*": {
-                        "title": [{
-                            "show": true,
-                            "fontFamily": "Source Sans Pro",
-                            "fontSize": 14,
-                            "fontColor": { "solid": { "color": "#162e51" } },
-                            "alignment": "left"
-                        }],
-                        "legend": [{
-                            "show": true,
-                            "position": "Bottom",
-                            "fontFamily": "Source Sans Pro",
-                            "fontSize": 11,
-                            "fontColor": { "solid": { "color": "#3d4551" } },
-                            "labelColor": { "solid": { "color": "#3d4551" } },
-                            "background": false,
-                            "outline": "none"
-                        }],
-                        "dataColors": [{
-                            "defaultColor": { "solid": { "color": "#005ea2" } },
-                            "general": {
-                                "useColorScale": false,
-                                "nullColor": { "solid": { "color": "#a9aeb1" } }
-                            }
-                        }],
-                        "labels": [{
-                            "show": true,
-                            "fontFamily": "Source Sans Pro",
-                            "fontSize": 10,
-                            "color": { "solid": { "color": "#1c1d1f" } },
-                            "labelColor": { "solid": { "color": "#1c1d1f" } },
-                            "position": "insideEnd",
-                            "displayUnits": 0,
-                            "precision": 0,
-                            "showValue": true,
-                            "backgroundColor": { "solid": { "color": "#ffffff" } },
-                            "backgroundTransparency": 0
-                        }],
-                        "categoryAxis": [{
-                            "show": true,
-                            "showAxisTitle": true,
-                            "axisTitle": "",
-                            "axisTitleColor": { "solid": { "color": "#565c65" } },
-                            "axisTitleFontSize": 11,
-                            "axisTitleFontFamily": "Source Sans Pro",
-                            "labelColor": { "solid": { "color": "#565c65" } },
-                            "labelFontColor": { "solid": { "color": "#565c65" } },
-                            "labelFontSize": 10,
-                            "labelFontFamily": "Source Sans Pro",
-                            "labelDisplayUnits": 0,
-                            "labelPrecision": 0,
-                            "labelDensity": 0,
-                            "labelAngle": 0,
-                            "showGridlines": true,
-                            "gridlineColor": { "solid": { "color": "#dfe1e2" } },
-                            "gridlineStyle": "solid",
-                            "gridlineThickness": 1,
-                            "lineColor": { "solid": { "color": "#a9aeb1" } },
-                            "lineStyle": "solid",
-                            "lineThickness": 1,
-                            "reverse": false
-                        }],
-                        "valueAxis": [{
-                            "show": true,
-                            "showAxisTitle": true,
-                            "axisTitle": "",
-                            "axisTitleColor": { "solid": { "color": "#565c65" } },
-                            "axisTitleFontSize": 11,
-                            "axisTitleFontFamily": "Source Sans Pro",
-                            "labelColor": { "solid": { "color": "#565c65" } },
-                            "labelFontColor": { "solid": { "color": "#565c65" } },
-                            "labelFontSize": 10,
-                            "labelFontFamily": "Source Sans Pro",
-                            "labelDisplayUnits": 0,
-                            "labelPrecision": 0,
-                            "showGridlines": true,
-                            "gridlineColor": { "solid": { "color": "#dfe1e2" } },
-                            "gridlineStyle": "solid",
-                            "gridlineThickness": 1,
-                            "lineColor": { "solid": { "color": "#a9aeb1" } },
-                            "lineStyle": "solid",
-                            "lineThickness": 1,
-                            "includeZero": true,
-                            "position": "left",
-                            "labelDensity": 0,
-                            "labelAngle": 0,
-                            "reverse": false
-                        }],
-                        "plotArea": [{
-                            "background": true,
-                            "backgroundColor": { "solid": { "color": "#fbfcfd" } },
-                            "transparency": 0,
-                            "outline": "none",
-                            "outlineColor": { "solid": { "color": "#dfe1e2" } },
-                            "outlineWeight": 1
-                        }],
-                        "border": [{
-                            "show": true,
-                            "color": { "solid": { "color": "#dfe1e2" } },
-                            "radius": 8,
-                            "weight": 1
-                        }],
-                        "shadow": [{
-                            "show": false,
-                            "color": { "solid": { "color": "#000000" } },
-                            "blur": 4,
-                            "angle": 45,
-                            "distance": 2
-                        }],
-                        "general": [{
-                            "formatString": "",
-                            "transparency": 0,
-                            "tooltip": true,
-                            "wordWrap": false
-                        }],
-                        "background": [{
-                            "show": true,
-                            "color": { "solid": { "color": "#fbfcfd" } },
-                            "transparency": 0
-                        }],
-                        "layout": [{
-                            "lockAspect": false,
-                            "padding": 0
-                        }],
-                        "visualHeader": [{
-                            "show": true,
-                            "iconColor": { "solid": { "color": "#565c65" } },
-                            "iconLineColor": { "solid": { "color": "#565c65" } },
-                            "iconBackground": false,
-                            "iconBackgroundColor": { "solid": { "color": "#fbfcfd" } }
-                        }],
-                        "tooltips": [{
-                            "type": "default",
-                            "textSize": 11,
-                            "fontFamily": "Source Sans Pro",
-                            "fontColor": { "solid": { "color": "#fbfcfd" } },
-                            "backgroundColor": { "solid": { "color": "#1c1d1f" } },
-                            "transparency": 5
-                        }],
-                        "categoryLabels": [{
-                            "color": { "solid": { "color": "#565c65" } },
-                            "fontFamily": "Source Sans Pro",
-                            "fontSize": 10
-                        }],
-                        "dataPoint": [{
-                            "outline": false,
-                            "outlineColor": { "solid": { "color": "#ffffff" } },
-                            "outlineThickness": 1
-                        }],
-                        "fill": [{
-                            "color": { "solid": { "color": "#005ea2" } },
-                            "transparency": 0
-                        }],
-                        "shape": [{
-                            "show": true,
-                            "shapeType": "rectangle",
-                            "lineStyle": "solid",
-                            "lineThickness": 0,
-                            "roundedCorners": 2,
-                            "stackedBarSpacing": 0,
-                            "innerPadding": 0
-                        }]
-                    }
-                },
-                "barChart": {
-                    "*": {
-                        // Same comprehensive structure as columnChart
-                        "title": [{
-                            "show": true,
-                            "fontFamily": "Source Sans Pro",
-                            "fontSize": 14,
-                            "fontColor": { "solid": { "color": "#162e51" } },
-                            "alignment": "left"
-                        }],
-                        "legend": [{
-                            "show": true,
-                            "position": "Bottom",
-                            "fontFamily": "Source Sans Pro",
-                            "fontSize": 11,
-                            "fontColor": { "solid": { "color": "#3d4551" } },
-                            "labelColor": { "solid": { "color": "#3d4551" } },
-                            "background": false,
-                            "outline": "none"
-                        }],
-                        "dataColors": [{
-                            "defaultColor": { "solid": { "color": "#005ea2" } },
-                            "general": {
-                                "useColorScale": false,
-                                "nullColor": { "solid": { "color": "#a9aeb1" } }
-                            }
-                        }],
-                        "labels": [{
-                            "show": true,
-                            "fontFamily": "Source Sans Pro",
-                            "fontSize": 10,
-                            "color": { "solid": { "color": "#1c1d1f" } },
-                            "labelColor": { "solid": { "color": "#1c1d1f" } },
-                            "position": "insideEnd",
-                            "displayUnits": 0,
-                            "precision": 0,
-                            "showValue": true,
-                            "backgroundColor": { "solid": { "color": "#ffffff" } },
-                            "backgroundTransparency": 0
-                        }],
-                        "categoryAxis": [{
-                            "show": true,
-                            "showAxisTitle": true,
-                            "axisTitle": "",
-                            "axisTitleColor": { "solid": { "color": "#565c65" } },
-                            "axisTitleFontSize": 11,
-                            "axisTitleFontFamily": "Source Sans Pro",
-                            "labelColor": { "solid": { "color": "#565c65" } },
-                            "labelFontColor": { "solid": { "color": "#565c65" } },
-                            "labelFontSize": 10,
-                            "labelFontFamily": "Source Sans Pro",
-                            "labelDisplayUnits": 0,
-                            "labelPrecision": 0,
-                            "labelDensity": 0,
-                            "labelAngle": 0,
-                            "showGridlines": true,
-                            "gridlineColor": { "solid": { "color": "#dfe1e2" } },
-                            "gridlineStyle": "solid",
-                            "gridlineThickness": 1,
-                            "lineColor": { "solid": { "color": "#a9aeb1" } },
-                            "lineStyle": "solid",
-                            "lineThickness": 1,
-                            "reverse": false
-                        }],
-                        "valueAxis": [{
-                            "show": true,
-                            "showAxisTitle": true,
-                            "axisTitle": "",
-                            "axisTitleColor": { "solid": { "color": "#565c65" } },
-                            "axisTitleFontSize": 11,
-                            "axisTitleFontFamily": "Source Sans Pro",
-                            "labelColor": { "solid": { "color": "#565c65" } },
-                            "labelFontColor": { "solid": { "color": "#565c65" } },
-                            "labelFontSize": 10,
-                            "labelFontFamily": "Source Sans Pro",
-                            "labelDisplayUnits": 0,
-                            "labelPrecision": 0,
-                            "showGridlines": true,
-                            "gridlineColor": { "solid": { "color": "#dfe1e2" } },
-                            "gridlineStyle": "solid",
-                            "gridlineThickness": 1,
-                            "lineColor": { "solid": { "color": "#a9aeb1" } },
-                            "lineStyle": "solid",
-                            "lineThickness": 1,
-                            "includeZero": true,
-                            "position": "left",
-                            "labelDensity": 0,
-                            "labelAngle": 0,
-                            "reverse": false
-                        }],
-                        "plotArea": [{
-                            "background": true,
-                            "backgroundColor": { "solid": { "color": "#fbfcfd" } },
-                            "transparency": 0,
-                            "outline": "none",
-                            "outlineColor": { "solid": { "color": "#dfe1e2" } },
-                            "outlineWeight": 1
-                        }],
-                        "border": [{
-                            "show": true,
-                            "color": { "solid": { "color": "#dfe1e2" } },
-                            "radius": 8,
-                            "weight": 1
-                        }],
-                        "shadow": [{
-                            "show": false,
-                            "color": { "solid": { "color": "#000000" } },
-                            "blur": 4,
-                            "angle": 45,
-                            "distance": 2
-                        }],
-                        "general": [{
-                            "formatString": "",
-                            "transparency": 0,
-                            "tooltip": true,
-                            "wordWrap": false
-                        }],
-                        "background": [{
-                            "show": true,
-                            "color": { "solid": { "color": "#fbfcfd" } },
-                            "transparency": 0
-                        }],
-                        "layout": [{
-                            "lockAspect": false,
-                            "padding": 0
-                        }],
-                        "visualHeader": [{
-                            "show": true,
-                            "iconColor": { "solid": { "color": "#565c65" } },
-                            "iconLineColor": { "solid": { "color": "#565c65" } },
-                            "iconBackground": false,
-                            "iconBackgroundColor": { "solid": { "color": "#fbfcfd" } }
-                        }],
-                        "tooltips": [{
-                            "type": "default",
-                            "textSize": 11,
-                            "fontFamily": "Source Sans Pro",
-                            "fontColor": { "solid": { "color": "#fbfcfd" } },
-                            "backgroundColor": { "solid": { "color": "#1c1d1f" } },
-                            "transparency": 5
-                        }],
-                        "categoryLabels": [{
-                            "color": { "solid": { "color": "#565c65" } },
-                            "fontFamily": "Source Sans Pro",
-                            "fontSize": 10
-                        }],
-                        "dataPoint": [{
-                            "outline": false,
-                            "outlineColor": { "solid": { "color": "#ffffff" } },
-                            "outlineThickness": 1
-                        }],
-                        "fill": [{
-                            "color": { "solid": { "color": "#005ea2" } },
-                            "transparency": 0
-                        }],
-                        "shape": [{
-                            "show": true,
-                            "shapeType": "rectangle",
-                            "lineStyle": "solid",
-                            "lineThickness": 0,
-                            "roundedCorners": 2,
-                            "stackedBarSpacing": 0,
-                            "innerPadding": 0
-                        }]
-                    }
-                }
-            }
-        };
-
-        const jsonString = JSON.stringify(barColumnTheme, null, 2);
-        const blob = new Blob([jsonString], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = 'HHS-Bar-Column-Chart-Theme-Complete.json';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        addToast('Complete Bar/Column Chart Theme downloaded! Includes all themeable properties.', 'success');
+        addToast('Complete HHS Power BI Theme downloaded! Includes all visuals and comprehensive Bar/Column chart properties.', 'success');
     };
 
     const [selectedCategory, setSelectedCategory] = React.useState('all');
@@ -686,28 +473,9 @@ const StyleGuide = () => {
                                 <Layout className="h-6 w-6" />
                             </div>
                             <div>
-                                <h4 className="font-semibold text-slate-900">HHS Power BI Theme</h4>
-                                <p className="text-xs text-slate-500">Complete theme file with HHS brand colors, accessibility settings, and visual styles</p>
-                                <p className="text-xs text-brand-600 mt-1 font-medium">✓ 15 data colors • WCAG AA compliant • Ready to import</p>
-                            </div>
-                        </div>
-                        <Download className="h-5 w-5 text-slate-400 group-hover:text-brand-600 transition-colors" />
-                    </motion.div>
-
-                    <motion.div
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={downloadBarColumnTheme}
-                        className="card flex items-center justify-between group cursor-pointer hover:border-brand-300 hover:shadow-md transition-all"
-                    >
-                        <div className="flex items-center gap-4">
-                            <div className="h-12 w-12 bg-brand-50 rounded-lg flex items-center justify-center text-brand-600">
-                                <Layout className="h-6 w-6" />
-                            </div>
-                            <div>
-                                <h4 className="font-semibold text-slate-900">HHS Bar/Column Chart Theme</h4>
-                                <p className="text-xs text-slate-500">Complete Bar/Column chart theme with ALL themeable properties configured</p>
-                                <p className="text-xs text-brand-600 mt-1 font-medium">✓ 21 property categories • Complete control • All chart types</p>
+                                <h4 className="font-semibold text-slate-900">HHS Power BI Theme - Complete</h4>
+                                <p className="text-xs text-slate-500">Comprehensive theme with HHS brand colors, accessibility settings, general visual styles, and detailed Bar/Column chart properties</p>
+                                <p className="text-xs text-brand-600 mt-1 font-medium">✓ 15 data colors • All chart types • 21 Bar/Column properties • WCAG AA compliant</p>
                             </div>
                         </div>
                         <Download className="h-5 w-5 text-slate-400 group-hover:text-brand-600 transition-colors" />
@@ -799,10 +567,7 @@ const StyleGuide = () => {
                     </ol>
                     <div className="mt-3 pt-3 border-t border-brand-200 space-y-2">
                         <p className="text-xs text-slate-600">
-                            <strong>HHS Power BI Theme includes:</strong> 15 HHS brand colors, WCAG AA compliant contrast ratios, optimized visual styles for cards, KPIs, slicers, and semantic colors for good/bad/warning indicators.
-                        </p>
-                        <p className="text-xs text-slate-600">
-                            <strong>Bar/Column Chart Theme includes:</strong> Complete control over all 21 themeable property categories (Title, Legend, Data Colors, Labels, Axes, Plot Area, Borders, Shadows, Tooltips, Shape, and more). See <code className="text-xs bg-white px-1 rounded">POWER_BI_BAR_COLUMN_THEME_PROPERTIES.md</code> for full reference.
+                            <strong>Complete HHS Power BI Theme includes:</strong> 15 HHS brand colors, WCAG AA compliant contrast ratios, optimized visual styles for all chart types (cards, KPIs, slicers), plus comprehensive Bar/Column chart theming with all 21 property categories (Title, Legend, Data Colors, Labels, Axes, Plot Area, Borders, Shadows, Tooltips, Shape, and more). See <code className="text-xs bg-white px-1 rounded">POWER_BI_BAR_COLUMN_THEME_PROPERTIES.md</code> for full property reference.
                         </p>
                     </div>
                 </div>
