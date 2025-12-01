@@ -190,7 +190,7 @@ All properties go under:
 ```json
 "categoryAxis": [{
   "show": true,
-  "axisType": "categorical",  // "categorical" | "continuous"
+  // Note: axisType is NOT included in themes - Power BI determines this automatically
   "start": 0,
   "end": 100,
   "showAxisTitle": true,
@@ -220,7 +220,7 @@ All properties go under:
 
 **Property Reference:**
 - `categoryAxis.show` - Boolean: Show axis
-- `categoryAxis.axisType` - String: "categorical" | "continuous"
+- `categoryAxis.axisType` - **⚠️ NOT for themes:** Power BI determines this automatically. Do not include in theme JSON.
 - `categoryAxis.start` - Number: Axis start value
 - `categoryAxis.end` - Number: Axis end value
 - `categoryAxis.showAxisTitle` - Boolean: Show axis title
