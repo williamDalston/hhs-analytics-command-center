@@ -451,6 +451,8 @@
 
 ### Complete Theme Configuration
 
+> **📚 Comprehensive Reference:** For a complete list of ALL themeable properties for Bar/Column charts, see `POWER_BI_BAR_COLUMN_THEME_PROPERTIES.md`. This document includes all 21 property categories with detailed explanations and examples.
+
 ```json
 {
   "name": "HHS Jira Delivery Dashboard Theme",
@@ -713,5 +715,6 @@
 ---
 
 This comprehensive styling guide ensures your Jira Delivery Dashboard meets HHS standards, Power BI best practices, and creates a professional, accessible, and visually appealing dashboard.
+
 
 
