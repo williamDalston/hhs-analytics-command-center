@@ -242,7 +242,6 @@ const StyleGuide = () => {
                         }],
                         "categoryAxis": [{
                             "show": true,
-                            "axisType": "categorical",
                             "showAxisTitle": true,
                             "axisTitle": "",
                             "axisTitleColor": { "solid": { "color": "#565c65" } },
@@ -409,7 +408,6 @@ const StyleGuide = () => {
                         }],
                         "categoryAxis": [{
                             "show": true,
-                            "axisType": "categorical",
                             "showAxisTitle": true,
                             "axisTitle": "",
                             "axisTitleColor": { "solid": { "color": "#565c65" } },
